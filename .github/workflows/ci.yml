@@ -1,0 +1,76 @@
+name: CI
+
+# Static validation that runs without any LLM/eval backend. Guards JSON
+# manifests, version consistency across all version-bearing files (the single
+# source of truth is plugin.json; Release Please keeps the others in sync), and
+# hook script integrity including the cross-platform run-hook entry point.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0  # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Validate JSON files
+        run: |
+          set -euo pipefail
+          files=(
+            .claude-plugin/plugin.json
+            .claude-plugin/marketplace.json
+            hooks/hooks.json
+            .release-please-manifest.json
+            release-please-config.json
+          )
+          for f in "${files[@]}"; do
+            python3 -m json.tool "$f" > /dev/null
+            echo "ok: $f"
+          done
+
+      - name: Check version consistency
+        run: |
+          set -euo pipefail
+          plugin=$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          market=$(python3 -c "import json;print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][0]['version'])")
+          manifest=$(python3 -c "import json;print(json.load(open('.release-please-manifest.json'))['.'])")
+          vtxt=$(tr -d '[:space:]' < version.txt)
+          echo "plugin.json=$plugin marketplace.json=$market manifest=$manifest version.txt=$vtxt"
+          for pair in "marketplace.json:$market" "manifest:$manifest" "version.txt:$vtxt"; do
+            name=${pair%%:*}
+            value=${pair#*:}
+            if [ "$value" != "$plugin" ]; then
+              echo "::error::version mismatch: plugin.json=$plugin but $name=$value"
+              exit 1
+            fi
+          done
+          echo "all versions agree: $plugin"
+
+      - name: Validate hook scripts
+        run: |
+          set -euo pipefail
+          bash -n hooks/run-hook.cmd
+          bash -n hooks/session-start.sh
+          # The SessionStart hook must emit valid JSON for Claude Code to consume.
+          bash hooks/session-start.sh | python3 -m json.tool > /dev/null
+          echo "ok: hooks"

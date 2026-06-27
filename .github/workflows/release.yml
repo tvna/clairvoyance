@@ -1,0 +1,36 @@
+name: Release
+
+# Semantic versioning via Release Please. Conventional-commit history on `main`
+# is analyzed to compute the next semver. Release Please opens (or updates) a
+# release PR; merging that PR creates the git tag and GitHub Release and bumps
+# the version in plugin.json and marketplace.json. Tagging is gated behind the
+# release PR review, consistent with the repository's no-auto-merge posture.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Run Release Please
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071  # v4.4.1
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
