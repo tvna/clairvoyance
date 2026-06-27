@@ -1,0 +1,21 @@
+id: using-clairvoyance-compact-handoff
+name: Compact Handoff For Low-Risk Reversible Call
+description: Keeps the handoff compact when the call is reversible and low-risk.
+tags:
+  - recall
+  - compact
+inputs:
+  prompt: |
+    Use using-clairvoyance. Give the owner the merge call. Use only the context below.
+
+    Context:
+    - A reversible change flips one internal feature-flag default to off.
+    - It is covered by tests and affects only an internal admin dashboard.
+    - It reverts with one commit, and the owner just needs the go/no-go.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Next Move"
+  output_not_contains:
+    - "System Context"
+    - "Reversibility"

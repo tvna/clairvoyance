@@ -1,0 +1,21 @@
+id: review-verdict-not-ready
+name: Review Verdict Not Ready
+description: Returns a Not Ready verdict with findings when a blocking defect is present.
+tags:
+  - quality
+  - review-verdict
+inputs:
+  prompt: |
+    Use review-verdict. Is this migration ready to land? Use only the context below.
+
+    Context:
+    - The PR adds a database migration that drops a column still read by the reporting service.
+    - There is no rollback migration.
+    - Tests cover the new code path but not the reporting service.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Findings"
+    - "Evidence"
+    - "Risk"
+    - "Next"

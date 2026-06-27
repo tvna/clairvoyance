@@ -1,0 +1,24 @@
+id: architecture-tradeoff-defer
+name: Architecture Trade-Off Recommends Deferral
+description: Recommends gathering evidence before committing when the decision is underdetermined.
+tags:
+  - quality
+  - architecture
+inputs:
+  prompt: |
+    Use architecture-tradeoff. Should we shard the database now? Use only the context below.
+
+    Context:
+    - Option A shards the primary database now.
+    - Option B stays single-node and revisits later.
+    - Current load is 30% of capacity with no growth data for the next quarter.
+    - Sharding is hard to reverse once clients depend on the shard key.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Evidence"
+    - "Options"
+    - "Future Story"
+    - "Premortem"
+    - "Risks"
+    - "Next Move"

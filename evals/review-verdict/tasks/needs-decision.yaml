@@ -1,0 +1,21 @@
+id: review-verdict-needs-decision
+name: Review Verdict Needs Human Decision
+description: Returns a Needs Human Decision verdict when readiness depends on an owner risk call.
+tags:
+  - quality
+  - review-verdict
+inputs:
+  prompt: |
+    Use review-verdict. Review this change and tell me if it is ready. Use only the context below.
+
+    Context:
+    - The change doubles a cache TTL to cut database load.
+    - It trades data freshness for fewer queries; both are valid depending on product priorities.
+    - Tests pass; the change reverts with one commit.
+    - No data says which matters more here - load or freshness.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Evidence"
+    - "Risk"
+    - "Next"

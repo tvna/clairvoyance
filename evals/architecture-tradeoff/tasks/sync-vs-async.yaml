@@ -1,0 +1,25 @@
+id: architecture-tradeoff-sync-vs-async
+name: Architecture Trade-Off Sync vs Async
+description: Recommends between a synchronous call and an async queue with a premortem.
+tags:
+  - quality
+  - architecture
+inputs:
+  prompt: |
+    Use architecture-tradeoff. Explain the trade-off and recommend the next move. Use only the context below.
+
+    Context:
+    - Option A sends the welcome email synchronously inside the signup request.
+    - Option B enqueues the email to a background worker.
+    - Signup latency matters; the email provider occasionally times out.
+    - The team has no queue infrastructure yet.
+    - Both options are reversible.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Evidence"
+    - "Options"
+    - "Future Story"
+    - "Premortem"
+    - "Risks"
+    - "Next Move"
