@@ -1,6 +1,6 @@
 ---
 name: clairvoyance
-description: Use when an agent is blocked by a human-owned choice and must hand the owner a prepared decision, approval request, deferral choice, rollback choice, or 2-3 concrete options with evidence.
+description: Prepares an evidence-backed owner decision. Use when an agent is blocked by a human-owned choice and must present a prepared decision, approval, deferral, rollback, or 2-3 concrete options with evidence.
 ---
 
 # Clairvoyance
@@ -23,7 +23,7 @@ Clairvoyance turns a blocker or owner decision into an evidence-backed handoff a
 
 ## References
 
-Read [decision handoffs](references/decision-handoff.md) for owner choices, blockers, and human-only decisions.
+Read [decision handoffs](references/decision-handoff.md) for owner choices, blockers, and human-only decisions, or a [worked example](references/example.md).
 
 ## Output
 

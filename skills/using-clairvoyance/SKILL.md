@@ -1,6 +1,6 @@
 ---
 name: using-clairvoyance
-description: Use when starting a session or after compaction to route handoffs, owner choices, review readiness, architecture trade-offs, and unclear decisions.
+description: Routes an agent-to-human handoff. Use when starting a session or after compaction to dispatch owner choices, review readiness, architecture trade-offs, and unclear decisions.
 ---
 
 # Using Clairvoyance

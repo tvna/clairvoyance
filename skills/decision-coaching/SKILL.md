@@ -1,6 +1,6 @@
 ---
 name: decision-coaching
-description: Use when a human seeks LGTM, rubber-stamp agreement, or a decision from ambiguous, noisy, subject-missing, or architecture-poor input where the human decision context is unclear.
+description: Refuses rubber-stamp approval and coaches the human toward a sound decision with a focused question. Use when a human seeks LGTM or a decision from ambiguous, noisy, subject-missing, or architecture-poor input.
 ---
 
 # Decision Coaching

@@ -1,6 +1,6 @@
 ---
 name: review-verdict
-description: Use when a human asks whether a PR, commit, branch, working tree, or merge candidate is ready, safe to land, needs fixes first, or requires a review verdict with evidence.
+description: Produces an evidence-backed readiness verdict for changed code. Use when a human asks whether a PR, commit, branch, working tree, or merge candidate is ready, safe to land, or needs fixes first.
 ---
 
 # Review Verdict
@@ -33,3 +33,7 @@ Use these headings:
 - **Next Move:** the concrete action the human can approve, reject, or modify.
 
 Pattern: **Verdict** -> **Findings** -> **Evidence** -> **System Context** -> **Risks** -> **Next Move**. Never issue a diff-only verdict.
+
+## Example
+
+See a [worked review verdict](references/example.md).

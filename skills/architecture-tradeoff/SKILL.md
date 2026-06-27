@@ -1,6 +1,6 @@
 ---
 name: architecture-tradeoff
-description: Use when a human asks for one system-level architecture judgment between implementation options, ownership boundaries, dependency shapes, data-flow choices, or failure-mode trade-offs.
+description: Decides a system-level architecture trade-off. Use when a human asks to judge between implementation options, ownership boundaries, dependency shapes, data-flow choices, or failure-mode trade-offs.
 ---
 
 # Architecture Trade-Off
@@ -37,3 +37,7 @@ Use these headings:
 - **Next Move:** the concrete action the human can approve, reject, or modify.
 
 Pattern: **Verdict** -> **Evidence** -> **Options** -> **Future Story** -> **Premortem** -> **Next Move**. Expand detail only when it changes the call.
+
+## Example
+
+See a [worked trade-off](references/example.md).
