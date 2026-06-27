@@ -1,6 +1,6 @@
 {
-  "name": "clairvoyance-dev",
-  "description": "Development marketplace for Clairvoyance.",
+  "name": "clairvoyance",
+  "description": "Marketplace for the Clairvoyance plugin.",
   "owner": {
     "name": "tvna"
   },
