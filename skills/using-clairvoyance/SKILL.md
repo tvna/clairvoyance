@@ -1,6 +1,6 @@
 ---
 name: using-clairvoyance
-description: Use when starting a session or after compaction to route safe handoffs, owner choices, review readiness, architecture trade-offs, and unclear decisions.
+description: Use when starting a session or after compaction to route handoffs, owner choices, review readiness, architecture trade-offs, and unclear decisions.
 ---
 
 # Using Clairvoyance
@@ -11,11 +11,11 @@ description: Use when starting a session or after compaction to route safe hando
 
 Before handoff, select one plugin-qualified Clairvoyance skill.
 
-SessionStart owner language is authoritative; if missing, use portable question handoff before decision handoff.
+SessionStart owner language is authoritative; if missing, use portable question handoff.
 
 Portable question handoff: AskUserQuestion if available; else print `AskUserQuestion:` plus the same question and 1-3 choices.
 
-Progressive disclosure: start compact; expand context, risks, or open questions only for uncertainty, high risk, or human request.
+Progressive disclosure: start compact; expand context, risks, or questions only for uncertainty, high risk, or human request.
 
 ## Trigger
 
@@ -42,7 +42,7 @@ If a human-only answer blocks the handoff, use portable question handoff with pr
 
 ## Examples
 
-- "Should we merge?" -> `clairvoyance:review-verdict`.
-- "Which architecture path?" -> `clairvoyance:architecture-tradeoff`.
-- "LGTM?" or "it should use the service, right?" -> `clairvoyance:decision-coaching`.
-- "Run the tests" -> do not load the handoff skill.
+- Merge: `review-verdict` -> **Verdict**, **Findings**, **Evidence**, **Risks**, **Next Move**.
+- Architecture: `architecture-tradeoff` -> **Verdict**, **Options**, **Future Story**, **Premortem**, **Next Move**.
+- LGTM/unclear subject: `decision-coaching` -> portable question handoff.
+- Tests/progress only: do not load Clairvoyance.

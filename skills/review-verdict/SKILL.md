@@ -32,4 +32,4 @@ Use these headings:
 - **Reversibility:** rollback path and cost.
 - **Next Move:** the concrete action the human can approve, reject, or modify.
 
-Do not issue a diff-only verdict. Expand context only when it changes readiness, severity, risk, or next move.
+Pattern: **Verdict** -> **Findings** -> **Evidence** -> **System Context** -> **Risks** -> **Next Move**. Never issue a diff-only verdict.

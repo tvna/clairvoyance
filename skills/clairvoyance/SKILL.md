@@ -38,4 +38,4 @@ Use these headings; do not omit any:
 - **Next Move:** the concrete action the human can approve, reject, or modify.
 - **Open Questions:** blockers that remain after portable question handoff.
 
-Keep the first answer compact. Expand context or open questions only when uncertainty, risk, or the human request requires it.
+Pattern: **Verdict** -> **Evidence** -> **Options** -> **Risks** -> **Next Move**. Expand context or open questions only for uncertainty, risk, or human request.
