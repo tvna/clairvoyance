@@ -13,7 +13,7 @@ Use this when the human must approve, reject, sequence, defer, choose between pr
 
 ## Quality Bar
 
-Do not ask "what should I do?" until the available options are investigated. If the agent cannot make the decision-ready, hand off the blocker and the attempted paths.
+Do not ask "what should I do?" until the agent has investigated the available options. If the agent cannot make the decision ready, hand off the blocker and the attempted paths.
 
 ## Blocked Variant
 

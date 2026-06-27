@@ -34,7 +34,7 @@ Use these headings; do not omit any:
 - **System Context:** blocked surface, ownership boundary, and affected workflow.
 - **Options:** named choices with trade-offs when a decision is required.
 - **Risks:** known failure modes and missing proof.
-- **Reversibility:** how hard it is to undo.
+- **Reversibility:** how hard the chosen option is to undo.
 - **Next Move:** the concrete action the human can approve, reject, or modify.
 - **Open Questions:** only human-only blockers when AskUserQuestion is unavailable.
 

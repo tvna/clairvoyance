@@ -1,0 +1,16 @@
+id: using-clairvoyance-positive-route-decision-coaching
+name: Positive Route - Decision Coaching
+description: The bootstrap should route sycophancy pressure and architecture-poor decisions to decision-coaching.
+tags:
+  - recall
+  - routing
+inputs:
+  prompt: |
+    Which single Clairvoyance skill should be loaded before answering?
+    Return only the skill name.
+
+    Scenario:
+    The human asks for LGTM on an architecture change without naming callers, ownership boundaries, or rollback.
+expected:
+  output_contains:
+    - "decision-coaching"
