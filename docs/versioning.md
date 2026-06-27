@@ -41,4 +41,19 @@ The version bump itself is computed from commit prefixes (see
 > `$.plugins[0].version` path on the first release PR. If it does not, the CI
 > version-consistency check will fail and surface the drift immediately.
 
+## Required setup
+
+**Release token.** The `main` ruleset requires the `validate` and `tests` checks,
+but a PR opened with the default `GITHUB_TOKEN` does not start workflows — so the
+release PR's required checks would stay pending and block the merge. Create a PAT
+(or GitHub App token) with `contents` + `pull-requests` write and add it as the
+repo secret `RELEASE_PLEASE_TOKEN`; `release.yml` passes it to Release Please and
+falls back to `GITHUB_TOKEN` when it is unset.
+
+**version.txt invariant.** `version.txt` is bumped implicitly by Release Please's
+`release-type: "simple"` (it owns a root file of that exact name), not via
+`extra-files`. The version-consistency check gates on it, so do not rename it or
+change `release-type` without also updating how `version.txt` is maintained, or
+the `validate` check will fail on every release PR.
+
 [Release Please]: https://github.com/googleapis/release-please

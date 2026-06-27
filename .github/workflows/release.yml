@@ -32,5 +32,11 @@ jobs:
       - name: Run Release Please
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071  # v4.4.1
         with:
+          # A PAT or GitHub App token is required so the release PR triggers the
+          # CI checks the main ruleset requires — PRs opened with GITHUB_TOKEN do
+          # not start workflows. Falls back to GITHUB_TOKEN (the release PR opens,
+          # but its required checks stay pending until RELEASE_PLEASE_TOKEN is
+          # set as a repo secret). See docs/versioning.md.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
