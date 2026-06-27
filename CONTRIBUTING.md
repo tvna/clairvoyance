@@ -32,6 +32,38 @@ waza check            # spec, links, schema, token budget — no quota needed
 CI re-runs static validation (JSON manifests, version consistency, hook scripts)
 on every PR. None of it requires an external service.
 
+### Pre-commit hooks
+
+A [`.pre-commit-config.yaml`](.pre-commit-config.yaml) runs the same checks before
+each commit. Install the git hook once with [prek](https://github.com/j178/prek)
+(or `pre-commit`):
+
+```bash
+prek install            # enable the hook
+prek run --all-files     # run across the whole repo
+```
+
+It runs format hygiene (JSON/YAML, end-of-file, line endings), `shellcheck` on the
+bash hook, and the project's own validators (`waza check`, version consistency,
+and hook-script checks via the shared `scripts/`). `waza check` needs the `waza`
+binary on your PATH.
+
+## Tests
+
+The helper scripts under `scripts/` are tested with pytest, managed by
+[uv](https://docs.astral.sh/uv/). Dev dependencies are declared in
+`pyproject.toml` and pinned in `uv.lock`, and the Python version is pinned in
+`.python-version` (uv provisions it automatically). This is a non-package tooling
+project — the plugin version still lives in `plugin.json`.
+
+```bash
+uv run pytest            # run the tests with coverage
+```
+
+Coverage is enforced at 100% for `scripts/` (see `pyproject.toml`). The same
+command runs in CI and as a pre-commit hook when `scripts/`, `tests/`, or the
+dependency files change.
+
 ## Running evaluations
 
 ```bash

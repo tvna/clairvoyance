@@ -49,28 +49,29 @@ jobs:
           done
 
       - name: Check version consistency
-        run: |
-          set -euo pipefail
-          plugin=$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")
-          market=$(python3 -c "import json;print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][0]['version'])")
-          manifest=$(python3 -c "import json;print(json.load(open('.release-please-manifest.json'))['.'])")
-          vtxt=$(tr -d '[:space:]' < version.txt)
-          echo "plugin.json=$plugin marketplace.json=$market manifest=$manifest version.txt=$vtxt"
-          for pair in "marketplace.json:$market" "manifest:$manifest" "version.txt:$vtxt"; do
-            name=${pair%%:*}
-            value=${pair#*:}
-            if [ "$value" != "$plugin" ]; then
-              echo "::error::version mismatch: plugin.json=$plugin but $name=$value"
-              exit 1
-            fi
-          done
-          echo "all versions agree: $plugin"
+        run: python3 scripts/check_version_consistency.py
 
       - name: Validate hook scripts
-        run: |
-          set -euo pipefail
-          bash -n hooks/run-hook.cmd
-          bash -n hooks/session-start.sh
-          # The SessionStart hook must emit valid JSON for Claude Code to consume.
-          bash hooks/session-start.sh | python3 -m json.tool > /dev/null
-          echo "ok: hooks"
+        run: bash scripts/check_hooks.sh
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0  # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Run script tests with coverage
+        run: uv run --frozen pytest
