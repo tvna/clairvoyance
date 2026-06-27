@@ -17,9 +17,14 @@ recommended next move — so the human can approve, reject, or safely disagree.
 | `review-verdict` | A PR, commit, branch, working tree, or merge candidate needs a readiness verdict with evidence. |
 | `architecture-tradeoff` | A system-level architecture decision between options, boundaries, dependencies, or failure modes. |
 | `decision-coaching` | A human asks for LGTM / rubber-stamp on ambiguous, noisy, or architecture-poor input. |
+| `session-handoff` | A clean restart beats trusting the harness's compaction, repository gates limit what this session can change, or work is unfinished — the next session needs a paste-ready prompt to resume. |
 
 Each handoff branches by stakes: reversible, low-risk calls get a compact
 `Verdict` + `Next Move`; irreversible or contested calls get the full handoff.
+
+`session-handoff` is different — it hands off to the next agent session, not a
+human. See [docs/session-handoff.md](docs/session-handoff.md) for why it exists and
+when to prefer it over the harness's automatic compaction.
 
 ## Install
 

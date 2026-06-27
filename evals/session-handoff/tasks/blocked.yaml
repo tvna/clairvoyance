@@ -1,0 +1,24 @@
+id: session-handoff-blocked
+name: Handoff For Blocked Work
+description: Hands off a blocked task with the blocker and resumption captured.
+tags:
+  - quality
+  - handoff
+inputs:
+  prompt: |
+    Use session-handoff. The session is ending blocked; write the handoff. Use only the context below.
+
+    Context:
+    - Issue #530, branch feat/webhook-retry (already exists).
+    - Implementing webhook retry, but the staging webhook secret is missing and only the owner can issue it.
+    - Code is drafted in app/webhooks.py; it cannot be verified until the secret exists.
+    - The next session resumes once the secret is set.
+expected:
+  output_contains:
+    - "Context"
+    - "Background"
+    - "Implementation"
+    - "Verification"
+    - "Acceptance criteria"
+  output_not_contains:
+    - "```"

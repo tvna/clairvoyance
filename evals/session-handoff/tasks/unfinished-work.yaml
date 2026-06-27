@@ -1,0 +1,25 @@
+id: session-handoff-unfinished-work
+name: Handoff For Unfinished Work
+description: Produces a paste-ready next-session handoff when work is left mid-implementation.
+tags:
+  - quality
+  - handoff
+inputs:
+  prompt: |
+    Use session-handoff. Write the handoff for the next session. Use only the context below.
+
+    Context:
+    - Issue #412, branch fix/cache-ttl-flake (already exists).
+    - test_cache_expiry in tests/test_cache.py is flaky since the real clock landed.
+    - The fix is to freeze the clock in the test setup; app/cache.py stays unchanged.
+    - Verify with: uv run pytest tests/test_cache.py -v
+expected:
+  output_contains:
+    - "Context"
+    - "Background"
+    - "Files to read"
+    - "Implementation"
+    - "Verification"
+    - "Acceptance criteria"
+  output_not_contains:
+    - "```"
