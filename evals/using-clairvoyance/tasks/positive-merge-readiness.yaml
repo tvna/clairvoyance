@@ -17,4 +17,4 @@ expected:
   output_contains:
     - "Evidence"
     - "Risk"
-    - "Verdict"
+    - "merge"

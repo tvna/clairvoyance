@@ -19,8 +19,8 @@ When naming a route, use `clairvoyance:clairvoyance`, `clairvoyance:review-verdi
 
 Route by scene:
 
-- Human owner decision, blocker, or prepared options -> `clairvoyance:clairvoyance`.
-- PR, commit, branch, review verdict, or merge readiness -> `clairvoyance:review-verdict`.
+- Human owner decision, blocker, or prepared options outside PR readiness -> `clairvoyance:clairvoyance`.
+- PR, commit, branch, review verdict, or "should this merge?" -> `clairvoyance:review-verdict`.
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
 
 Do not route ordinary implementation, progress updates, test runs, typo fixes, or refactors unless the response becomes a human decision handoff.
@@ -33,11 +33,13 @@ Use other needed skills first. Use Clairvoyance when the result is handed to the
 
 When unsure, prefer the narrowest matching scene; if none applies, continue normally.
 
-If the host cannot load the selected skill, follow its handoff shape: **Verdict**, evidence, risks, reversibility, and next move. Owner decisions also include **Options**.
+If answering directly, use exact headings. Owner: **Verdict**, **Evidence**, **Options**, **Risks**, **Reversibility**, **Next Move**. Review/architecture: start with **Verdict**.
+
+If a human-only answer blocks the handoff, use AskUserQuestion with prepared choices.
 
 ## Examples
 
-- "Should we merge this?" -> load `clairvoyance:review-verdict`.
-- "Which architecture path should we choose?" -> load `clairvoyance:architecture-tradeoff`.
-- "I am blocked; tell the owner the choices." -> load `clairvoyance:clairvoyance`.
+- "Should we merge?" -> `clairvoyance:review-verdict`.
+- "Which architecture path?" -> `clairvoyance:architecture-tradeoff`.
+- "I am blocked; owner choices?" -> `clairvoyance:clairvoyance`.
 - "Run the tests" -> do not load the handoff skill.

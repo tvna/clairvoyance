@@ -17,7 +17,8 @@ Architecture trade-offs turn system context into a decision a human can inspect.
 4. Compare cost, safety, operational impact, reversibility, and time-to-value.
 5. Recommend the option that preserves important invariants with the smallest sufficient change.
 6. State what proof would change the recommendation.
-7. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
+7. If only the human can answer a blocking architecture choice, use AskUserQuestion with 1-3 prepared choices; otherwise list it as a risk or unknown.
+8. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
 
 ## Output
 

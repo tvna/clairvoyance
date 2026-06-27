@@ -17,7 +17,8 @@ Review verdicts turn changed code into an evidence-backed readiness call.
 4. Cite evidence from canonical URLs, files, tests, command output, logs, or observed behavior.
 5. Recommend merge, fix first, investigate, defer, or close.
 6. State residual risk, missing proof, rollback, and the next move.
-7. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
+7. If only the human can answer a blocking readiness question, use AskUserQuestion with 1-3 prepared choices; otherwise list missing proof as risk.
+8. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
 
 ## Output
 

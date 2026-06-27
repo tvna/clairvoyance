@@ -1,0 +1,20 @@
+id: clairvoyance-ask-user-question
+name: AskUserQuestion For Human-Only Blocker
+description: Uses AskUserQuestion when only the human can unblock an owner decision.
+tags:
+  - quality
+  - ask-user-question
+inputs:
+  prompt: |
+    Use clairvoyance. Ask the owner the blocking question with the required mechanism. Use only the context below.
+
+    Context:
+    - Deployment cannot continue without choosing where the production API key will be issued.
+    - Staging works.
+    - The agent cannot create or view production secrets.
+    - The owner can issue the key in the production secret store, approve a staging-only demo, or defer release.
+expected:
+  output_contains:
+    - "AskUserQuestion"
+    - "production secret store"
+    - "staging-only demo"
