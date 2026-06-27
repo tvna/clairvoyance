@@ -3,10 +3,10 @@
 
 Validates the mechanical subset of the Agent Skills best practices that needs no
 LLM: frontmatter presence, the ``name`` rules (lowercase/hyphens, length,
-reserved words, directory match), the ``description`` (present, length, third
-person), the SKILL.md body length, and that relative links resolve and do not
-traverse upward. Emits GitHub Actions annotations and exits non-zero on any
-violation. Shared by CI and the pre-commit hook so the rule lives once.
+reserved words, directory match), the ``description`` (present, single-line,
+length, third person), the SKILL.md body length, and that relative links in the
+body resolve and do not traverse upward. Emits GitHub Actions annotations and
+exits non-zero on any violation. Shared by CI and the pre-commit hook.
 """
 from __future__ import annotations
 
@@ -18,8 +18,9 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
 
 NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-KEY_RE = re.compile(r"^(\w+):\s*(.*)$")
+KEY_RE = re.compile(r"^([\w-]+):\s*(.*)$")
 LINK_RE = re.compile(r"\]\(([^)]+)\)")
+BLOCK_SCALAR_RE = re.compile(r"^[|>][+-]?$")
 RESERVED_WORDS = ("anthropic", "claude")
 NON_THIRD_PERSON = ("I can ", "You can ", "you can ")
 MAX_NAME = 64
@@ -28,7 +29,11 @@ MAX_BODY_LINES = 500
 
 
 def split_frontmatter(text: str) -> tuple[dict[str, str] | None, str]:
-    """Return (frontmatter, body), or (None, text) when frontmatter is absent."""
+    """Return (frontmatter, body), or (None, text) when frontmatter is absent.
+
+    ``Path.read_text`` normalises CRLF to LF (universal newlines), so a file
+    saved with Windows line endings still starts with ``---\\n`` here.
+    """
     if not text.startswith("---\n"):
         return None, text
     end = text.find("\n---", 4)
@@ -69,6 +74,10 @@ def check_skill(skill_md: pathlib.Path) -> list[tuple[str, str]]:
 
     if not description:
         errors.append(("error", f"{rel}: frontmatter has no description"))
+    elif BLOCK_SCALAR_RE.match(description):
+        # A YAML block scalar ('>' / '|') can't be validated by this line-based
+        # parser; require a single-line description instead of misparsing it.
+        errors.append(("error", f"{rel}: description must be a single-line scalar, not a block scalar"))
     else:
         if len(description) > MAX_DESCRIPTION:
             errors.append(("error", f"{rel}: description exceeds {MAX_DESCRIPTION} characters"))
@@ -76,17 +85,19 @@ def check_skill(skill_md: pathlib.Path) -> list[tuple[str, str]]:
             if phrase in description:
                 errors.append(("error", f"{rel}: description should be third-person (found '{phrase.strip()}')"))
 
-    if body.count("\n") > MAX_BODY_LINES:
+    if len(body.strip().splitlines()) > MAX_BODY_LINES:
         errors.append(("error", f"{rel}: SKILL.md body exceeds {MAX_BODY_LINES} lines"))
 
-    for target in LINK_RE.findall(text):
-        if target.startswith(("http://", "https://", "#")):
+    for raw in LINK_RE.findall(body):
+        # Drop any markdown title, #fragment, or ?query before resolving.
+        target = raw.strip().split(" ", 1)[0].split("#", 1)[0].split("?", 1)[0]
+        if not target or target.startswith(("http://", "https://", "mailto:")):
             continue
         if ".." in target:
-            errors.append(("error", f"{rel}: link '{target}' must not traverse upward"))
+            errors.append(("error", f"{rel}: link '{raw}' must not traverse upward"))
             continue
         if not (skill_md.parent / target).exists():
-            errors.append(("error", f"{rel}: broken link '{target}'"))
+            errors.append(("error", f"{rel}: broken link '{raw}'"))
 
     return errors
 

@@ -79,8 +79,13 @@ def test_description_not_third_person(tmp_path):
 
 
 def test_body_too_long(tmp_path):
-    _skill(tmp_path, "ok", body="\n" * 501)
+    _skill(tmp_path, "ok", body="content\n" * 501)
     assert any("body exceeds 500 lines" in m for _, m in _errors(tmp_path))
+
+
+def test_body_at_limit_passes(tmp_path):
+    _skill(tmp_path, "ok", body="content\n" * 500)
+    assert _errors(tmp_path) == []
 
 
 def test_broken_link(tmp_path):
@@ -120,3 +125,48 @@ def test_main_returns_zero_when_clean(tmp_path, capsys):
     _skill(tmp_path, "ok")
     assert cs.main(tmp_path / "skills") == 0
     assert "all skills pass" in capsys.readouterr().out
+
+
+def test_crlf_frontmatter_is_accepted(tmp_path):
+    # Path.read_text normalises CRLF -> LF, so Windows-authored files are fine.
+    d = tmp_path / "skills" / "ok"
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_bytes(
+        b"---\r\nname: ok\r\ndescription: Does a thing. Use when needed.\r\n---\r\n\r\n# Body\r\n"
+    )
+    assert _errors(tmp_path) == []
+
+
+def test_block_scalar_description_is_flagged(tmp_path):
+    _skill(tmp_path, "ok", description=">")
+    assert any("single-line scalar" in m for _, m in _errors(tmp_path))
+
+
+def test_hyphenated_frontmatter_key_does_not_break_parsing(tmp_path):
+    _skill(tmp_path, "ok", extra_fm="allowed-tools: Read\n")
+    assert _errors(tmp_path) == []
+
+
+def test_link_like_text_in_description_is_not_flagged(tmp_path):
+    # Links are scanned in the body only, never the frontmatter description.
+    _skill(tmp_path, "ok", description="Handles markdown ](x.md) syntax. Use when needed.")
+    assert _errors(tmp_path) == []
+
+
+def test_fragment_link_to_existing_file_resolves(tmp_path):
+    md = _skill(tmp_path, "ok", body="See [t](references/t.md#section).\n")
+    (md.parent / "references").mkdir()
+    (md.parent / "references/t.md").write_text("x")
+    assert _errors(tmp_path) == []
+
+
+def test_link_with_title_resolves(tmp_path):
+    md = _skill(tmp_path, "ok", body='See [t](references/t.md "Title").\n')
+    (md.parent / "references").mkdir()
+    (md.parent / "references/t.md").write_text("x")
+    assert _errors(tmp_path) == []
+
+
+def test_mailto_link_is_skipped(tmp_path):
+    _skill(tmp_path, "ok", body="Contact [m](mailto:a@b.com).\n")
+    assert _errors(tmp_path) == []

@@ -32,4 +32,6 @@ CMDBLOCK
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT_NAME="$1"
 shift
+# Degrade gracefully (matching the Windows branch) when no bash is available.
+command -v bash >/dev/null 2>&1 || exit 0
 exec bash "${SCRIPT_DIR}/${SCRIPT_NAME}" "$@"
