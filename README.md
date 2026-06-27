@@ -28,10 +28,10 @@ when to prefer it over the harness's automatic compaction.
 
 ## Install
 
-Add the development marketplace and install the plugin in Claude Code:
+Add the marketplace and install the plugin in Claude Code:
 
 ```
-/plugin marketplace add tvna/force-multiplier
+/plugin marketplace add tvna/clairvoyance
 /plugin install clairvoyance
 ```
 

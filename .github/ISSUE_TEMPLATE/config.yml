@@ -3,5 +3,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Contributing guide
-    url: https://github.com/tvna/force-multiplier/blob/main/CONTRIBUTING.md
+    url: https://github.com/tvna/clairvoyance/blob/main/CONTRIBUTING.md
     about: How to author skills, run evaluations, and follow the commit/release conventions.
