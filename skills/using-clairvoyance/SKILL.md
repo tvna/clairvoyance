@@ -15,6 +15,8 @@ Before handing a decision, verdict, blocker, architecture judgment, trade-off, o
 
 Route names are plugin-qualified.
 
+SessionStart owner language is authoritative; if missing, AskUserQuestion before handoff.
+
 ## Trigger
 
 Route by scene:
@@ -24,9 +26,9 @@ Route by scene:
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
 - LGTM requests, missing subject, noisy input, sycophancy pressure, or decision without architecture understanding -> `clairvoyance:decision-coaching`.
 
-Do not route implementation, progress, tests, typos, or refactors unless the response becomes a human decision handoff.
+Do not route implementation, progress, tests, typos, or refactors unless they become a human decision handoff.
 
-If the human asks for readiness, review, architecture, options, or a recommendation, use the matching skill. Treat evidence gaps as risks or unknowns.
+For readiness, review, architecture, options, or recommendations, use the matching skill. Treat evidence gaps as risks or unknowns.
 
 ## Priority
 

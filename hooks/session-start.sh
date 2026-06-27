@@ -4,6 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 plugin_root="$(cd "${script_dir}/.." && pwd)"
 skill_path="${plugin_root}/skills/using-clairvoyance/SKILL.md"
+project_root="${CLAUDE_PROJECT_DIR:-${CLAUDE_WORKSPACE_DIR:-${PWD:-}}}"
+language_file="${project_root}/.clairvoyance/owner-language.txt"
 
 if [ ! -f "${skill_path}" ]; then
   exit 0
@@ -20,7 +22,20 @@ escape_json() {
 }
 
 skill_content="$(cat "${skill_path}")"
+owner_language="${CLAIRVOYANCE_OWNER_LANGUAGE:-}"
+
+if [ -z "${owner_language}" ] && [ -f "${language_file}" ]; then
+  owner_language="$(sed -n '/[^[:space:]]/{s/^[[:space:]]*//;s/[[:space:]]*$//;p;q;}' "${language_file}")"
+fi
+
+if [ -n "${owner_language}" ]; then
+  language_context="Owner native language metadata is set to '${owner_language}'. This SessionStart injection is authoritative for Clairvoyance handoffs. Write operator-facing Clairvoyance output in this language unless a repository rule requires another language for outward-facing artifacts."
+else
+  language_context="Owner native language metadata is missing. Before any Clairvoyance handoff, use AskUserQuestion to ask the human for the primary project owner's native language. Use one focused, non-leading question with 2-3 choices when obvious. After the human answers, set up '${language_file}' with the language code or language name, then write operator-facing Clairvoyance output in that language."
+fi
+
 escaped="$(escape_json "$skill_content")"
-context="<EXTREMELY_IMPORTANT>\nYou have Clairvoyance.\n\nBelow is the full content of your 'using-clairvoyance' bootstrap skill. For an agent-to-human handoff, use the Skill tool to load the single matching Clairvoyance skill named by the bootstrap skill before responding.\n\n${escaped}\n</EXTREMELY_IMPORTANT>"
+language_escaped="$(escape_json "$language_context")"
+context="<EXTREMELY_IMPORTANT>\nYou have Clairvoyance.\n\n${language_escaped}\n\nBelow is the full content of your 'using-clairvoyance' bootstrap skill. For an agent-to-human handoff, use the Skill tool to load the single matching Clairvoyance skill named by the bootstrap skill before responding.\n\n${escaped}\n</EXTREMELY_IMPORTANT>"
 
 printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$context"
