@@ -1,0 +1,67 @@
+name: Sync agent instructions
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # weekly; adjust as needed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  MASTER_REPO: tvna/claude-md
+  # Pin a specific release tag. Bump deliberately in a reviewed PR.
+  INSTRUCTIONS_TAG: v1.0.0
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Recommended: restrict egress to the GitHub download hosts.
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout consumer repository
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0  # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Fetch and verify release assets
+        env:
+          MASTER_REPO: ${{ env.MASTER_REPO }}
+          INSTRUCTIONS_TAG: ${{ env.INSTRUCTIONS_TAG }}
+        run: |
+          set -euo pipefail
+          base="https://github.com/${MASTER_REPO}/releases/download/${INSTRUCTIONS_TAG}"
+          tmp="$(mktemp -d)"
+          for f in AGENTS.md SHA256SUMS; do
+            curl -fsSL "${base}/${f}" -o "${tmp}/${f}"
+          done
+          # Verify every payload file against the release manifest. A mismatch
+          # exits non-zero and the job fails before anything is committed.
+          ( cd "$tmp" && sha256sum -c SHA256SUMS )
+          # Land the verified files as committed real files (no symlink).
+          # No-delta layout: write to the repository root.
+          cp "${tmp}/AGENTS.md" AGENTS.md
+          rm -rf "$tmp"
+
+      - name: Open a pull request on change
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          branch: chore/sync-claude-md
+          title: "chore: sync agent instructions from tvna/claude-md"
+          commit-message: "chore: sync agent instructions (${{ env.INSTRUCTIONS_TAG }})"
+          body: |
+            Syncs AGENTS.md from ${{ env.MASTER_REPO }}
+            release ${{ env.INSTRUCTIONS_TAG }}, verified against SHA256SUMS.
+
+            Review and merge behind the code-owner gate. Do not auto-merge.
+          labels: instructions-sync
