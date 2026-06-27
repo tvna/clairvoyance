@@ -13,11 +13,5 @@ metrics:
     weight: 1.0
     threshold: 0.8
     description: Recall and precision for agent-to-human handoff detection.
-graders:
-  - type: text
-    name: mentions_clairvoyance_for_positive_tasks
-    config:
-      regex_match:
-        - "(?i)(clairvoyance|decision-ready|evidence-backed|handoff)"
 tasks:
   - "tasks/*.yaml"

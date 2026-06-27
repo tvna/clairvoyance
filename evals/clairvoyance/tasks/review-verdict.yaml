@@ -5,7 +5,16 @@ tags:
   - quality
   - review-verdict
 inputs:
-  prompt: "Review this PR and tell me if it is ready, with architecture impact."
+  prompt: |
+    Use clairvoyance. Review this PR and tell me if it is ready, with architecture impact. Use only the context below.
+
+    Context:
+    - PR changes `src/auth/session.ts` and `tests/session.test.ts`.
+    - Entry point is `POST /api/session/refresh`.
+    - The change rotates refresh tokens earlier in the request path.
+    - Unit tests cover success and expired-token cases.
+    - No integration test covers concurrent refresh requests.
+    - A failed rollout can be reverted with one commit.
 expected:
   output_contains:
     - "Evidence"

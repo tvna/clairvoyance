@@ -32,7 +32,7 @@ Read only what the handoff needs:
 
 ## Output
 
-A complete handoff includes:
+Use these headings; do not omit any:
 
 - **Verdict:** the recommendation in one sentence.
 - **Evidence:** what proves or limits the recommendation.

@@ -29,6 +29,8 @@ Use `clairvoyance` when the response will:
 
 Do not use it for ordinary implementation, quick progress updates, test runs, typo fixes, or refactors unless the response becomes a human decision handoff.
 
+If the human asks for merge readiness, review readiness, or a recommendation, use `clairvoyance` even when evidence is incomplete. Treat missing evidence as a risk or unknown instead of skipping the handoff.
+
 ## Priority
 
 If another skill is needed to do the work, use that skill first. Use `clairvoyance` when the result is being handed to the human for judgment.

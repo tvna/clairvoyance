@@ -5,9 +5,16 @@ tags:
   - recall
   - positive-trigger
 inputs:
-  prompt: "I am blocked. Tell the owner what choices they have."
+  prompt: |
+    I am blocked. Tell the owner what choices they have.
+
+    Context:
+    - The deployment needs a production API key.
+    - I verified the staging path works.
+    - I cannot create or view production secrets.
+    - The owner can either issue the key, defer release, or approve a staging-only demo.
 expected:
   output_contains:
-    - "clairvoyance"
-    - "choices"
+    - "Options"
     - "blocked"
+    - "recommend"
