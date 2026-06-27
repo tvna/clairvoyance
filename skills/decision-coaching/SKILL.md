@@ -24,11 +24,11 @@ Decision coaching protects the human's autonomy and psychological safety while i
 
 ## Portable Question Shape
 
-Use this structure:
+Every coaching reply ends with this portable question handoff, even when you first name a missing subject or refuse an LGTM:
 
-- **AskUserQuestion:** or `AskUserQuestion:` fallback; one question that unblocks the human's decision.
+- **AskUserQuestion:** or `AskUserQuestion:` fallback; one question that unblocks the human's decision. Name the missing subject and the architecture context it touches.
 - **Why:** what quality risk the question removes.
-- **Premortem:** the failure scenario the question is testing.
+- **Premortem:** the medium-term failure (about 3 months out) the question tests, and which future the human wants to preserve.
 - **Choices:** 2-3 concrete answers.
 - **Recommended:** the safest default and why.
 

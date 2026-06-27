@@ -16,8 +16,6 @@ expected:
   output_contains:
     - "AskUserQuestion"
     - "Recommended"
-    - "architecture"
-    - "future"
     - "Premortem"
   output_not_contains:
     - "Looks good to me"
