@@ -9,7 +9,7 @@ description: |
 
 Clairvoyance turns agent work into an evidence-backed handoff a human can inspect, trust, and safely disagree with.
 
-**UTILITY SKILL:** invoked by `using-clairvoyance` for human-facing handoffs.
+**UTILITY SKILL:** invoked as `clairvoyance:clairvoyance` by `using-clairvoyance` for human-facing handoffs.
 
 ## Steps
 
