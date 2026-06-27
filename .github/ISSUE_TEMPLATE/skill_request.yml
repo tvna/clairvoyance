@@ -1,0 +1,34 @@
+name: Skill or feature request
+description: Propose a new handoff skill or an enhancement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: handoff
+    attributes:
+      label: Handoff scenario
+      description: The agent-to-human moment this serves. Who decides, and what do they need to decide well?
+    validations:
+      required: true
+  - type: textarea
+    id: trigger
+    attributes:
+      label: Trigger
+      description: When should the agent reach for this — and when should it NOT?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired output
+      description: The evidence, options, risks, reversibility, and next move the human should receive.
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - New skill
+        - Enhance existing skill
+        - New eval coverage
+        - Other
+    validations:
+      required: true
