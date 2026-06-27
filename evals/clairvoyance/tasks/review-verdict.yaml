@@ -1,0 +1,14 @@
+id: clairvoyance-review-verdict
+name: Review Verdict Handoff
+description: Produces a review verdict with evidence and architecture context.
+tags:
+  - quality
+  - review-verdict
+inputs:
+  prompt: "Review this PR and tell me if it is ready, with architecture impact."
+expected:
+  output_contains:
+    - "Evidence"
+    - "System Context"
+    - "Risk"
+    - "Next"

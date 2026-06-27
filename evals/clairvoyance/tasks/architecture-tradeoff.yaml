@@ -1,0 +1,14 @@
+id: clairvoyance-architecture-tradeoff
+name: Architecture Trade-Off Handoff
+description: Produces a trade-off handoff with options and recommendation.
+tags:
+  - quality
+  - architecture
+inputs:
+  prompt: "Explain the trade-off and recommend the next move."
+expected:
+  output_contains:
+    - "Recommendation"
+    - "Options"
+    - "Evidence"
+    - "Reversibility"

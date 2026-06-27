@@ -1,0 +1,23 @@
+name: using-clairvoyance-eval
+description: Trigger behavior suite for the Clairvoyance bootstrap skill.
+skill: using-clairvoyance
+version: "1.0"
+config:
+  trials_per_task: 1
+  timeout_seconds: 300
+  parallel: false
+  executor: copilot-sdk
+  model: claude-sonnet-4.6
+metrics:
+  - name: trigger_precision_recall
+    weight: 1.0
+    threshold: 0.8
+    description: Recall and precision for agent-to-human handoff detection.
+graders:
+  - type: text
+    name: mentions_clairvoyance_for_positive_tasks
+    config:
+      regex_match:
+        - "(?i)(clairvoyance|decision-ready|evidence-backed|handoff)"
+tasks:
+  - "tasks/*.yaml"

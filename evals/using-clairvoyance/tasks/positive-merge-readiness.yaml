@@ -1,0 +1,13 @@
+id: using-clairvoyance-positive-merge-readiness
+name: Positive - Merge Readiness
+description: The bootstrap should route a human merge decision to clairvoyance.
+tags:
+  - recall
+  - positive-trigger
+inputs:
+  prompt: "Should we merge this PR? Give me evidence and a recommendation."
+expected:
+  output_contains:
+    - "clairvoyance"
+    - "evidence"
+    - "recommend"

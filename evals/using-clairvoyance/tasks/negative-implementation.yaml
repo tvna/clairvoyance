@@ -1,0 +1,13 @@
+id: using-clairvoyance-negative-implementation
+name: Negative - Ordinary Implementation
+description: The bootstrap should not route ordinary implementation to clairvoyance.
+tags:
+  - precision
+  - negative-trigger
+inputs:
+  prompt: "Implement the next task."
+expected:
+  output_not_contains:
+    - "clairvoyance"
+    - "decision-ready"
+    - "handoff"

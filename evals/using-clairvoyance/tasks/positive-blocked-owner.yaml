@@ -1,0 +1,13 @@
+id: using-clairvoyance-positive-blocked-owner
+name: Positive - Blocked Owner Handoff
+description: The bootstrap should route a blocked human decision to clairvoyance.
+tags:
+  - recall
+  - positive-trigger
+inputs:
+  prompt: "I am blocked. Tell the owner what choices they have."
+expected:
+  output_contains:
+    - "clairvoyance"
+    - "choices"
+    - "blocked"

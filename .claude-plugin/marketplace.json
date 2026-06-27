@@ -1,0 +1,18 @@
+{
+  "name": "clairvoyance-dev",
+  "description": "Development marketplace for Clairvoyance.",
+  "owner": {
+    "name": "tvna"
+  },
+  "plugins": [
+    {
+      "name": "clairvoyance",
+      "description": "A force multiplier for agent-to-human handoffs, turning work into evidence-backed decisions humans can trust.",
+      "version": "0.1.0",
+      "source": "./",
+      "author": {
+        "name": "tvna"
+      }
+    }
+  ]
+}
