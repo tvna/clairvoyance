@@ -18,6 +18,7 @@ expected:
     - "Recommended"
     - "architecture"
     - "future"
+    - "Premortem"
   output_not_contains:
     - "Looks good to me"
     - "go ahead and merge"

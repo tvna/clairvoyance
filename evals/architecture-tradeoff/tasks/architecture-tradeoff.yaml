@@ -22,5 +22,6 @@ expected:
     - "Evidence"
     - "Options"
     - "Future Story"
+    - "Premortem"
     - "Risks"
     - "Next Move"

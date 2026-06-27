@@ -16,10 +16,11 @@ Architecture trade-offs turn system context into a decision a human can inspect.
 3. Map current architecture, ownership boundary, dependencies, data flow, invariants, and failure modes.
 4. Compare cost, safety, operational impact, reversibility, and time-to-value.
 5. Describe the 1-2 step future story the decision opens or closes.
-6. Recommend the option that preserves important invariants with the smallest sufficient change.
-7. State what proof would change the recommendation.
-8. If only the human can answer a blocking architecture choice, use AskUserQuestion with 1-3 prepared choices; otherwise list it as a risk or unknown.
-9. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
+6. Run a premortem: assume the recommended option failed in 3-6 months, then name likely causes and early warning signals.
+7. Recommend the option that preserves important invariants with the smallest sufficient change.
+8. State what proof would change the recommendation.
+9. If only the human can answer a blocking architecture choice, use AskUserQuestion with 1-3 prepared choices; otherwise list it as a risk or unknown.
+10. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
 
 ## Output
 
@@ -30,6 +31,7 @@ Use these headings:
 - **System Context:** architecture boundary, dependencies, contracts, and data flow.
 - **Options:** named choices with trade-offs.
 - **Future Story:** medium-term consequences, second-order effects, and imagination-expanding possibilities.
+- **Premortem:** likely failure causes, early warning signals, and what would make the decision safer.
 - **Risks:** failure modes, missing proof, and operational concerns.
 - **Reversibility:** rollback path and cost.
 - **Next Move:** the concrete action the human can approve, reject, or modify.
