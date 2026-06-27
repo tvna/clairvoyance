@@ -1,12 +1,12 @@
 id: clairvoyance-ask-user-question
-name: AskUserQuestion For Human-Only Blocker
-description: Uses AskUserQuestion when only the human can unblock an owner decision.
+name: Portable Question Handoff For Human-Only Blocker
+description: Uses AskUserQuestion or its text fallback when only the human can unblock an owner decision.
 tags:
   - quality
   - ask-user-question
 inputs:
   prompt: |
-    Use clairvoyance. Ask the owner the blocking question with the required mechanism. Use only the context below.
+    Use clairvoyance. Ask the owner the blocking question with the portable question handoff. Use only the context below.
 
     Context:
     - Deployment cannot continue without choosing where the production API key will be issued.

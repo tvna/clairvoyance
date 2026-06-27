@@ -16,17 +16,17 @@ Decision coaching protects the human's autonomy and psychological safety while i
 3. If the repository can answer the gap, investigate first instead of asking.
 4. If the prompt is trapped in the immediate choice, ask which medium-term future the human wants to preserve.
 5. Use a premortem lens for unclear approval: ask which 3-month failure the human most wants to avoid.
-6. If only the human can answer, use AskUserQuestion with one focused, non-leading question.
+6. If only the human can answer, use portable question handoff: AskUserQuestion when available, otherwise `AskUserQuestion:` text with the same focused, non-leading question and choices.
 7. Give 2-3 prepared choices and mark the recommended answer.
 8. Explain how the answer changes the next move.
 9. If input is noisy, summarize only observed facts before asking.
 10. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
 
-## Question Shape
+## Portable Question Shape
 
 Use this structure:
 
-- **AskUserQuestion:** one question that unblocks the human's decision.
+- **AskUserQuestion:** or `AskUserQuestion:` fallback; one question that unblocks the human's decision.
 - **Why:** what quality risk the question removes.
 - **Premortem:** the failure scenario the question is testing.
 - **Choices:** 2-3 concrete answers.

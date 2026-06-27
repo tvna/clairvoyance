@@ -12,6 +12,6 @@ metrics:
   - name: coaching_quality
     weight: 1.0
     threshold: 0.8
-    description: Coaching asks a focused AskUserQuestion with choices and avoids rubber-stamp agreement.
+    description: Coaching asks a focused portable question handoff with choices and avoids rubber-stamp agreement.
 tasks:
   - "tasks/*.yaml"

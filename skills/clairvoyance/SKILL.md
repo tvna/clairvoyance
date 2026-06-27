@@ -18,7 +18,7 @@ Clairvoyance turns a blocker or owner decision into an evidence-backed handoff a
 5. Prepare named options when the human must decide. Prefer 2-3 reversible choices.
 6. Recommend one option and explain why.
 7. State risks, reversibility, missing proof, and the next move.
-8. If only the human can unblock the decision, use AskUserQuestion with 1-3 prepared choices; if unavailable, start fallback text with `AskUserQuestion:` and the same choices.
+8. If only the human can unblock the decision, use portable question handoff: AskUserQuestion when available, otherwise `AskUserQuestion:` text with the same 1-3 choices.
 9. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
 
 ## References
@@ -36,6 +36,6 @@ Use these headings; do not omit any:
 - **Risks:** known failure modes and missing proof.
 - **Reversibility:** how hard the chosen option is to undo.
 - **Next Move:** the concrete action the human can approve, reject, or modify.
-- **Open Questions:** only human-only blockers when AskUserQuestion is unavailable.
+- **Open Questions:** blockers that remain after portable question handoff.
 
 Keep the answer compact. Do not bury the recommendation under process notes.

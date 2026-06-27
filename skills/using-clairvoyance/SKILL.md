@@ -1,34 +1,32 @@
 ---
 name: using-clairvoyance
-description: Use when starting a session or after compaction to route future handoffs, owner choices, review readiness, architecture trade-offs, and unclear decisions to one Clairvoyance skill.
+description: Use when starting a session or after compaction to route safe handoffs, owner choices, review readiness, architecture trade-offs, and unclear decisions.
 ---
 
 # Using Clairvoyance
-
-Clairvoyance is the agent-to-human handoff discipline.
 
 **BOOTSTRAP SKILL:** choose one handoff skill.
 
 ## Rule
 
-Before handing a decision, verdict, blocker, architecture judgment, trade-off, or question to a human, select one Clairvoyance skill.
+Select one plugin-qualified Clairvoyance skill before handing a decision, verdict, blocker, architecture trade-off, or question to a human.
 
-Route names are plugin-qualified.
+SessionStart owner language is authoritative; if missing, use portable question handoff before decision handoff.
 
-SessionStart owner language is authoritative; if missing, AskUserQuestion before handoff.
+Portable question handoff: AskUserQuestion if available; else print `AskUserQuestion:` plus the same question and 1-3 choices.
 
 ## Trigger
 
-Route by scene:
+Route:
 
 - Human owner decision, blocker, or prepared options outside PR readiness -> `clairvoyance:clairvoyance`.
 - PR, commit, branch, review verdict, or "should this merge?" -> `clairvoyance:review-verdict`.
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
 - LGTM requests, missing subject, noisy input, sycophancy pressure, or decision without architecture understanding -> `clairvoyance:decision-coaching`.
 
-Do not route implementation, progress, tests, typos, or refactors unless they become a human decision handoff.
+Do not route implementation, progress, tests, typos, or refactors unless they become a decision handoff.
 
-For readiness, review, architecture, options, or recommendations, use the matching skill. Treat evidence gaps as risks or unknowns.
+For readiness, review, architecture, options, or recommendations, use the matching skill; treat evidence gaps as risks or unknowns.
 
 ## Priority
 
@@ -36,9 +34,9 @@ Use other needed skills first. Use Clairvoyance for the human handoff.
 
 When unsure, prefer the narrowest matching scene; if none applies, continue normally.
 
-If the agent answers directly, use exact headings. Owner: **Verdict**, **Evidence**, **Options**, **Risks**, **Reversibility**, **Next Move**. Review/architecture: start with **Verdict**. Coaching starts with AskUserQuestion.
+Direct answer headings: Owner uses **Verdict**, **Evidence**, **Options**, **Risks**, **Reversibility**, **Next Move**. Review/architecture starts with **Verdict**. Coaching starts with portable question handoff.
 
-If a human-only answer blocks the handoff, use AskUserQuestion with prepared choices.
+If a human-only answer blocks the handoff, use portable question handoff with prepared choices.
 
 ## Examples
 
