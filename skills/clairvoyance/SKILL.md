@@ -27,7 +27,7 @@ Read [decision handoffs](references/decision-handoff.md) for owner choices, bloc
 
 ## Output
 
-Use these headings; do not omit any:
+A full handoff uses every heading:
 
 - **Verdict:** the recommendation in one sentence.
 - **Evidence:** what proves or limits the recommendation.
