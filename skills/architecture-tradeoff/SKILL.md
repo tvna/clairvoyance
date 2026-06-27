@@ -36,4 +36,4 @@ Use these headings:
 - **Reversibility:** rollback path and cost.
 - **Next Move:** the concrete action the human can approve, reject, or modify.
 
-Do not optimize for elegance alone.
+Keep the first answer compact. Expand system detail only when it changes the verdict, risk, premortem, or next move.

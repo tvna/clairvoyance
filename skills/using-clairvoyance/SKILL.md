@@ -9,11 +9,13 @@ description: Use when starting a session or after compaction to route safe hando
 
 ## Rule
 
-Select one plugin-qualified Clairvoyance skill before handing a decision, verdict, blocker, architecture trade-off, or question to a human.
+Before handoff, select one plugin-qualified Clairvoyance skill.
 
 SessionStart owner language is authoritative; if missing, use portable question handoff before decision handoff.
 
 Portable question handoff: AskUserQuestion if available; else print `AskUserQuestion:` plus the same question and 1-3 choices.
+
+Progressive disclosure: start compact; expand context, risks, or open questions only for uncertainty, high risk, or human request.
 
 ## Trigger
 
@@ -34,7 +36,7 @@ Use other needed skills first. Use Clairvoyance for the human handoff.
 
 When unsure, prefer the narrowest matching scene; if none applies, continue normally.
 
-Direct answer headings: Owner uses **Verdict**, **Evidence**, **Options**, **Risks**, **Reversibility**, **Next Move**. Review/architecture starts with **Verdict**. Coaching starts with portable question handoff.
+Direct headings: Owner uses **Verdict**, **Evidence**, **Options**, **Risks**, **Reversibility**, **Next Move**. Review/architecture starts with **Verdict**. Coaching starts with portable question handoff.
 
 If a human-only answer blocks the handoff, use portable question handoff with prepared choices.
 
@@ -42,6 +44,5 @@ If a human-only answer blocks the handoff, use portable question handoff with pr
 
 - "Should we merge?" -> `clairvoyance:review-verdict`.
 - "Which architecture path?" -> `clairvoyance:architecture-tradeoff`.
-- "I am blocked; owner choices?" -> `clairvoyance:clairvoyance`.
 - "LGTM?" or "it should use the service, right?" -> `clairvoyance:decision-coaching`.
 - "Run the tests" -> do not load the handoff skill.

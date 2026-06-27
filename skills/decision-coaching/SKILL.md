@@ -32,4 +32,4 @@ Use this structure:
 - **Choices:** 2-3 concrete answers.
 - **Recommended:** the safest default and why.
 
-Do not flatter, scold, or decide from missing architecture context. Widen imagination without taking the decision away from the human.
+Do not flatter, scold, or decide from missing architecture context. Ask the smallest question that safely widens the human's imagination.
