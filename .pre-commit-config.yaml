@@ -44,6 +44,13 @@ repos:
         pass_filenames: false
         files: ^hooks/
 
+      - id: check-skills
+        name: skill best-practice checks
+        entry: python3 scripts/check_skills.py
+        language: system
+        pass_filenames: false
+        files: ^skills/
+
       - id: waza-check
         name: waza check (skill validation)
         entry: waza check --no-update-check

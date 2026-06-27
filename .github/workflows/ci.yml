@@ -54,6 +54,9 @@ jobs:
       - name: Validate hook scripts
         run: bash scripts/check_hooks.sh
 
+      - name: Check skill best practices
+        run: python3 scripts/check_skills.py
+
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10

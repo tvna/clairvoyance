@@ -29,8 +29,10 @@ See [docs/versioning.md](docs/versioning.md) for the full release flow.
 waza check            # spec, links, schema, token budget — no quota needed
 ```
 
-CI re-runs static validation (JSON manifests, version consistency, hook scripts)
-on every PR. None of it requires an external service.
+CI re-runs static validation (JSON manifests, version consistency, hook scripts,
+and deterministic skill best-practice checks via `scripts/check_skills.py`) on
+every PR. None of it requires an external service. `waza check` stays the richer
+local gate; `scripts/check_skills.py` is the subset that runs everywhere.
 
 ### Pre-commit hooks
 
