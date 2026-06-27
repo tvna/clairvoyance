@@ -59,6 +59,30 @@ repos:
         require_serial: true
         files: ^(skills/|evals/)
 
+      - id: ruff-check
+        name: ruff (lint)
+        entry: uv run --frozen ruff check --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff (format)
+        entry: uv run --frozen ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: mypy
+        name: mypy (type check)
+        # mypy resolves cross-file imports, so type-check the configured
+        # project (files=scripts,tests) rather than only the staged paths.
+        entry: uv run --frozen mypy
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+        require_serial: true
+
       - id: pytest
         name: pytest (script tests + coverage)
         entry: uv run --frozen pytest

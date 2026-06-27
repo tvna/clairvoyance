@@ -1,5 +1,4 @@
 import json
-import pathlib
 
 import check_version_consistency as cvc
 
@@ -10,9 +9,7 @@ def _write_repo(tmp_path, plugin="1.0.0", market=None, manifest=None, vtxt=None)
     vtxt = plugin if vtxt is None else vtxt
     (tmp_path / ".claude-plugin").mkdir()
     (tmp_path / ".claude-plugin/plugin.json").write_text(json.dumps({"version": plugin}))
-    (tmp_path / ".claude-plugin/marketplace.json").write_text(
-        json.dumps({"plugins": [{"version": market}]})
-    )
+    (tmp_path / ".claude-plugin/marketplace.json").write_text(json.dumps({"plugins": [{"version": market}]}))
     (tmp_path / ".release-please-manifest.json").write_text(json.dumps({".": manifest}))
     (tmp_path / "version.txt").write_text(vtxt + "\n")
     return tmp_path

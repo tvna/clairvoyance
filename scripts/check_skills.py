@@ -8,6 +8,7 @@ length, third person), the SKILL.md body length, and that relative links in the
 body resolve and do not traverse upward. Emits GitHub Actions annotations and
 exits non-zero on any violation. Shared by CI and the pre-commit hook.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -44,7 +45,7 @@ def split_frontmatter(text: str) -> tuple[dict[str, str] | None, str]:
         match = KEY_RE.match(line)
         if match:
             data[match.group(1)] = match.group(2).strip()
-    return data, text[end + 4:]
+    return data, text[end + 4 :]
 
 
 def check_skill(skill_md: pathlib.Path) -> list[tuple[str, str]]:

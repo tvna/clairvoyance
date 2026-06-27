@@ -46,9 +46,9 @@ prek run --all-files     # run across the whole repo
 ```
 
 It runs format hygiene (JSON/YAML, end-of-file, line endings), `shellcheck` on the
-bash hook, and the project's own validators (`waza check`, version consistency,
-and hook-script checks via the shared `scripts/`). `waza check` needs the `waza`
-binary on your PATH.
+bash hook, `ruff` lint/format and `mypy` types on Python, and the project's own validators
+(`waza check`, version consistency, and hook-script checks via the shared
+`scripts/`). `waza check` needs the `waza` binary on your PATH.
 
 ## Tests
 
@@ -65,6 +65,20 @@ uv run pytest            # run the tests with coverage
 Coverage is enforced at 100% for `scripts/` (see `pyproject.toml`). The same
 command runs in CI and as a pre-commit hook when `scripts/`, `tests/`, or the
 dependency files change.
+
+## Lint, format, and types
+
+Python under `scripts/` and `tests/` is linted and formatted with
+[ruff](https://docs.astral.sh/ruff/) and type-checked with
+[mypy](https://mypy-lang.org/) (both configured in `pyproject.toml`, with the
+rule/flag selection mirrored from the upstream `tvna/claude-md`). All run in CI
+and as pre-commit hooks:
+
+```bash
+uv run ruff check          # lint; add --fix to auto-fix
+uv run ruff format         # format in place (--check to verify only)
+uv run mypy                # type-check scripts/ and tests/
+```
 
 ## Running evaluations
 

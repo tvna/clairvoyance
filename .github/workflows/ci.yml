@@ -76,5 +76,13 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Lint with ruff
+        run: |
+          uv run --frozen ruff check --output-format=github
+          uv run --frozen ruff format --check
+
+      - name: Type-check with mypy
+        run: uv run --frozen mypy
+
       - name: Run script tests with coverage
         run: uv run --frozen pytest
