@@ -1,6 +1,6 @@
 # Decision Handoff
 
-Use this when the human must approve, reject, sequence, merge, defer, choose between prepared options, or unblock work.
+Use this when the human must approve, reject, sequence, defer, choose between prepared owner options, or unblock work.
 
 ## Shape
 

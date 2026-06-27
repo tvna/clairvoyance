@@ -1,0 +1,16 @@
+id: using-clairvoyance-positive-route-architecture
+name: Positive Route - Architecture Trade-Off
+description: The bootstrap should choose the architecture-tradeoff skill for system-level trade-offs.
+tags:
+  - recall
+  - routing
+inputs:
+  prompt: |
+    Which single Clairvoyance skill should be loaded before answering?
+    Return only the skill name.
+
+    Scenario:
+    The human asks which architecture path to choose between keeping validation in the checkout API handler or moving it into a shared domain service.
+expected:
+  output_contains:
+    - "architecture-tradeoff"

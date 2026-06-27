@@ -30,7 +30,7 @@ Use these headings; do not omit any:
 
 - **Verdict:** the recommendation in one sentence.
 - **Evidence:** what proves or limits the recommendation.
-- **System Context:** architecture impact and dependency surface.
+- **System Context:** blocked surface, ownership boundary, and affected workflow.
 - **Options:** named choices with trade-offs when a decision is required.
 - **Risks:** known failure modes and missing proof.
 - **Reversibility:** how hard it is to undo.

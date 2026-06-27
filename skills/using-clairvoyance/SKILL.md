@@ -7,11 +7,13 @@ description: Use when starting a session or after context compaction to route fu
 
 Clairvoyance is the agent-to-human handoff discipline.
 
-**BOOTSTRAP SKILL:** choose one matching handoff skill before the agent responds.
+**BOOTSTRAP SKILL:** choose one handoff skill before responding.
 
 ## Rule
 
-Before any response that hands a decision, verdict, blocker, architecture judgment, or trade-off to a human, select the single matching Clairvoyance skill.
+Before any response that hands a decision, verdict, blocker, architecture judgment, or trade-off to a human, select one Clairvoyance skill.
+
+When naming a route, use `clairvoyance:clairvoyance`, `clairvoyance:review-verdict`, or `clairvoyance:architecture-tradeoff`.
 
 ## Trigger
 
@@ -21,15 +23,17 @@ Route by scene:
 - PR, commit, branch, review verdict, or merge readiness -> `clairvoyance:review-verdict`.
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
 
-Do not use it for ordinary implementation, quick progress updates, test runs, typo fixes, or refactors unless the response becomes a human decision handoff.
+Do not route ordinary implementation, progress updates, test runs, typo fixes, or refactors unless the response becomes a human decision handoff.
 
-If the human asks for readiness, review, architecture judgment, options, or a recommendation, use the matching skill even when evidence is incomplete. Treat missing evidence as a risk or unknown instead of skipping the handoff.
+If the human asks for readiness, review, architecture judgment, options, or a recommendation, use the matching skill even when evidence is incomplete. Treat gaps as risks or unknowns.
 
 ## Priority
 
-If another skill is needed to do the work, use that skill first. Use the matching Clairvoyance skill when the result is being handed to the human for judgment.
+Use other needed skills first. Use Clairvoyance when the result is handed to the human for judgment.
 
 When unsure, prefer the narrowest matching scene; if none applies, continue normally.
+
+If the host cannot load the selected skill, follow its handoff shape: **Verdict**, evidence, risks, reversibility, and next move. Owner decisions also include **Options**.
 
 ## Examples
 
