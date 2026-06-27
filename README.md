@@ -1,0 +1,68 @@
+# Clairvoyance
+
+A force multiplier for agent-to-human handoffs, turning work into evidence-backed
+decisions humans can trust.
+
+Clairvoyance is a Claude Code plugin: a set of Agent Skills that an agent loads
+when it needs to hand a decision back to a human. Each handoff makes state visible
+by inspection — evidence, system context, options, risks, reversibility, and a
+recommended next move — so the human can approve, reject, or safely disagree.
+
+## Skills
+
+| Skill | Use when |
+|-------|----------|
+| `using-clairvoyance` | SessionStart bootstrap router. Picks one handoff skill below; injected by the SessionStart hook. |
+| `clairvoyance` | A human-owned choice blocks the agent: decision, approval, deferral, rollback, or 2–3 prepared options. |
+| `review-verdict` | A PR, commit, branch, working tree, or merge candidate needs a readiness verdict with evidence. |
+| `architecture-tradeoff` | A system-level architecture decision between options, boundaries, dependencies, or failure modes. |
+| `decision-coaching` | A human asks for LGTM / rubber-stamp on ambiguous, noisy, or architecture-poor input. |
+
+Each handoff branches by stakes: reversible, low-risk calls get a compact
+`Verdict` + `Next Move`; irreversible or contested calls get the full handoff.
+
+## Install
+
+Add the development marketplace and install the plugin in Claude Code:
+
+```
+/plugin marketplace add tvna/force-multiplier
+/plugin install clairvoyance
+```
+
+The plugin registers a `SessionStart` hook that injects the `using-clairvoyance`
+bootstrap skill (and the project owner's language) at session start, clear, and
+compaction. See [docs/hooks.md](docs/hooks.md).
+
+## Repository layout
+
+```
+.claude-plugin/   plugin.json, marketplace.json (plugin manifest)
+skills/           one directory per skill (SKILL.md + references/)
+hooks/            SessionStart hook and cross-platform entry point
+evals/            waza evaluation suites, one per skill
+.github/          CI, release automation, issue/PR templates
+```
+
+## Development
+
+- **Validate skills:** `waza check` (static; no eval backend or quota required).
+- **Run evals:** `waza run` — see [docs/evaluations.md](docs/evaluations.md) for
+  the execution backend and what to do when its quota is exhausted.
+- **CI** validates JSON manifests, version consistency, and hook scripts on every
+  pull request — no external services needed.
+
+## Versioning and releases
+
+Semantic Versioning, automated with Release Please from Conventional Commits.
+`plugin.json` is the single source of truth; the other version-bearing files are
+kept in sync and enforced by CI. See [docs/versioning.md](docs/versioning.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Commits must follow Conventional Commits —
+they drive the automated version bump.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
