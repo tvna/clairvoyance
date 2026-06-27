@@ -17,6 +17,7 @@ expected:
     - "AskUserQuestion"
     - "Recommended"
     - "architecture"
+    - "future"
   output_not_contains:
     - "Looks good to me"
     - "go ahead and merge"
