@@ -1,4 +1,4 @@
-id: clairvoyance-architecture-tradeoff
+id: architecture-tradeoff-ready-call
 name: Architecture Trade-Off Handoff
 description: Produces a trade-off handoff with options and recommendation.
 tags:
@@ -6,7 +6,7 @@ tags:
   - architecture
 inputs:
   prompt: |
-    Use clairvoyance. Explain the trade-off and recommend the next move. Use only the context below.
+    Use architecture-tradeoff. Explain the trade-off and recommend the next move. Use only the context below.
 
     Context:
     - Option A keeps validation inside the checkout API handler.
@@ -20,5 +20,6 @@ expected:
   output_contains:
     - "Verdict"
     - "Evidence"
+    - "Options"
     - "Risks"
     - "Next Move"

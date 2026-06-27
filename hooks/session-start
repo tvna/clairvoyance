@@ -21,6 +21,6 @@ escape_json() {
 
 skill_content="$(cat "${skill_path}")"
 escaped="$(escape_json "$skill_content")"
-context="<EXTREMELY_IMPORTANT>\nYou have Clairvoyance.\n\nBelow is the full content of your 'using-clairvoyance' bootstrap skill. For the production handoff skill, use the Skill tool to load 'clairvoyance:clairvoyance' when it applies. In a source checkout without plugin namespacing, use 'clairvoyance'.\n\n${escaped}\n</EXTREMELY_IMPORTANT>"
+context="<EXTREMELY_IMPORTANT>\nYou have Clairvoyance.\n\nBelow is the full content of your 'using-clairvoyance' bootstrap skill. For an agent-to-human handoff, use the Skill tool to load the single matching Clairvoyance skill named by the bootstrap skill before responding.\n\n${escaped}\n</EXTREMELY_IMPORTANT>"
 
 printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$context"

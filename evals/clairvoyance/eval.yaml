@@ -1,5 +1,5 @@
 name: clairvoyance-eval
-description: Output quality suite for evidence-backed agent-to-human handoffs.
+description: Output quality suite for evidence-backed owner decision and blocker handoffs.
 skill: clairvoyance
 version: "1.0"
 config:
@@ -12,7 +12,7 @@ metrics:
   - name: handoff_quality
     weight: 1.0
     threshold: 0.8
-    description: Handoff includes verdict, evidence, context, options, risks, reversibility, and next move.
+    description: Owner handoff includes verdict, evidence, options, risks, reversibility, and next move.
 graders:
   - type: text
     name: handoff_sections

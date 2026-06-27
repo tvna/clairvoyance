@@ -1,0 +1,17 @@
+name: architecture-tradeoff-eval
+description: Quality suite for the Clairvoyance architecture trade-off skill.
+skill: architecture-tradeoff
+version: "1.0"
+config:
+  trials_per_task: 1
+  timeout_seconds: 300
+  parallel: false
+  executor: copilot-sdk
+  model: claude-sonnet-4.6
+metrics:
+  - name: architecture_tradeoff_quality
+    weight: 1.0
+    threshold: 0.8
+    description: Architecture handoff includes options, system context, risks, reversibility, and next move.
+tasks:
+  - "tasks/*.yaml"

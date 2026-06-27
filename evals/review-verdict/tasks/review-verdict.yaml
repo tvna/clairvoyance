@@ -1,4 +1,4 @@
-id: clairvoyance-review-verdict
+id: review-verdict-ready-call
 name: Review Verdict Handoff
 description: Produces a review verdict with evidence and architecture context.
 tags:
@@ -6,7 +6,7 @@ tags:
   - review-verdict
 inputs:
   prompt: |
-    Use clairvoyance. Review this PR and tell me if it is ready, with architecture impact. Use only the context below.
+    Use review-verdict. Review this PR and tell me if it is ready, with architecture impact. Use only the context below.
 
     Context:
     - PR changes `src/auth/session.ts` and `tests/session.test.ts`.
@@ -17,6 +17,7 @@ inputs:
     - A failed rollout can be reverted with one commit.
 expected:
   output_contains:
+    - "Verdict"
     - "Evidence"
     - "System Context"
     - "Risk"

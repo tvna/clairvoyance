@@ -1,0 +1,22 @@
+id: clairvoyance-blocked-owner
+name: Blocked Owner Decision
+description: Produces a decision-ready handoff for a human-owned blocker.
+tags:
+  - quality
+  - blocker
+inputs:
+  prompt: |
+    Use clairvoyance. Tell the owner what choices they have. Use only the context below.
+
+    Context:
+    - Deployment needs a production API key.
+    - The staging path works.
+    - The agent cannot create or view production secrets.
+    - The owner can issue the key, defer release, or approve a staging-only demo.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Evidence"
+    - "Options"
+    - "Risks"
+    - "Next Move"
