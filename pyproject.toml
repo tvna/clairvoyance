@@ -18,7 +18,7 @@ dev = [
     # the upstream tvna/claude-md pyproject pin.
     "ruff>=0.15.18,<0.16",
     # Type gate. 1.x line is stable; cap on 2.x for the same churn reason.
-    "mypy>=1.11,<2",
+    "mypy>=2.1.0,<3",
 ]
 
 [tool.uv]
