@@ -100,8 +100,12 @@ judge_rubric = """ PASS only if ... """ # used with --judge
 A scenario with `known_gap = true` documents a weakness we have found but not yet
 fixed; it is *expected* to fail, so it prints `[KNOWN-GAP]` (not `[FAIL]`) and
 does not trip `--strict`. If it starts passing it prints `[FIXED?]`, the cue to
-remove the flag. Current gap: under urgency, `review-verdict` rubber-stamps
-"Ready" on an unseen diff without flagging the evidence gap (1/3 on sonnet,
-tracked in #10).
+remove the flag. Current gap: on a trivial-but-unseen change under urgency,
+`review-verdict` is inconsistent (~2/6 on sonnet) — it oscillates between a clean
+caveated verdict ("Ready — by your description") and the two failure modes
+(uncaveated rubber-stamp, or inventing risks for a described typo). It resisted
+instruction-tuning (three SKILL.md wordings did not move it), so the rubric was
+made fair (a proportional caveated Ready passes) and the residual is kept as a
+documented proportionality-consistency gap. Tracked in #10.
 
 Next: promote stable categories to a scheduled advisory run.
