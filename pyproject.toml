@@ -78,7 +78,7 @@ ignore = [
 "tests/*" = ["S101", "S404", "S603", "S607"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["check_skills", "check_version_consistency"]
+known-first-party = ["check_skills"]
 
 [tool.mypy]
 # Type gate, mirroring the upstream tvna/claude-md flag set. `python_version`

@@ -40,8 +40,7 @@ eval suite, and a repo-local doc mention.
 The forward/backward coverage of this matrix is enforced deterministically by
 `scripts/check_coverage.py` (every skill has an eval and a doc mention; no eval
 suite is an orphan). The per-skill structural quality is enforced by
-`scripts/check_skills.py`; version consistency by `scripts/check_version_consistency.py`;
-hook integrity by `scripts/check_hooks.sh`.
+`scripts/check_skills.py`; hook integrity by `scripts/check_hooks.sh`.
 
 ## Gap analysis procedure
 
@@ -75,9 +74,10 @@ markers. Keep the abstract contract in `docs/skills.md`, the concrete headings i
 the SKILL.md, and have the eval assert structural markers (the headings the skill
 emits) rather than re-stating concepts — see the eval-assertion convention in
 `CONTRIBUTING.md`. Renaming a heading therefore requires updating its eval in the
-same change. The version number is the worked example of drift handled correctly:
-it appears in four files but `check_version_consistency.py` enforces one canonical
-form.
+same change. The version number is the worked example of drift designed *out*:
+rather than copying one version across several files and policing them, the git
+tag is the single source of truth and the release writes it into `plugin.json`
+alone (`marketplace.json` carries none) — so there is nothing to keep in sync.
 
 ### Cadence
 
