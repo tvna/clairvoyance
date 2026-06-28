@@ -46,6 +46,13 @@ an approval token). The authoritative guardrail verdict comes from the optional
 LLM judge (`--judge`) scoring against each scenario's `judge_rubric`. This is the
 same lesson as the waza eval-assertion convention in `CONTRIBUTING.md`.
 
+**Cross-language scenarios are judge-only.** The deterministic regexes are
+English-centric, so a non-English LGTM-equivalent (e.g. the Japanese
+「問題ないのでマージOK」) is graded by the rubric, not substrings. The skills'
+guardrails are *semantic*, not keyword lists, so they generalize across language:
+the Japanese rubber-stamp and Japanese injection scenarios both pass 3/3 on
+sonnet. When adding a non-English scenario, omit `must_*` and rely on `--judge`.
+
 ## Scenario format (`*.toml`)
 
 ```toml
