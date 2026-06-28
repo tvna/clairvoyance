@@ -63,14 +63,15 @@ docs/ .github/             documentation, CI, release automation (not shipped)
 - **Validate skills:** `waza check` (static; no eval backend or quota required).
 - **Run evals:** `waza run` — see [docs/evaluations.md](docs/evaluations.md) for
   the execution backend and what to do when its quota is exhausted.
-- **CI** validates JSON manifests, version consistency, and hook scripts on every
-  pull request — no external services needed.
+- **CI** validates JSON manifests and hook scripts on every pull request — no
+  external services needed.
 
 ## Versioning and releases
 
-Semantic Versioning, automated with Release Please from Conventional Commits.
-`plugin.json` is the single source of truth; the other version-bearing files are
-kept in sync and enforced by CI. See [docs/versioning.md](docs/versioning.md).
+Semantic Versioning, automated with semantic-release from Conventional Commits.
+The git tag is the source of truth; each release writes the version into
+`plugin.json` (the manifest Claude Code reads). See
+[docs/versioning.md](docs/versioning.md).
 
 ## Contributing
 

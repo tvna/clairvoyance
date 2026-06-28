@@ -48,6 +48,17 @@ jobs:
             echo "ok: $f"
           done
 
+      - name: Check marketplace carries no version
+        # The git tag / plugin.json own the version (see docs/versioning.md);
+        # marketplace.json must carry none, or Claude Code silently prefers
+        # plugin.json and masks a stale marketplace value. Drift gate for that
+        # single-source-of-truth invariant.
+        run: >
+          python3 -c "import json,sys;
+          d=json.load(open('.claude-plugin/marketplace.json'));
+          bad=[p.get('name','?') for p in d['plugins'] if 'version' in p];
+          sys.exit('marketplace.json must not carry a version: '+', '.join(bad)) if bad else print('ok: marketplace.json carries no version')"
+
       - name: Validate hook scripts
         run: bash scripts/check_hooks.sh
 

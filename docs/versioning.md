@@ -24,7 +24,8 @@ duplicated:
   Code [resolves the version](https://code.claude.com/docs/en/plugin-marketplaces)
   from `plugin.json` first and explicitly warns against setting it in both places
   (a stale marketplace value would be silently masked). Omitting it makes
-  `plugin.json` the unambiguous manifest.
+  `plugin.json` the unambiguous manifest, and CI fails if a `version` is ever
+  re-added (`.github/workflows/ci.yml`).
 
 Each eval suite (`plugin/evals/*/eval.yaml`) carries its own `version` that
 identifies that **evaluation specification**. It is independent of the package
@@ -95,6 +96,8 @@ git tag 0.1.0            # tagFormat is "${version}" — no v prefix
 git push origin 0.1.0
 ```
 
-The next release then computes from `0.1.0` (`feat:` → `0.2.0`, `fix:` → `0.1.1`).
+`release.yml` refuses to run when no tag exists, so a forgotten baseline fails
+the release loudly instead of silently cutting `1.0.0`. The next release then
+computes from `0.1.0` (`feat:` → `0.2.0`, `fix:` → `0.1.1`).
 
 [semantic-release]: https://github.com/semantic-release/semantic-release
