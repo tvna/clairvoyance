@@ -1,0 +1,26 @@
+# Codecov configuration. The authoritative pass/fail gate stays local: the
+# [tool.pytest.ini_options] addopts in pyproject.toml carry --cov-fail-under=100
+# and pytest enforces it in the CI "tests" job (.github/workflows/ci.yml). Every
+# Codecov status here is informational, so this layer adds dashboard and trend
+# history only -- never a second blocking signal. See #13.
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+    patch:
+      default:
+        target: auto
+        threshold: 0%
+        informational: true
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: true
+ignore:
+  - "tests/"
+  - "battle/"
+github_checks:
+  annotations: true
