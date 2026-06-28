@@ -13,8 +13,8 @@ enforces it, who reads it, and how it changes.
 
 | Lane | Source of truth | Audience | Change mechanism |
 |---|---|---|---|
-| Skill instruction | `skills/*/SKILL.md` bodies and descriptions; `using-clairvoyance` bootstrap router | The agent loading the skill at runtime | Edit the SKILL.md; `waza check` and `scripts/check_skills.py` enforce shape |
-| Harness | `scripts/*`, `.github/workflows/*.yml`, `hooks/*` | The repository itself; runs without agent involvement | Edit the script/workflow/hook; add or update a paired test under `tests/` |
+| Skill instruction | `plugin/skills/*/SKILL.md` bodies and descriptions; `using-clairvoyance` bootstrap router | The agent loading the skill at runtime | Edit the SKILL.md; `waza check` and `scripts/check_skills.py` enforce shape |
+| Harness | `scripts/*`, `.github/workflows/*.yml`, `plugin/hooks/*` | The repository itself; runs without agent involvement | Edit the script/workflow/hook; add or update a paired test under `tests/` |
 | Repo-local doc | `docs/*.md` | Contributors and reviewers of this repository | Edit the doc; reference skills by name, never by copying their wording |
 | Project-local | The consumer's `.clairvoyance/owner-language.txt`, their own `CLAUDE.md` | Agents working in that one project | Owned entirely by the consumer; this repository neither ships nor reviews it |
 
@@ -30,12 +30,12 @@ eval suite, and a repo-local doc mention.
 
 | Skill | Skill instruction | Harness (structural) | Eval (behavioural) | Repo-local doc |
 |---|---|---|---|---|
-| `using-clairvoyance` | `skills/using-clairvoyance/SKILL.md` | `scripts/check_skills.py` | `evals/using-clairvoyance/` | `docs/skills.md`, `docs/hooks.md` |
-| `clairvoyance` | `skills/clairvoyance/SKILL.md` | `scripts/check_skills.py` | `evals/clairvoyance/` | `docs/skills.md` |
-| `review-verdict` | `skills/review-verdict/SKILL.md` | `scripts/check_skills.py` | `evals/review-verdict/` | `docs/skills.md` |
-| `architecture-tradeoff` | `skills/architecture-tradeoff/SKILL.md` | `scripts/check_skills.py` | `evals/architecture-tradeoff/` | `docs/skills.md` |
-| `decision-coaching` | `skills/decision-coaching/SKILL.md` | `scripts/check_skills.py` | `evals/decision-coaching/` | `docs/skills.md` |
-| `session-handoff` | `skills/session-handoff/SKILL.md` | `scripts/check_skills.py` | `evals/session-handoff/` | `docs/session-handoff.md`, `docs/skills.md` |
+| `using-clairvoyance` | `plugin/skills/using-clairvoyance/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/using-clairvoyance/` | `docs/skills.md`, `docs/hooks.md` |
+| `clairvoyance` | `plugin/skills/clairvoyance/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/clairvoyance/` | `docs/skills.md` |
+| `review-verdict` | `plugin/skills/review-verdict/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/review-verdict/` | `docs/skills.md` |
+| `architecture-tradeoff` | `plugin/skills/architecture-tradeoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/architecture-tradeoff/` | `docs/skills.md` |
+| `decision-coaching` | `plugin/skills/decision-coaching/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/decision-coaching/` | `docs/skills.md` |
+| `session-handoff` | `plugin/skills/session-handoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/session-handoff/` | `docs/session-handoff.md`, `docs/skills.md` |
 
 The forward/backward coverage of this matrix is enforced deterministically by
 `scripts/check_coverage.py` (every skill has an eval and a doc mention; no eval
@@ -51,7 +51,7 @@ the drift sweep stays a manual review.
 
 ### Forward sweep — skill to carrier
 
-For each skill under `skills/`, confirm a carrier exists in each lane it needs: a
+For each skill under `plugin/skills/`, confirm a carrier exists in each lane it needs: a
 harness check covers it, an eval suite exercises it, and a repo-local doc names
 it. A skill with no eval or no doc mention is a gap — add the carrier, or record
 in this matrix why the cell is intentionally empty. Automated by
@@ -70,7 +70,7 @@ undocumented invariant — give it a doc. The eval-orphan case is automated by
 The same *concrete* wording must not live in two lanes of the same row, or the two
 copies drift. The known drift surface here is the output-contract headings: a
 skill's `SKILL.md` emits headings (`Verdict`, `Evidence`, `Risks`, `Next Move`,
-…) and its `evals/*/eval.yaml` asserts the same strings as `output_contains`
+…) and its `plugin/evals/*/eval.yaml` asserts the same strings as `output_contains`
 markers. Keep the abstract contract in `docs/skills.md`, the concrete headings in
 the SKILL.md, and have the eval assert structural markers (the headings the skill
 emits) rather than re-stating concepts — see the eval-assertion convention in
@@ -81,8 +81,8 @@ form.
 
 ### Cadence
 
-Run the sweeps on every change that touches `skills/`, `scripts/`,
-`.github/workflows/`, `hooks/`, `docs/`, or `evals/`. CI runs `check_coverage.py`
+Run the sweeps on every change that touches `plugin/skills/`, `scripts/`,
+`.github/workflows/`, `plugin/hooks/`, `docs/`, or `plugin/evals/`. CI runs `check_coverage.py`
 on every pull request, so the forward/backward mechanical core runs automatically;
 the drift sweep is a reviewer responsibility.
 

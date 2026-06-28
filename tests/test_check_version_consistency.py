@@ -8,7 +8,8 @@ def _write_repo(tmp_path, plugin="1.0.0", market=None, manifest=None, vtxt=None)
     manifest = plugin if manifest is None else manifest
     vtxt = plugin if vtxt is None else vtxt
     (tmp_path / ".claude-plugin").mkdir()
-    (tmp_path / ".claude-plugin/plugin.json").write_text(json.dumps({"version": plugin}))
+    (tmp_path / "plugin/.claude-plugin").mkdir(parents=True)
+    (tmp_path / "plugin/.claude-plugin/plugin.json").write_text(json.dumps({"version": plugin}))
     (tmp_path / ".claude-plugin/marketplace.json").write_text(json.dumps({"plugins": [{"version": market}]}))
     (tmp_path / ".release-please-manifest.json").write_text(json.dumps({".": manifest}))
     (tmp_path / "version.txt").write_text(vtxt + "\n")

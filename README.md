@@ -41,12 +41,21 @@ compaction. See [docs/hooks.md](docs/hooks.md).
 
 ## Repository layout
 
+The marketplace points at `plugin/` (`source: "./plugin"`), so **only `plugin/` is
+copied to a user's install cache**. Everything outside it — contributor
+instructions (`AGENTS.md`), tests, dev tooling, CI, and docs — stays in the
+repository and is never distributed.
+
 ```
-.claude-plugin/   plugin.json, marketplace.json (plugin manifest)
-skills/           one directory per skill (SKILL.md + references/)
-hooks/            SessionStart hook and cross-platform entry point
-evals/            waza evaluation suites, one per skill
-.github/          CI, release automation, issue/PR templates
+.claude-plugin/            marketplace.json (the marketplace manifest)
+plugin/                    the distributed plugin — only this ships
+  .claude-plugin/          plugin.json (plugin manifest, version source of truth)
+  skills/                  one directory per skill (SKILL.md + references/)
+  hooks/                   SessionStart hook and cross-platform entry point
+  evals/                   waza evaluation suites, one per skill
+AGENTS.md                  imported agent instructions (synced; not shipped)
+scripts/ tests/            validators and their pytest suite (not shipped)
+docs/ .github/             documentation, CI, release automation (not shipped)
 ```
 
 ## Development

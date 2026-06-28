@@ -28,43 +28,44 @@ repos:
         entry: shellcheck
         language: system
         # run-hook.cmd is a cmd/bash polyglot; shellcheck only lints pure bash.
-        files: ^(hooks/session-start\.sh|scripts/.*\.sh)$
+        files: ^(plugin/hooks/session-start\.sh|scripts/.*\.sh)$
 
       - id: version-consistency
         name: version consistency (plugin.json is source of truth)
         entry: python3 scripts/check_version_consistency.py
         language: system
         pass_filenames: false
-        files: ^(\.claude-plugin/.*\.json|\.release-please-manifest\.json|version\.txt)$
+        files: ^(plugin/\.claude-plugin/.*\.json|\.claude-plugin/.*\.json|\.release-please-manifest\.json|version\.txt)$
 
       - id: hook-scripts
         name: hook scripts emit valid JSON
         entry: bash scripts/check_hooks.sh
         language: system
         pass_filenames: false
-        files: ^hooks/
+        files: ^plugin/hooks/
 
       - id: check-skills
         name: skill best-practice checks
         entry: python3 scripts/check_skills.py
         language: system
         pass_filenames: false
-        files: ^skills/
+        files: ^plugin/skills/
 
       - id: check-coverage
         name: skill coverage (eval + doc, no orphan evals)
         entry: python3 scripts/check_coverage.py
         language: system
         pass_filenames: false
-        files: ^(skills/|evals/|docs/)
+        files: ^(plugin/skills/|plugin/evals/|docs/)
 
       - id: waza-check
         name: waza check (skill validation)
-        entry: waza check --no-update-check
+        # waza detects the skills/ + evals/ workspace from the plugin root.
+        entry: bash -c 'cd plugin && exec waza check --no-update-check'
         language: system
         pass_filenames: false
         require_serial: true
-        files: ^(skills/|evals/)
+        files: ^plugin/(skills|evals)/
 
       - id: ruff-check
         name: ruff (lint)

@@ -1,7 +1,14 @@
 # Evaluations
 
-Skills are evaluated with [`waza`](https://github.com/) suites under `evals/`, one
+Skills are evaluated with [`waza`](https://github.com/) suites under `plugin/evals/`, one
 per skill. There are two distinct commands with very different requirements.
+
+`waza` detects its workspace (the sibling `skills/` and `evals/` directories) from
+the **`plugin/` directory**, so run it from there:
+
+```bash
+cd plugin
+```
 
 ## `waza check` — static, always available
 
@@ -16,7 +23,7 @@ backend and no quota, so it is the dependable gate for CI and pre-PR validation.
 
 ```bash
 waza run                          # all suites
-waza run evals/<skill>/eval.yaml  # one suite
+waza run evals/<skill>/eval.yaml  # one suite (paths are relative to plugin/)
 ```
 
 `waza run` executes through an **embedded GitHub Copilot CLI** (`executor:

@@ -44,7 +44,7 @@ or an unbounded question. When only a human can unblock a decision, the skill us
 ## Quality bars
 
 Each skill keeps `SKILL.md` concise (the repo holds a 500-token budget, checked by
-`waza check`), carries an eval suite under `evals/`, and passes the deterministic
+`waza check`), carries an eval suite under `plugin/evals/`, and passes the deterministic
 checks in `scripts/check_skills.py` (frontmatter, name rules, description, and link
 resolution). Cross-lane coverage — every skill has an eval and a doc mention, and
 no eval is orphaned — is enforced by `scripts/check_coverage.py`; see

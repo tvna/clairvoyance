@@ -5,15 +5,15 @@
 The project uses [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`,
 no `v` prefix in files). The current version is **1.0.0**.
 
-`.claude-plugin/plugin.json` `version` is the **single source of truth**. These
+`plugin/.claude-plugin/plugin.json` `version` is the **single source of truth**. These
 files must always agree, and CI fails the build if they drift:
 
-- `.claude-plugin/plugin.json` → `$.version`
+- `plugin/.claude-plugin/plugin.json` → `$.version`
 - `.claude-plugin/marketplace.json` → `$.plugins[0].version`
 - `.release-please-manifest.json` → `"."`
 - `version.txt`
 
-Each eval suite (`evals/*/eval.yaml`) also carries a `version` identifying that
+Each eval suite (`plugin/evals/*/eval.yaml`) also carries a `version` identifying that
 evaluation specification; it is kept at the package version (`1.0.0`).
 
 External versions are out of scope for this policy and intentionally separate:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail if the version-bearing files disagree.
 
-`.claude-plugin/plugin.json` is the single source of truth; Release Please keeps
+`plugin/.claude-plugin/plugin.json` is the single source of truth; Release Please keeps
 the others in sync. Shared by CI and the pre-commit hook so the rule lives once.
 """
 
@@ -17,7 +17,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 def read_versions(root: pathlib.Path) -> dict[str, str]:
     """Return the version recorded in each version-bearing file."""
     return {
-        "plugin.json": json.loads((root / ".claude-plugin/plugin.json").read_text())["version"],
+        "plugin.json": json.loads((root / "plugin/.claude-plugin/plugin.json").read_text())["version"],
         "marketplace.json": json.loads((root / ".claude-plugin/marketplace.json").read_text())["plugins"][0]["version"],
         ".release-please-manifest.json": json.loads((root / ".release-please-manifest.json").read_text())["."],
         "version.txt": (root / "version.txt").read_text().strip(),

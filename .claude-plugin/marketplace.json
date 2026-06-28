@@ -9,7 +9,7 @@
       "name": "clairvoyance",
       "description": "A force multiplier for agent-to-human handoffs, turning work into evidence-backed decisions humans can trust.",
       "version": "1.0.0",
-      "source": "./",
+      "source": "./plugin",
       "author": {
         "name": "tvna"
       }

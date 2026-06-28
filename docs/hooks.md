@@ -2,10 +2,10 @@
 
 ## SessionStart injection
 
-`hooks/hooks.json` registers one `SessionStart` hook (matching `startup`, `clear`,
-and `compact`). It runs `hooks/session-start.sh`, which:
+`plugin/hooks/hooks.json` registers one `SessionStart` hook (matching `startup`, `clear`,
+and `compact`). It runs `plugin/hooks/session-start.sh`, which:
 
-1. Reads `skills/using-clairvoyance/SKILL.md` and injects it as
+1. Reads `plugin/skills/using-clairvoyance/SKILL.md` and injects it as
    `additionalContext` so the agent has the bootstrap router from the first turn.
 2. Resolves the project owner's language and injects it as authoritative for
    Clairvoyance handoffs.
@@ -24,7 +24,7 @@ If neither is set, the injected context instructs the agent to ask the human onc
 
 ## Cross-platform entry point
 
-`hooks.json` invokes `hooks/run-hook.cmd session-start.sh`. `run-hook.cmd` is a
+`hooks.json` invokes `plugin/hooks/run-hook.cmd session-start.sh`. `run-hook.cmd` is a
 **polyglot** that runs as both a Windows batch file and a POSIX shell script, so a
 single entry point works on every platform:
 

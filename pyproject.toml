@@ -1,6 +1,6 @@
 # Tooling/test project for the Clairvoyance skill package, managed with uv.
 # This is NOT the published plugin: the plugin version lives in
-# .claude-plugin/plugin.json (see docs/versioning.md). The version below is a
+# plugin/.claude-plugin/plugin.json (see docs/versioning.md). The version below is a
 # fixed placeholder and is intentionally excluded from the version-consistency
 # check.
 [project]

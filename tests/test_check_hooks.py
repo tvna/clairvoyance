@@ -25,7 +25,7 @@ def test_session_start_escapes_control_characters(tmp_path):
     (lang_dir / "owner-language.txt").write_text("Japanese\x0c\n")
     env = {**os.environ, "CLAUDE_PROJECT_DIR": str(tmp_path)}
     result = subprocess.run(
-        ["bash", str(REPO_ROOT / "hooks/session-start.sh")],
+        ["bash", str(REPO_ROOT / "plugin/hooks/session-start.sh")],
         capture_output=True,
         text=True,
         env=env,

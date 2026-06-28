@@ -26,7 +26,7 @@ See [docs/versioning.md](docs/versioning.md) for the full release flow.
 ## Validate before opening a PR
 
 ```bash
-waza check            # spec, links, schema, token budget — no quota needed
+cd plugin && waza check   # spec, links, schema, token budget — no quota needed
 ```
 
 CI re-runs static validation (JSON manifests, version consistency, hook scripts,
@@ -89,7 +89,10 @@ uv run mypy                # type-check scripts/ and tests/
 
 ## Running evaluations
 
+Run from the `plugin/` workspace root (where `skills/` and `evals/` are siblings):
+
 ```bash
+cd plugin
 waza run                       # all suites
 waza run evals/<skill>/eval.yaml
 ```
