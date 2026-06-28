@@ -14,13 +14,15 @@ version stays in the `0.x` range and is allowed to change freely (see the
 ## Single source of truth: the git tag
 
 The **git tag is the source of truth** for the version. There is no version file
-to hand-edit and no cross-file consistency check, because the version is not
-duplicated:
+to hand-edit: the version is written into the runtime manifests automatically, and
+a CI parity check keeps the two manifests from drifting:
 
 - The release computes the next version from commit history and creates the tag.
-- `plugin/.claude-plugin/plugin.json` `$.version` is written **automatically** at
-  release time (`scripts/apply_version.mjs`) so the manifest Claude Code reads at
-  the installed ref agrees with the tag.
+- Both runtime manifests — `plugin/.claude-plugin/plugin.json` and
+  `plugin/.codex-plugin/plugin.json` — have `$.version` written **automatically**
+  at release time (`scripts/apply_version.mjs`) so the manifest each runtime reads
+  at the installed ref agrees with the tag. CI fails if the two ever drift
+  (`.github/workflows/ci.yml`).
 - `.claude-plugin/marketplace.json` deliberately carries **no** `version`. Claude
   Code [resolves the version](https://code.claude.com/docs/en/plugin-marketplaces)
   from `plugin.json` first and explicitly warns against setting it in both places
@@ -41,9 +43,9 @@ and SHA-pinned GitHub Action versions.
 
 Releases are driven by [semantic-release] reading the
 [Conventional Commits](https://www.conventionalcommits.org/) on `main` since the
-last tag. On each release it: computes the next semver, writes it into
-`plugin.json`, updates `CHANGELOG.md`, commits both, creates the git tag, and
-publishes a GitHub Release with generated notes.
+last tag. On each release it: computes the next semver, writes it into both
+runtime `plugin.json` manifests, updates `CHANGELOG.md`, commits them, creates the
+git tag, and publishes a GitHub Release with generated notes.
 
 The bump is computed from commit prefixes (see
 [CONTRIBUTING.md](../CONTRIBUTING.md)): `feat:` → minor, `fix:` → patch.

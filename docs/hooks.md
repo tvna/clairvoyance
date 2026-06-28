@@ -12,6 +12,16 @@ and `compact`). It runs `plugin/hooks/session-start.sh`, which:
 
 If the bootstrap skill file is missing, the hook exits 0 and injects nothing.
 
+### Codex
+
+Codex reads its own `SessionStart` manifest, `plugin/hooks/codex-hooks.json`
+(pointed at by `plugin/.codex-plugin/plugin.json`). It matches the same events
+(plus Codex's `resume`) and drives the **same** `session-start.sh` through the
+**same** `run-hook.cmd` wrapper. The only difference is the plugin-root variable:
+Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` and Codex substitutes
+`${PLUGIN_ROOT}`. Keeping a separate manifest per runtime avoids that variable
+clash in a single shared file while reusing one hook implementation.
+
 ### Owner language
 
 The owner's language is resolved in this order:
@@ -38,5 +48,6 @@ single entry point works on every platform:
   `exec`s `bash` on the target hook.
 
 `run-hook.cmd` must keep its executable bit (`100755`) for the Unix fall-through to
-work. CI validates both hook scripts with `bash -n` and asserts that
-`session-start.sh` emits valid JSON.
+work. CI validates both hook scripts with `bash -n`, asserts that
+`session-start.sh` emits valid JSON, and parses `codex-hooks.json` to confirm it
+routes through the same wrapper with the `${PLUGIN_ROOT}` variable.
