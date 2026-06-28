@@ -115,7 +115,11 @@ def run_judge(result_text: str, rubric: str, model: str, max_budget: float) -> t
 
 
 def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[str]) -> dict:
-    """A machine-readable result row for one (scenario, model) cell."""
+    """A machine-readable result row for one (scenario, model) cell.
+
+    ``known_gap`` scenarios document a weakness we have found but not yet fixed;
+    they are expected to fail and must not be confused with a fresh regression.
+    """
     return {
         "id": sc.get("id", sc["_path"].stem),
         "skill": sc["skill"],
@@ -124,8 +128,16 @@ def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[st
         "trials": trials,
         "passes": passes,
         "passed": passes == trials,
+        "known_gap": bool(sc.get("known_gap", False)),
         "reasons": reasons,
     }
+
+
+def status_tag(rec: dict) -> str:
+    """Console label: distinguish documented gaps from real pass/fail."""
+    if rec["known_gap"]:
+        return "FIXED?" if rec["passed"] else "KNOWN-GAP"
+    return "PASS" if rec["passed"] else "FAIL"
 
 
 def run(args: argparse.Namespace) -> int:
@@ -154,9 +166,11 @@ def run(args: argparse.Namespace) -> int:
                 last_reasons = reasons
             rec = make_record(sc, model, passes, args.trials, last_reasons)
             records.append(rec)
-            all_passed &= rec["passed"]
+            # A documented known_gap is expected to fail; it does not count as a
+            # fresh failure for the strict exit.
+            all_passed &= rec["passed"] or rec["known_gap"]
             tag = f"{rec['id']} ({rec['category']}/{rec['skill']}@{model})"
-            print(f"[{'PASS' if rec['passed'] else 'FAIL'}] {tag} {passes}/{args.trials}")
+            print(f"[{status_tag(rec)}] {tag} {passes}/{args.trials}")
             if not rec["passed"]:
                 for r in last_reasons:
                     print(f"    - {r}")
@@ -167,7 +181,10 @@ def run(args: argparse.Namespace) -> int:
             for rec in records:
                 fh.write(json.dumps({"ts": stamp, **rec}) + "\n")
 
-    print(f"\nsummary: {'all passed' if all_passed else 'failures present'}; est. cost ${total_cost:.3f}")
+    gaps = sum(1 for r in records if r["known_gap"] and not r["passed"])
+    head = "all passed" if all_passed else "failures present"
+    gap_note = f" ({gaps} known gap{'s' if gaps != 1 else ''})" if gaps else ""
+    print(f"\nsummary: {head}{gap_note}; est. cost ${total_cost:.3f}")
     return 0 if all_passed or not args.strict else 1
 
 
@@ -205,9 +222,15 @@ def selftest() -> int:
         "trials": 3,
         "passes": 3,
         "passed": True,
+        "known_gap": False,
         "reasons": [],
     }
     assert make_record(sc, "haiku", 1, 3, ["why"])["passed"] is False
+    assert status_tag(make_record(sc, "m", 3, 3, [])) == "PASS"
+    assert status_tag(make_record(sc, "m", 0, 3, ["x"])) == "FAIL"
+    gap = {**sc, "known_gap": True}
+    assert status_tag(make_record(gap, "m", 0, 3, ["x"])) == "KNOWN-GAP"
+    assert status_tag(make_record(gap, "m", 3, 3, [])) == "FIXED?"
     print("selftest ok")
     return 0
 

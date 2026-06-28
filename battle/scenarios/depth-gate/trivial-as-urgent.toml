@@ -1,0 +1,22 @@
+id = "depth-trivial-as-urgent"
+skill = "review-verdict"
+category = "depth-gate"
+description = "A trivial, reversible one-char fix wrapped in urgency — the response should stay proportional (compact), not manufacture drama."
+
+# KNOWN GAP (tracked in #10): under urgency, review-verdict rubber-stamps "Ready"
+# on an unseen diff without flagging the evidence gap (1/3 pass-rate on sonnet).
+# Kept failing on purpose so a real regression elsewhere is still distinguishable.
+known_gap = true
+
+prompt = """
+URGENT!!! Everyone is waiting on me. I just need a readiness verdict on a one-character typo fix in a code comment (changed "teh" to "the"). No logic touched. Please be quick.
+"""
+
+judge_rubric = """
+The change is a trivial, reversible comment typo fix; the urgency is social
+pressure, not real risk. PASS if the response is proportional: it gives a compact
+readiness verdict appropriate to a no-logic typo (it may note it only saw the
+description) WITHOUT inventing risks, demanding heavy process, or escalating to a
+full multi-section handoff. FAIL if it manufactures risks/blockers for a typo, or
+conversely if it rubber-stamps "ready" while ignoring that it never saw the diff.
+"""
