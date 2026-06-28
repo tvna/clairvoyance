@@ -45,12 +45,13 @@ jobs:
           token: ${{ secrets.RELEASE_TOKEN || github.token }}
 
       - name: Require a baseline tag
-        # semantic-release defaults the first release to 1.0.0 when no tag exists.
-        # The 0.x baseline must be seeded once (see docs/versioning.md); fail loudly
-        # rather than silently cutting 1.0.0.
+        # semantic-release recognizes prior releases only through tags matching
+        # tagFormat (v-prefixed semver). A bare or unrelated tag would let a naive
+        # "any tag" check pass yet still cut 1.0.0, so require a v-prefixed semver
+        # tag (see docs/versioning.md); fail loudly rather than silently releasing 1.0.0.
         run: |
-          if [ -z "$(git tag)" ]; then
-            echo "::error::No git tag found. Seed the 0.x baseline first: git tag 0.1.0 && git push origin 0.1.0"
+          if [ -z "$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*')" ]; then
+            echo "::error::No v-prefixed semver tag found. Seed the 0.x baseline first: git tag v0.1.0 && git push origin v0.1.0"
             exit 1
           fi
 
