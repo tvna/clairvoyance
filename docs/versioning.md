@@ -3,7 +3,12 @@
 ## Policy
 
 The project uses [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`,
-no `v` prefix in files). The current version is **1.0.0**.
+no `v` prefix in files). The current version is **0.1.0**.
+
+The project is in **initial development** (`0.x.x`). `1.0.0` is reserved for the
+first release we are willing to guarantee as a stable API, so until then the
+version stays in the `0.x` range and is allowed to change freely (see the
+[SemVer §4](https://semver.org/#spec-item-4) major-version-zero clause).
 
 `plugin/.claude-plugin/plugin.json` `version` is the **single source of truth**. These
 files must always agree, and CI fails the build if they drift:
@@ -14,7 +19,7 @@ files must always agree, and CI fails the build if they drift:
 - `version.txt`
 
 Each eval suite (`plugin/evals/*/eval.yaml`) also carries a `version` identifying that
-evaluation specification; it is kept at the package version (`1.0.0`).
+evaluation specification; it is kept at the package version (`0.1.0`).
 
 External versions are out of scope for this policy and intentionally separate:
 the APM instruction version in `AGENTS.md`, the `INSTRUCTIONS_TAG` in the sync
@@ -36,6 +41,12 @@ The release PR is review-gated, matching the repository's no-auto-merge posture.
 The version bump itself is computed from commit prefixes (see
 [CONTRIBUTING.md](../CONTRIBUTING.md)): `feat:` → minor, `fix:` → patch, a `!` or
 `BREAKING CHANGE:` → major.
+
+While the project is on `0.x.x`, `bump-minor-pre-major: true` in
+`release-please-config.json` holds breaking changes to a **minor** bump
+(`0.1.0` → `0.2.0`) instead of letting them reach `1.0.0`. The jump to `1.0.0`
+is therefore deliberate: flip `bump-minor-pre-major` to `false` (or land a
+breaking change once you are ready) when the API is stable enough to guarantee.
 
 > First-run note: confirm Release Please resolves the `marketplace.json`
 > `$.plugins[0].version` path on the first release PR. If it does not, the CI

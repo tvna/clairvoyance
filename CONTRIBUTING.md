@@ -13,7 +13,9 @@ not cosmetic — it determines the release.
 | `feat!:` / `fix!:` or `BREAKING CHANGE:` footer | major | a backward-incompatible change |
 | `docs:` `chore:` `test:` `refactor:` `ci:` | none | no release on their own |
 
-See [docs/versioning.md](docs/versioning.md) for the full release flow.
+While the project is on `0.x.x`, a breaking change bumps **minor** (not major) —
+the version stays below `1.0.0` until the API is declared stable. See
+[docs/versioning.md](docs/versioning.md) for the full release flow.
 
 ## Authoring skills
 

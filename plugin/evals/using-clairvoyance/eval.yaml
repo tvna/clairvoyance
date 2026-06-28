@@ -1,7 +1,7 @@
 name: using-clairvoyance-eval
 description: Trigger behavior suite for the Clairvoyance bootstrap skill.
 skill: using-clairvoyance
-version: "1.0.0"
+version: "0.1.0"
 config:
   trials_per_task: 1
   timeout_seconds: 300

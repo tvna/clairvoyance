@@ -1,7 +1,7 @@
 name: review-verdict-eval
 description: Quality suite for the Clairvoyance review verdict skill.
 skill: review-verdict
-version: "1.0.0"
+version: "0.1.0"
 config:
   trials_per_task: 1
   timeout_seconds: 300
