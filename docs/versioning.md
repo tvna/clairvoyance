@@ -97,8 +97,9 @@ git tag v0.1.0           # tagFormat is "v${version}"
 git push origin v0.1.0
 ```
 
-`release.yml` refuses to run when no tag exists, so a forgotten baseline fails
-the release loudly instead of silently cutting `1.0.0`. The next release then
-computes from `0.1.0` (`feat:` → `0.2.0`, `fix:` → `0.1.1`).
+`release.yml` refuses to run unless a v-prefixed semver tag exists, so a missing
+or wrongly-formatted baseline fails the release loudly instead of silently cutting
+`1.0.0`. The next release then computes from `0.1.0` (`feat:` → `0.2.0`,
+`fix:` → `0.1.1`).
 
 [semantic-release]: https://github.com/semantic-release/semantic-release
