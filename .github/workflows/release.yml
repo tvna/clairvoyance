@@ -1,13 +1,11 @@
 name: Release
 
-# Semantic versioning via semantic-release. The git tag is the single source of
-# truth: semantic-release reads the Conventional Commit history since the last
-# tag, computes the next semver, writes it into plugin.json (scripts/apply_version.mjs),
-# updates CHANGELOG.md, commits both, tags, and publishes a GitHub Release.
+# Semantic versioning via semantic-release; the git tag is the single source of
+# truth. The full release flow and required setup live in docs/versioning.md.
 #
 # Cadence is intentional, not per-merge: a weekly schedule cuts the release, and
 # workflow_dispatch allows an ad-hoc release between weeks. Plain pushes to main
-# never release. See docs/versioning.md.
+# never release.
 
 on:
   schedule:

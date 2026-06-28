@@ -111,14 +111,11 @@ guardrails. Avoid brittle concept-keyword matches that depend on phrasing.
 
 ## Branching and releases
 
-Development is **trunk-based**. `main` is the trunk and is always releasable;
-work lands on it through short-lived branches and reviewed, squash-merged PRs
-(the PR title becomes the Conventional Commit that drives the version bump). There
-are no long-lived `develop`/`release` branches.
-
-Releasing is decoupled from merging: semantic-release cuts a tag from `main` on a
-**weekly schedule**, plus on demand via `workflow_dispatch`. A merge therefore does
-not release on its own. See [docs/versioning.md](docs/versioning.md).
+Development is **trunk-based**: `main` is always releasable, work lands through
+short-lived branches and squash-merged PRs (the PR title becomes the Conventional
+Commit that drives the bump), and releasing is decoupled from merging — a tag is
+cut weekly (plus on-demand `workflow_dispatch`), not on every merge. Full detail
+in [docs/versioning.md](docs/versioning.md).
 
 ## Pull requests
 

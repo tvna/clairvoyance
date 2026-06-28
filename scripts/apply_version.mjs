@@ -2,16 +2,15 @@
 // for the version. Invoked by @semantic-release/exec's prepareCmd with the next
 // version as the only argument; the git tag remains the source of truth and this
 // keeps plugin.json (which Claude Code reads at the installed ref) in agreement.
-//
-// marketplace.json deliberately carries no version: Claude Code resolves
-// plugin.json first, and the docs warn against setting it in both places.
 import { readFileSync, writeFileSync } from "node:fs";
 
 const MANIFEST = "plugin/.claude-plugin/plugin.json";
 const version = process.argv[2];
 
-if (!version || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)) {
-  console.error(`apply_version: expected a semver argument, got: ${version ?? "(none)"}`);
+// semantic-release guarantees a valid semver; guard only the misconfiguration
+// case where the argument never arrives.
+if (!version) {
+  console.error("apply_version: expected a version argument from semantic-release");
   process.exit(1);
 }
 
