@@ -1,0 +1,100 @@
+# Pre-commit hooks for the Clairvoyance skill package.
+#
+# Runs with prek (https://github.com/j178/prek) or pre-commit:
+#   prek install            # enable the git hook
+#   prek run --all-files     # run across the whole repo
+#
+# Scope follows the repo's real artifacts (YAML, JSON, Markdown, bash) plus the
+# project's own validators, rather than a generic kitchen sink. AGENTS.md is
+# generated and SHA-verified by the sync workflow, so it stays untouched.
+exclude: ^AGENTS\.md$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-json
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: shellcheck (bash hook)
+        entry: shellcheck
+        language: system
+        # run-hook.cmd is a cmd/bash polyglot; shellcheck only lints pure bash.
+        files: ^(plugin/hooks/session-start\.sh|scripts/.*\.sh)$
+
+      - id: version-consistency
+        name: version consistency (plugin.json is source of truth)
+        entry: python3 scripts/check_version_consistency.py
+        language: system
+        pass_filenames: false
+        files: ^(plugin/\.claude-plugin/.*\.json|\.claude-plugin/.*\.json|\.release-please-manifest\.json|version\.txt)$
+
+      - id: hook-scripts
+        name: hook scripts emit valid JSON
+        entry: bash scripts/check_hooks.sh
+        language: system
+        pass_filenames: false
+        files: ^plugin/hooks/
+
+      - id: check-skills
+        name: skill best-practice checks
+        entry: python3 scripts/check_skills.py
+        language: system
+        pass_filenames: false
+        files: ^plugin/skills/
+
+      - id: check-coverage
+        name: skill coverage (eval + doc, no orphan evals)
+        entry: python3 scripts/check_coverage.py
+        language: system
+        pass_filenames: false
+        files: ^(plugin/skills/|plugin/evals/|docs/)
+
+      - id: waza-check
+        name: waza check (skill validation)
+        # waza detects the skills/ + evals/ workspace from the plugin root.
+        entry: bash -c 'cd plugin && exec waza check --no-update-check'
+        language: system
+        pass_filenames: false
+        require_serial: true
+        files: ^plugin/(skills|evals)/
+
+      - id: ruff-check
+        name: ruff (lint)
+        entry: uv run --frozen ruff check --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff (format)
+        entry: uv run --frozen ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: mypy
+        name: mypy (type check)
+        # mypy resolves cross-file imports, so type-check the configured
+        # project (files=scripts,tests) rather than only the staged paths.
+        entry: uv run --frozen mypy
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+        require_serial: true
+
+      - id: pytest
+        name: pytest (script tests + coverage)
+        entry: uv run --frozen pytest
+        language: system
+        pass_filenames: false
+        require_serial: true
+        files: ^(scripts/|tests/|pyproject\.toml|uv\.lock|\.python-version)

@@ -1,0 +1,24 @@
+id: session-handoff-context-low
+name: Handoff When Context Is Low
+description: Compresses remaining work into a self-contained prompt when context is running out.
+tags:
+  - quality
+  - handoff
+inputs:
+  prompt: |
+    Use session-handoff. Context is almost full; hand off the remaining work. Use only the context below.
+
+    Context:
+    - Issue #277, branch refactor/extract-validator (already exists).
+    - Validator extraction is half done: app/validate.py is extracted, but three callers in app/checkout.py still use the old inline path.
+    - Remaining work is to point those three callers at the new validator and delete the inline copy.
+    - Verify with: uv run pytest tests/test_checkout.py -v
+expected:
+  output_contains:
+    - "Context"
+    - "Files to read"
+    - "Implementation"
+    - "Verification"
+    - "Acceptance criteria"
+  output_not_contains:
+    - "```"

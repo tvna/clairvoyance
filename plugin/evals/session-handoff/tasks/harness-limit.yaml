@@ -1,0 +1,24 @@
+id: session-handoff-harness-limit
+name: Handoff When The Harness Limits The Session
+description: Hands off to a fresh session when repository gates block the change in the current one.
+tags:
+  - quality
+  - handoff
+inputs:
+  prompt: |
+    Use session-handoff. Repository gates block this change in the current session; hand it off for a fresh session. Use only the context below.
+
+    Context:
+    - Issue #604, branch chore/rotate-ci-token (already exists).
+    - The change must edit a protected workflow file, but this session's branch authz blocks workflow edits.
+    - A fresh session on the same branch, started after the gate is satisfied, can make the edit.
+    - Verify with: the CI workflow runs green on the pushed branch.
+expected:
+  output_contains:
+    - "Context"
+    - "Background"
+    - "Implementation"
+    - "Verification"
+    - "Acceptance criteria"
+  output_not_contains:
+    - "```"

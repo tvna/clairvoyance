@@ -1,0 +1,91 @@
+name: CI
+
+# Static validation that runs without any LLM/eval backend. Guards JSON
+# manifests, version consistency across all version-bearing files (the single
+# source of truth is plugin.json; Release Please keeps the others in sync), and
+# hook script integrity including the cross-platform run-hook entry point.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0  # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Validate JSON files
+        run: |
+          set -euo pipefail
+          files=(
+            plugin/.claude-plugin/plugin.json
+            .claude-plugin/marketplace.json
+            plugin/hooks/hooks.json
+            .release-please-manifest.json
+            release-please-config.json
+          )
+          for f in "${files[@]}"; do
+            python3 -m json.tool "$f" > /dev/null
+            echo "ok: $f"
+          done
+
+      - name: Check version consistency
+        run: python3 scripts/check_version_consistency.py
+
+      - name: Validate hook scripts
+        run: bash scripts/check_hooks.sh
+
+      - name: Check skill best practices
+        run: python3 scripts/check_skills.py
+
+      - name: Check skill coverage (eval + doc, no orphans)
+        run: python3 scripts/check_coverage.py
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0  # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Lint with ruff
+        run: |
+          uv run --frozen ruff check --output-format=github
+          uv run --frozen ruff format --check
+
+      - name: Type-check with mypy
+        run: uv run --frozen mypy
+
+      - name: Run script tests with coverage
+        run: uv run --frozen pytest

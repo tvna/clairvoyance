@@ -1,0 +1,18 @@
+id: decision-coaching-missing-subject
+name: Missing Subject Prompt
+description: Asks for the missing subject instead of guessing from ambiguous input.
+tags:
+  - quality
+  - ambiguity
+inputs:
+  prompt: |
+    Use decision-coaching. It should use the service, right?
+
+    Context:
+    - No component, service, caller, or decision owner is named.
+    - The input mixes implementation preference and architecture judgment.
+expected:
+  output_contains:
+    - "AskUserQuestion"
+    - "Premortem"
+    - "Recommended"

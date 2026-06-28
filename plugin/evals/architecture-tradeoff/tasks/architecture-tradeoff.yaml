@@ -1,0 +1,27 @@
+id: architecture-tradeoff-ready-call
+name: Architecture Trade-Off Handoff
+description: Produces a trade-off handoff with options and recommendation.
+tags:
+  - quality
+  - architecture
+inputs:
+  prompt: |
+    Use architecture-tradeoff. Explain the trade-off and recommend the next move. Use only the context below.
+
+    Context:
+    - Option A keeps validation inside the checkout API handler.
+    - Option B moves validation into a shared domain service.
+    - The handler path has lower churn and can ship today.
+    - The shared service reduces duplication across web and mobile checkout.
+    - Mobile checkout will not adopt the service for at least two weeks.
+    - Current bug affects only web checkout.
+    - Both options can be reverted, but Option B touches more callers.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Evidence"
+    - "Options"
+    - "Future Story"
+    - "Premortem"
+    - "Risks"
+    - "Next Move"

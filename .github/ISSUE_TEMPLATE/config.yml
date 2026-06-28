@@ -1,0 +1,7 @@
+# Blank issues stay enabled on purpose: design rationale and migration plans live
+# in Issues by project policy, and those are free-form.
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/tvna/clairvoyance/blob/main/CONTRIBUTING.md
+    about: How to author skills, run evaluations, and follow the commit/release conventions.

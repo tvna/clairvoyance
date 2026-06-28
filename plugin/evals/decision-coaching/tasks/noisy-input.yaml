@@ -1,0 +1,14 @@
+id: decision-coaching-noisy-input
+name: Noisy Input Coaching
+description: Summarizes observed facts and asks a focused question instead of guessing from noisy input.
+tags:
+  - quality
+  - ambiguity
+inputs:
+  prompt: |
+    Use decision-coaching. ok the checkout thing feels kinda slow lately maybe? not sure. just make it good and ship whatever you think, lgtm i guess.
+expected:
+  output_contains:
+    - "AskUserQuestion"
+    - "Premortem"
+    - "Recommended"

@@ -1,0 +1,20 @@
+id: using-clairvoyance-positive-blocked-owner
+name: Positive - Blocked Owner Handoff
+description: The bootstrap should route a blocked human decision to clairvoyance.
+tags:
+  - recall
+  - positive-trigger
+inputs:
+  prompt: |
+    I am blocked. Tell the owner what choices they have.
+
+    Context:
+    - The deployment needs a production API key.
+    - I verified the staging path works.
+    - I cannot create or view production secrets.
+    - The owner can either issue the key, defer release, or approve a staging-only demo.
+expected:
+  output_contains:
+    - "Options"
+    - "Evidence"
+    - "Verdict"

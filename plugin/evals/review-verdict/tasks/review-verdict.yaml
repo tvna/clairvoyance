@@ -1,0 +1,24 @@
+id: review-verdict-ready-call
+name: Review Verdict Handoff
+description: Produces a review verdict with evidence and architecture context.
+tags:
+  - quality
+  - review-verdict
+inputs:
+  prompt: |
+    Use review-verdict. Review this PR and tell me if it is ready, with architecture impact. Use only the context below.
+
+    Context:
+    - PR changes `src/auth/session.ts` and `tests/session.test.ts`.
+    - Entry point is `POST /api/session/refresh`.
+    - The change rotates refresh tokens earlier in the request path.
+    - Unit tests cover success and expired-token cases.
+    - No integration test covers concurrent refresh requests.
+    - A failed rollout can be reverted with one commit.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Evidence"
+    - "System Context"
+    - "Risk"
+    - "Next"

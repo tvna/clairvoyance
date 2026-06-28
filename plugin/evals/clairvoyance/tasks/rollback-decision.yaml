@@ -1,0 +1,22 @@
+id: clairvoyance-rollback-decision
+name: Owner Rollback Decision
+description: Hands the owner a rollback-versus-forward-fix decision with options and evidence.
+tags:
+  - quality
+  - blocker
+inputs:
+  prompt: |
+    Use clairvoyance. Tell the owner what choices they have. Use only the context below.
+
+    Context:
+    - A deploy raised the checkout error rate from 0.1% to 4%.
+    - The agent can roll back to the previous release or hold for a forward fix.
+    - A forward fix is drafted but untested.
+    - Only the owner can accept the customer impact of either path.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Evidence"
+    - "Options"
+    - "Risks"
+    - "Next Move"

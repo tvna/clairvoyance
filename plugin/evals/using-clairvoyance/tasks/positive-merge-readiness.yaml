@@ -1,0 +1,20 @@
+id: using-clairvoyance-positive-merge-readiness
+name: Positive - Merge Readiness
+description: The bootstrap should route a human merge decision to clairvoyance.
+tags:
+  - recall
+  - positive-trigger
+inputs:
+  prompt: |
+    Should we merge this PR? Use only the context below. Give me a decision-ready handoff with evidence, risks, and a recommendation; list missing proof instead of asking for the repository.
+
+    Context:
+    - The PR changes the checkout validator and its tests.
+    - Unit tests pass.
+    - No browser or end-to-end path was exercised.
+    - The rollback is a single revert.
+expected:
+  output_contains:
+    - "Evidence"
+    - "Risk"
+    - "merge"

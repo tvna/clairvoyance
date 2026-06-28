@@ -1,0 +1,26 @@
+name: clairvoyance-eval
+description: Output quality suite for evidence-backed owner decision and blocker handoffs.
+skill: clairvoyance
+version: "1.0.0"
+config:
+  trials_per_task: 1
+  timeout_seconds: 300
+  parallel: false
+  executor: copilot-sdk
+  model: claude-sonnet-4.6
+metrics:
+  - name: handoff_quality
+    weight: 1.0
+    threshold: 0.8
+    description: Owner handoff includes verdict, evidence, options, risks, reversibility, and next move.
+graders:
+  - type: text
+    name: handoff_sections
+    config:
+      regex_match:
+        - "(?i)verdict|recommendation"
+        - "(?i)evidence"
+        - "(?i)risk"
+        - "(?i)next"
+tasks:
+  - "tasks/*.yaml"

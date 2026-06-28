@@ -1,0 +1,13 @@
+id: using-clairvoyance-negative-progress
+name: Negative - Quick Progress
+description: The bootstrap should not route quick progress updates to clairvoyance.
+tags:
+  - precision
+  - negative-trigger
+inputs:
+  prompt: "Give me a quick progress update."
+expected:
+  output_not_contains:
+    - "clairvoyance"
+    - "decision-ready"
+    - "handoff"

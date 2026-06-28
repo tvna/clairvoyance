@@ -1,0 +1,19 @@
+{
+  "name": "clairvoyance",
+  "description": "A force multiplier for agent-to-human handoffs, turning work into evidence-backed decisions humans can trust.",
+  "version": "1.0.0",
+  "author": {
+    "name": "tvna"
+  },
+  "homepage": "https://github.com/tvna/clairvoyance",
+  "repository": "https://github.com/tvna/clairvoyance",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "handoff",
+    "decision-making",
+    "architecture",
+    "evidence",
+    "claude-code"
+  ]
+}
