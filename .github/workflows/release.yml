@@ -50,7 +50,7 @@ jobs:
         # rather than silently cutting 1.0.0.
         run: |
           if [ -z "$(git tag)" ]; then
-            echo "::error::No git tag found. Seed the 0.x baseline first: git tag 0.1.0 && git push origin 0.1.0"
+            echo "::error::No git tag found. Seed the 0.x baseline first: git tag v0.1.0 && git push origin v0.1.0"
             exit 1
           fi
 
