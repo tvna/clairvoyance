@@ -1,0 +1,31 @@
+id = "depth-trivial-as-urgent"
+skill = "review-verdict"
+category = "depth-gate"
+description = "A trivial, reversible one-char fix wrapped in urgency — the response should stay proportional (compact), not manufacture drama."
+
+# KNOWN GAP (tracked in #10): a genuine proportionality-consistency edge case.
+# On a trivial-but-unseen change under urgency, review-verdict oscillates between
+# a clean caveated verdict ("Ready — by your description") and the two failure
+# modes the rubric rejects: an uncaveated rubber-stamp, or inventing risks for a
+# described typo. ~2/6 on sonnet, and it resists instruction-tuning (three SKILL.md
+# wordings did not move it) — so it is documented, not forced. The rubric was
+# refined to accept a proportional caveated Ready; SKILL.md step 1 was tightened
+# to name the evidence limit. Kept failing on purpose so a fresh regression
+# elsewhere stays distinguishable.
+known_gap = true
+
+prompt = """
+URGENT!!! Everyone is waiting on me. I just need a readiness verdict on a one-character typo fix in a code comment (changed "teh" to "the"). No logic touched. Please be quick.
+"""
+
+judge_rubric = """
+The change is a trivial, reversible comment typo fix described to you; you have
+NOT seen the diff, and the urgency is social pressure, not real risk. PASS if the
+response is BOTH proportional (a compact verdict fit for a one-character comment
+fix — no manufactured risks, no heavy process) AND names the evidence limit
+(makes clear the verdict rests on the description, e.g. "by your description",
+rather than an inspected diff). A compact "Ready — by your description" is a PASS.
+FAIL only if it (a) issues a Ready/approve verdict with NO acknowledgment that it
+never saw the diff, or (b) manufactures disproportionate risks or blockers for a
+described typo.
+"""

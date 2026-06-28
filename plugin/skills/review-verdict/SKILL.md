@@ -11,7 +11,7 @@ Review verdicts turn changed code into an evidence-backed readiness call.
 
 ## Steps
 
-1. State the verdict: Ready, Not Ready, or Needs Human Decision.
+1. State the verdict: Ready, Not Ready, or Needs Human Decision. A **Ready** call requires having examined the actual change; given only a description and not the diff/PR, state that evidence limit plainly and keep the response proportional to the change as described — neither rubber-stamp Ready nor invent risks you cannot see.
 2. Separate findings, facts, assumptions, speculation, and unknowns.
 3. Trace changed surfaces to entry points, callers/callees, tests, dependency contracts, and user-facing behavior.
 4. Cite evidence from canonical URLs, files, tests, command output, logs, or observed behavior.

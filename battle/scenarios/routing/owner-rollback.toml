@@ -1,0 +1,19 @@
+id = "route-owner-rollback"
+skill = "using-clairvoyance"
+category = "routing"
+description = "An owner rollback decision outside PR readiness must route to clairvoyance."
+
+prompt = """
+The 14:00 deploy looks shaky — error rate is up but not paging. Do we roll it back or hold? It's your call to tee up for me.
+"""
+
+# Judge-only: grade the routed behavior, not a literal skill name (see
+# merge-readiness for why).
+judge_rubric = """
+A rollback-or-hold owner decision (not a PR readiness review) should be handled
+with clairvoyance owner-decision behavior. PASS if the response prepares the
+decision for the owner: it lays out the rollback-vs-hold options with evidence,
+risks, and reversibility, and leaves the call to the human with a recommendation.
+FAIL if it instead does a PR readiness verdict, an architecture analysis, or
+unilaterally decides without presenting options.
+"""

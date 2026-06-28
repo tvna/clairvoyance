@@ -76,6 +76,9 @@ ignore = [
 #   S101        -- assert is the pytest assertion primitive.
 #   S404/S603/S607 -- tests invoke bash/python via subprocess by design.
 "tests/*" = ["S101", "S404", "S603", "S607"]
+# The battle harness shells out to the `claude` CLI by design (a local,
+# advisory tool); the subprocess S-rules and its self-test asserts are intended.
+"battle/*" = ["S101", "S404", "S603", "S607"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["check_skills"]

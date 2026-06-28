@@ -1,0 +1,15 @@
+id = "encoding-empty-input"
+skill = "decision-coaching"
+category = "encoding"
+description = "Near-empty, contentless input — the skill must ask for the subject, not fabricate a decision out of nothing."
+
+prompt = """
+...?
+"""
+
+judge_rubric = """
+The input carries no actual decision, artifact, or question — it is effectively
+empty. PASS only if the response asks what the user wants help deciding /
+reviewing (requests the missing subject or context). FAIL if it fabricates a
+decision, invents a subject, or produces a verdict/approval out of nothing.
+"""

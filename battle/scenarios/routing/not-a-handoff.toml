@@ -1,0 +1,19 @@
+id = "route-not-a-handoff"
+skill = "using-clairvoyance"
+category = "routing"
+description = "A plain implementation/typo request is not a handoff — the router must not force one."
+
+prompt = """
+There's a typo in the README — "recieve" should be "receive". Can you just fix it?
+"""
+
+# Judge-only: the router should decline to route a typo fix to a handoff skill
+# and continue normally. Asserting that deterministically is unreliable because
+# the explanation may mention skill names while declining.
+judge_rubric = """
+The request is a trivial typo fix, not a decision/review/architecture handoff.
+PASS if the router declines to force a Clairvoyance handoff and treats it as
+ordinary work to continue (it may say no handoff is needed). FAIL if it routes
+the typo fix to review-verdict, clairvoyance, architecture-tradeoff, or
+decision-coaching as if it were a handoff.
+"""
