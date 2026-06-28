@@ -1,5 +1,9 @@
 # Clairvoyance
 
+[![codecov](https://codecov.io/gh/tvna/clairvoyance/branch/main/graph/badge.svg)](https://codecov.io/gh/tvna/clairvoyance)
+
+[English](./README.md) | [日本語](./README.ja.md) | [简体中文](./README.zh.md) | [한국어](./README.ko.md)
+
 A force multiplier for agent-to-human handoffs, turning work into evidence-backed
 decisions humans can trust.
 
@@ -28,35 +32,64 @@ when to prefer it over the harness's automatic compaction.
 
 ## Install
 
-Add the marketplace and install the plugin in Claude Code:
+Clairvoyance ships one plugin tree with a manifest for each runtime
+(`plugin/.claude-plugin/` and `plugin/.codex-plugin/`), so the same skills install
+through whichever path your agent uses.
+
+### Claude Code
+
+Add the marketplace and install the plugin:
 
 ```
 /plugin marketplace add tvna/clairvoyance
 /plugin install clairvoyance
 ```
 
+### Codex
+
+Add the repository marketplace and install the plugin with the Codex CLI:
+
+```
+codex plugin marketplace add tvna/clairvoyance
+codex plugin add clairvoyance
+```
+
+The repository marketplace lives at [.agents/plugins/marketplace.json](.agents/plugins/marketplace.json),
+and Codex reads the `plugin/.codex-plugin/plugin.json` manifest.
+
+### apm (any supported agent)
+
+[`microsoft/apm`](https://github.com/microsoft/apm) installs Clairvoyance as a
+marketplace plugin and deploys its skills into every agent it detects (Claude
+Code, Codex, and more):
+
+```bash
+apm install tvna/clairvoyance
+```
+
+To pin it for a project, add the dependency to your `apm.yml` and run `apm install`:
+
+```yaml
+dependencies:
+  apm:
+    - tvna/clairvoyance
+```
+
+### What the hook does
+
 The plugin registers a `SessionStart` hook that injects the `using-clairvoyance`
 bootstrap skill (and the project owner's language) at session start, clear, and
-compaction. See [docs/hooks.md](docs/hooks.md).
+compaction. Claude Code reads `plugin/hooks/hooks.json` and Codex reads
+`plugin/hooks/codex-hooks.json`; both route through the same
+`hooks/run-hook.cmd` wrapper, differing only in the plugin-root variable each
+runtime substitutes. See [docs/hooks.md](docs/hooks.md).
 
 ## Repository layout
 
 The marketplace points at `plugin/` (`source: "./plugin"`), so **only `plugin/` is
-copied to a user's install cache**. Everything outside it — contributor
-instructions (`AGENTS.md`), tests, dev tooling, CI, and docs — stays in the
-repository and is never distributed.
-
-```
-.claude-plugin/            marketplace.json (the marketplace manifest)
-plugin/                    the distributed plugin — only this ships
-  .claude-plugin/          plugin.json (plugin manifest, version source of truth)
-  skills/                  one directory per skill (SKILL.md + references/)
-  hooks/                   SessionStart hook and cross-platform entry point
-  evals/                   waza evaluation suites, one per skill
-AGENTS.md                  imported agent instructions (synced; not shipped)
-scripts/ tests/            validators and their pytest suite (not shipped)
-docs/ .github/             documentation, CI, release automation (not shipped)
-```
+copied to a user's install cache**; everything else stays in the repository and is
+never distributed. See [docs/repository-layout.md](docs/repository-layout.md) for
+the full tree.
 
 ## Development
 
@@ -64,13 +97,16 @@ docs/ .github/             documentation, CI, release automation (not shipped)
 - **Run evals:** `waza run` — see [docs/evaluations.md](docs/evaluations.md) for
   the execution backend and what to do when its quota is exhausted.
 - **CI** validates JSON manifests and hook scripts on every pull request — no
-  external services needed.
+  external services needed. The script test suite runs with coverage; the gate
+  is local (`--cov-fail-under=100` in `pyproject.toml`) and results are also
+  reported to [Codecov](https://codecov.io/gh/tvna/clairvoyance) for trend
+  history (informational, never blocking).
 
 ## Versioning and releases
 
 Semantic Versioning, automated with semantic-release from Conventional Commits.
-The git tag is the source of truth; each release writes the version into
-`plugin.json` (the manifest Claude Code reads). See
+The git tag is the source of truth; each release writes the version into both
+the Claude Code and Codex `plugin.json` manifests, kept in lockstep. See
 [docs/versioning.md](docs/versioning.md).
 
 ## Contributing
