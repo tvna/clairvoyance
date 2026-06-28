@@ -22,10 +22,11 @@ contains the substring "LGTM". So scenarios lean on *structural* markers the
 skill emits and on an optional LLM judge (`--judge`) for the real verdict.
 
 Usage:
-  python3 battle/run_battle.py --selftest          # offline, no claude calls
-  python3 battle/run_battle.py                      # all scenarios, 1 trial
-  python3 battle/run_battle.py --trials 3 --judge   # pass-rate + LLM judge
+  python3 battle/run_battle.py --selftest                 # offline, no claude calls
+  python3 battle/run_battle.py                             # all scenarios, 1 trial
+  python3 battle/run_battle.py --trials 3 --judge          # pass-rate + LLM judge
   python3 battle/run_battle.py --scenario injection --model opus
+  python3 battle/run_battle.py --model sonnet --model haiku --out runs.jsonl
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
+from datetime import UTC, datetime
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
@@ -112,34 +114,58 @@ def run_judge(result_text: str, rubric: str, model: str, max_budget: float) -> t
     return passed, verdict.splitlines()[0] if verdict else "(empty judge reply)"
 
 
+def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[str]) -> dict:
+    """A machine-readable result row for one (scenario, model) cell."""
+    return {
+        "id": sc.get("id", sc["_path"].stem),
+        "skill": sc["skill"],
+        "category": sc.get("category", "?"),
+        "model": model,
+        "trials": trials,
+        "passes": passes,
+        "passed": passes == trials,
+        "reasons": reasons,
+    }
+
+
 def run(args: argparse.Namespace) -> int:
     scenarios = load_scenarios(SCENARIOS_DIR, args.scenario)
     if not scenarios:
         print(f"no scenarios matched filter {args.scenario!r}", file=sys.stderr)
         return 2
+    models = args.model or ["sonnet"]
 
     total_cost = 0.0
     all_passed = True
+    records: list[dict] = []
     for sc in scenarios:
-        sid = sc.get("id", sc["_path"].stem)
-        passes = 0
-        last_reasons: list[str] = []
-        for _ in range(args.trials):
-            output, cost = run_executor(sc["skill"], sc["prompt"], args.model, args.max_budget_usd)
-            total_cost += cost
-            ok, reasons = grade(output, sc)
-            if ok and args.judge and sc.get("judge_rubric"):
-                jok, jwhy = run_judge(output, sc["judge_rubric"], args.judge_model, args.max_budget_usd)
-                if not jok:
-                    ok, reasons = False, [f"judge FAIL: {jwhy}"]
-            passes += ok
-            last_reasons = reasons
-        verdict = "PASS" if passes == args.trials else "FAIL"
-        all_passed &= passes == args.trials
-        print(f"[{verdict}] {sid} ({sc.get('category', '?')}/{sc['skill']}) {passes}/{args.trials}")
-        if passes < args.trials:
-            for r in last_reasons:
-                print(f"    - {r}")
+        for model in models:
+            passes = 0
+            last_reasons: list[str] = []
+            for _ in range(args.trials):
+                output, cost = run_executor(sc["skill"], sc["prompt"], model, args.max_budget_usd)
+                total_cost += cost
+                ok, reasons = grade(output, sc)
+                if ok and args.judge and sc.get("judge_rubric"):
+                    jok, jwhy = run_judge(output, sc["judge_rubric"], args.judge_model, args.max_budget_usd)
+                    if not jok:
+                        ok, reasons = False, [f"judge FAIL: {jwhy}"]
+                passes += ok
+                last_reasons = reasons
+            rec = make_record(sc, model, passes, args.trials, last_reasons)
+            records.append(rec)
+            all_passed &= rec["passed"]
+            tag = f"{rec['id']} ({rec['category']}/{rec['skill']}@{model})"
+            print(f"[{'PASS' if rec['passed'] else 'FAIL'}] {tag} {passes}/{args.trials}")
+            if not rec["passed"]:
+                for r in last_reasons:
+                    print(f"    - {r}")
+
+    if args.out:
+        stamp = datetime.now(UTC).isoformat()
+        with pathlib.Path(args.out).open("a", encoding="utf-8") as fh:
+            for rec in records:
+                fh.write(json.dumps({"ts": stamp, **rec}) + "\n")
 
     print(f"\nsummary: {'all passed' if all_passed else 'failures present'}; est. cost ${total_cost:.3f}")
     return 0 if all_passed or not args.strict else 1
@@ -169,6 +195,19 @@ def selftest() -> int:
     assert routing and routing < all_ids and all(i.startswith("route-") for i in routing)
     two = {s["id"] for s in load_scenarios(SCENARIOS_DIR, "chinese,spanish")}
     assert two == {"guard-no-lgtm-chinese", "guard-no-lgtm-spanish"}, two
+
+    sc = {"id": "x", "skill": "s", "category": "c", "_path": pathlib.Path("x")}
+    assert make_record(sc, "sonnet", 3, 3, []) == {
+        "id": "x",
+        "skill": "s",
+        "category": "c",
+        "model": "sonnet",
+        "trials": 3,
+        "passes": 3,
+        "passed": True,
+        "reasons": [],
+    }
+    assert make_record(sc, "haiku", 1, 3, ["why"])["passed"] is False
     print("selftest ok")
     return 0
 
@@ -178,8 +217,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--scenario", default="", help="comma-separated path substrings; keep any match (e.g. routing,chinese)"
     )
-    p.add_argument("--model", default="sonnet", help="executor model (default: sonnet)")
+    p.add_argument("--model", action="append", help="executor model; repeat for multi-model (default: sonnet)")
     p.add_argument("--trials", type=int, default=1, help="trials per scenario (pass-rate)")
+    p.add_argument("--out", default="", help="append machine-readable JSONL results to this path")
     p.add_argument("--judge", action="store_true", help="add an LLM-judge rubric grade")
     p.add_argument("--judge-model", default="sonnet", help="judge model (default: sonnet)")
     p.add_argument("--max-budget-usd", type=float, default=0.5, help="per-call spend cap")
