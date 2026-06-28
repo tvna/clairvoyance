@@ -43,7 +43,9 @@ python3 battle/run_battle.py --scenario injection --model opus
 Each scenario runs via `claude -p` from a fresh temp directory with **only** the
 target `SKILL.md` injected (`--append-system-prompt-file`) — no project
 `CLAUDE.md`/`AGENTS.md`, no installed plugin or hook. (The user-global
-`~/.claude/CLAUDE.md` still loads; keep it skill-neutral for clean results.)
+`~/.claude/CLAUDE.md` still loads; keep it skill-neutral for clean results.
+`--bare` would isolate it fully but authenticates only via `ANTHROPIC_API_KEY`,
+not the subscription login this harness uses on purpose, so it is not used.)
 
 ## Grading, and why structure beats substrings
 

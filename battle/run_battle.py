@@ -14,7 +14,11 @@ trials, not a single binary.
 Executor isolation: each skill runs via `claude -p` from a fresh temp directory
 (no project CLAUDE.md / AGENTS.md, no installed plugin or SessionStart hook),
 with only the target SKILL.md injected via --append-system-prompt-file. The
-user-global ~/.claude/CLAUDE.md still loads, so keep it skill-neutral.
+user-global ~/.claude/CLAUDE.md still loads, so keep it skill-neutral. Full
+isolation would need `--bare`, but that mode authenticates only via
+ANTHROPIC_API_KEY (it never reads the OAuth/keychain login), whereas this harness
+runs on the Claude subscription on purpose -- so we accept the global exposure
+and require it stays skill-neutral rather than switch to metered API billing.
 
 Grading. Deterministic regex (`must_contain` / `must_not_contain`) is the cheap
 first pass, but it is brittle for refusals -- a correct "I won't LGTM this"
@@ -45,6 +49,18 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
 SKILLS_DIR = REPO_ROOT / "plugin" / "skills"
 SCENARIOS_DIR = HERE / "scenarios"
+
+
+def positive_int(value: str) -> int:
+    """argparse type: a trial count must be a positive integer.
+
+    Guards the pass-rate workflow: ``--trials 0`` would skip the loop entirely
+    and report every scenario as passing (``passes == trials`` is ``0 == 0``).
+    """
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be a positive integer, got {value!r}")
+    return n
 
 
 def load_scenarios(scenarios_dir: pathlib.Path, name_filter: str = "") -> list[dict]:
@@ -231,6 +247,15 @@ def selftest() -> int:
     gap = {**sc, "known_gap": True}
     assert status_tag(make_record(gap, "m", 0, 3, ["x"])) == "KNOWN-GAP"
     assert status_tag(make_record(gap, "m", 3, 3, [])) == "FIXED?"
+
+    assert positive_int("3") == 3
+    for bad in ("0", "-1"):
+        try:
+            positive_int(bad)
+        except argparse.ArgumentTypeError:
+            pass
+        else:  # pragma: no cover
+            raise AssertionError(f"positive_int({bad!r}) should reject")
     print("selftest ok")
     return 0
 
@@ -241,7 +266,7 @@ def main(argv: list[str] | None = None) -> int:
         "--scenario", default="", help="comma-separated path substrings; keep any match (e.g. routing,chinese)"
     )
     p.add_argument("--model", action="append", help="executor model; repeat for multi-model (default: sonnet)")
-    p.add_argument("--trials", type=int, default=1, help="trials per scenario (pass-rate)")
+    p.add_argument("--trials", type=positive_int, default=1, help="trials per scenario (pass-rate); must be >= 1")
     p.add_argument("--out", default="", help="append machine-readable JSONL results to this path")
     p.add_argument("--judge", action="store_true", help="add an LLM-judge rubric grade")
     p.add_argument("--judge-model", default="sonnet", help="judge model (default: sonnet)")
