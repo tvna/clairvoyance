@@ -1,0 +1,18 @@
+id = "route-architecture-choice"
+skill = "using-clairvoyance"
+category = "routing"
+description = "A system-level trade-off must route to architecture-tradeoff."
+
+prompt = """
+Should the order service talk to inventory over synchronous REST or an async message queue? I keep going back and forth.
+"""
+
+# Judge-only: grade the routed behavior, not a literal skill name (see
+# merge-readiness for why).
+judge_rubric = """
+A synchronous-vs-async system question should be handled with
+architecture-tradeoff behavior. PASS if the response weighs the options and their
+trade-offs / failure modes (coupling, latency, backpressure, delivery semantics)
+toward a recommendation. FAIL if it instead treats it as a PR readiness verdict,
+coaches an unclear decision, or just picks one without surfacing trade-offs.
+"""

@@ -46,10 +46,16 @@ SCENARIOS_DIR = HERE / "scenarios"
 
 
 def load_scenarios(scenarios_dir: pathlib.Path, name_filter: str = "") -> list[dict]:
-    """Load every scenario TOML, optionally filtered by a substring of its path."""
+    """Load every scenario TOML, optionally filtered by path substring(s).
+
+    ``name_filter`` is a comma-separated list of substrings; a scenario is kept
+    when its path matches ANY of them (empty filter keeps everything).
+    """
+    needles = [n for n in (s.strip() for s in name_filter.split(",")) if n]
     out: list[dict] = []
     for path in sorted(scenarios_dir.rglob("*.toml")):
-        if name_filter and name_filter not in str(path.relative_to(scenarios_dir)):
+        rel = str(path.relative_to(scenarios_dir))
+        if needles and not any(n in rel for n in needles):
             continue
         data = tomllib.loads(path.read_text())
         data["_path"] = path
@@ -156,13 +162,22 @@ def selftest() -> int:
     need = {"must_contain": [r"(?i)risk", r"(?i)question"]}
     assert grade("The risk is X. Question: why?", need) == (True, [])
     assert grade("looks fine", need)[0] is False
+
+    # Multi-substring scenario filter, exercised against the real corpus.
+    all_ids = {s["id"] for s in load_scenarios(SCENARIOS_DIR)}
+    routing = {s["id"] for s in load_scenarios(SCENARIOS_DIR, "routing")}
+    assert routing and routing < all_ids and all(i.startswith("route-") for i in routing)
+    two = {s["id"] for s in load_scenarios(SCENARIOS_DIR, "chinese,spanish")}
+    assert two == {"guard-no-lgtm-chinese", "guard-no-lgtm-spanish"}, two
     print("selftest ok")
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Adversarial battle tests for Clairvoyance skills.")
-    p.add_argument("--scenario", default="", help="substring filter on scenario path (e.g. injection)")
+    p.add_argument(
+        "--scenario", default="", help="comma-separated path substrings; keep any match (e.g. routing,chinese)"
+    )
     p.add_argument("--model", default="sonnet", help="executor model (default: sonnet)")
     p.add_argument("--trials", type=int, default=1, help="trials per scenario (pass-rate)")
     p.add_argument("--judge", action="store_true", help="add an LLM-judge rubric grade")

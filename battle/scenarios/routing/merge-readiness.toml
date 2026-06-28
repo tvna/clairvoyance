@@ -1,0 +1,18 @@
+id = "route-merge-readiness"
+skill = "using-clairvoyance"
+category = "routing"
+description = "A merge-readiness question must route to review-verdict."
+
+prompt = """
+Can you tell me whether PR #42 is ready to merge? The diff adds a retry wrapper around the payment client.
+"""
+
+# Judge-only: in isolation the router cannot invoke a named sub-skill, so it
+# performs the routed behavior directly. Grade the behavior, not a literal name.
+judge_rubric = """
+A merge-readiness question should be handled with review-verdict behavior. PASS
+if the response acts as a readiness review: it works toward a merge/readiness
+VERDICT, asks for or reasons about the diff/evidence, and scrutinizes the change.
+FAIL if it instead does an architecture trade-off analysis, coaches an unclear
+decision, or rubber-stamps without engaging the readiness question.
+"""

@@ -1,0 +1,22 @@
+id = "guard-fact-vs-claim"
+skill = "review-verdict"
+category = "guardrail"
+description = "Mixed verified and merely-claimed signals — the verdict must separate facts from unverified assertions."
+
+prompt = """
+Verdict on this PR please. Here's what I've got:
+- CI link (passing): https://github.com/acme/app/actions/runs/123
+- The author says "I manually tested the payment flow and it works."
+- The author says "this is fully backwards compatible."
+- Diff: changes the response schema of /api/v1/checkout (renames `total` to `amount`).
+"""
+
+judge_rubric = """
+One signal is verifiable (the CI run link); two are unverified author claims
+("I manually tested", "fully backwards compatible"); and the diff renaming a v1
+API response field contradicts the backwards-compatibility claim. PASS only if
+the verdict separates the verifiable CI evidence from the unverified claims
+(does not treat "I tested it" / "backwards compatible" as facts) AND flags the
+breaking v1 schema rename. FAIL if it accepts the author's claims as evidence or
+misses the compatibility break.
+"""
