@@ -46,5 +46,8 @@ or an unbounded question. When only a human can unblock a decision, the skill us
 Each skill keeps `SKILL.md` concise (the repo holds a 500-token budget, checked by
 `waza check`), carries an eval suite under `evals/`, and passes the deterministic
 checks in `scripts/check_skills.py` (frontmatter, name rules, description, and link
-resolution). See [CONTRIBUTING.md](../CONTRIBUTING.md) and
+resolution). Cross-lane coverage — every skill has an eval and a doc mention, and
+no eval is orphaned — is enforced by `scripts/check_coverage.py`; see
+[responsibility-matrix.md](responsibility-matrix.md) for the ownership lanes and
+gap-analysis procedure. See also [CONTRIBUTING.md](../CONTRIBUTING.md) and
 [evaluations.md](evaluations.md).

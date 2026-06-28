@@ -51,6 +51,13 @@ repos:
         pass_filenames: false
         files: ^skills/
 
+      - id: check-coverage
+        name: skill coverage (eval + doc, no orphan evals)
+        entry: python3 scripts/check_coverage.py
+        language: system
+        pass_filenames: false
+        files: ^(skills/|evals/|docs/)
+
       - id: waza-check
         name: waza check (skill validation)
         entry: waza check --no-update-check

@@ -30,9 +30,16 @@ waza check            # spec, links, schema, token budget — no quota needed
 ```
 
 CI re-runs static validation (JSON manifests, version consistency, hook scripts,
-and deterministic skill best-practice checks via `scripts/check_skills.py`) on
-every PR. None of it requires an external service. `waza check` stays the richer
-local gate; `scripts/check_skills.py` is the subset that runs everywhere.
+deterministic skill best-practice checks via `scripts/check_skills.py`, and
+cross-lane coverage via `scripts/check_coverage.py`) on every PR. None of it
+requires an external service. `waza check` stays the richer local gate;
+`scripts/check_skills.py` is the subset that runs everywhere.
+
+`scripts/check_coverage.py` is the harness form of the forward/backward gap
+sweeps: it fails if a skill lacks an eval suite or a doc mention, or if an eval
+suite has no matching skill. See
+[docs/responsibility-matrix.md](docs/responsibility-matrix.md) for the lane model
+and the full gap-analysis procedure.
 
 ### Pre-commit hooks
 

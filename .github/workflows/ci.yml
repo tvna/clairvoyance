@@ -57,6 +57,9 @@ jobs:
       - name: Check skill best practices
         run: python3 scripts/check_skills.py
 
+      - name: Check skill coverage (eval + doc, no orphans)
+        run: python3 scripts/check_coverage.py
+
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
