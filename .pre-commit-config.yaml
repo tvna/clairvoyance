@@ -30,13 +30,6 @@ repos:
         # run-hook.cmd is a cmd/bash polyglot; shellcheck only lints pure bash.
         files: ^(plugin/hooks/session-start\.sh|scripts/.*\.sh)$
 
-      - id: version-consistency
-        name: version consistency (plugin.json is source of truth)
-        entry: python3 scripts/check_version_consistency.py
-        language: system
-        pass_filenames: false
-        files: ^(plugin/\.claude-plugin/.*\.json|\.claude-plugin/.*\.json|\.release-please-manifest\.json|version\.txt)$
-
       - id: hook-scripts
         name: hook scripts emit valid JSON
         entry: bash scripts/check_hooks.sh

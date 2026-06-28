@@ -3,57 +3,101 @@
 ## Policy
 
 The project uses [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`,
-no `v` prefix in files). The current version is **1.0.0**.
+no `v` prefix). The current version is **0.1.0**.
 
-`plugin/.claude-plugin/plugin.json` `version` is the **single source of truth**. These
-files must always agree, and CI fails the build if they drift:
+The project is in **initial development** (`0.x.x`). `1.0.0` is reserved for the
+first release we are willing to guarantee as a stable API, so until then the
+version stays in the `0.x` range and is allowed to change freely (see the
+[SemVer §4](https://semver.org/#spec-item-4) major-version-zero clause).
 
-- `plugin/.claude-plugin/plugin.json` → `$.version`
-- `.claude-plugin/marketplace.json` → `$.plugins[0].version`
-- `.release-please-manifest.json` → `"."`
-- `version.txt`
+## Single source of truth: the git tag
 
-Each eval suite (`plugin/evals/*/eval.yaml`) also carries a `version` identifying that
-evaluation specification; it is kept at the package version (`1.0.0`).
+The **git tag is the source of truth** for the version. There is no version file
+to hand-edit and no cross-file consistency check, because the version is not
+duplicated:
 
-External versions are out of scope for this policy and intentionally separate:
-the APM instruction version in `AGENTS.md`, the `INSTRUCTIONS_TAG` in the sync
-workflow, and SHA-pinned GitHub Action versions.
+- The release computes the next version from commit history and creates the tag.
+- `plugin/.claude-plugin/plugin.json` `$.version` is written **automatically** at
+  release time (`scripts/apply_version.mjs`) so the manifest Claude Code reads at
+  the installed ref agrees with the tag.
+- `.claude-plugin/marketplace.json` deliberately carries **no** `version`. Claude
+  Code [resolves the version](https://code.claude.com/docs/en/plugin-marketplaces)
+  from `plugin.json` first and explicitly warns against setting it in both places
+  (a stale marketplace value would be silently masked). Omitting it makes
+  `plugin.json` the unambiguous manifest, and CI fails if a `version` is ever
+  re-added (`.github/workflows/ci.yml`).
 
-## Automated releases (Release Please)
+Each eval suite (`plugin/evals/*/eval.yaml`) carries its own `version` that
+identifies that **evaluation specification**. It is independent of the package
+version — bumping a release does not touch it, and changing an eval spec does not
+require a release.
 
-Tagging is dynamic and driven by Conventional Commits — no version is bumped by
-hand.
+External versions remain out of scope and intentionally separate: the APM
+instruction version in `AGENTS.md`, the `INSTRUCTIONS_TAG` in the sync workflow,
+and SHA-pinned GitHub Action versions.
 
-1. Commits land on `main` following Conventional Commits.
-2. `.github/workflows/release.yml` runs [Release Please], which opens or updates a
-   **release PR** containing the computed version bump and a generated
-   `CHANGELOG.md`.
-3. Merging the release PR creates the git tag and GitHub Release and writes the
-   new version into every file listed above.
+## Automated releases (semantic-release)
 
-The release PR is review-gated, matching the repository's no-auto-merge posture.
-The version bump itself is computed from commit prefixes (see
-[CONTRIBUTING.md](../CONTRIBUTING.md)): `feat:` → minor, `fix:` → patch, a `!` or
-`BREAKING CHANGE:` → major.
+Releases are driven by [semantic-release] reading the
+[Conventional Commits](https://www.conventionalcommits.org/) on `main` since the
+last tag. On each release it: computes the next semver, writes it into
+`plugin.json`, updates `CHANGELOG.md`, commits both, creates the git tag, and
+publishes a GitHub Release with generated notes.
 
-> First-run note: confirm Release Please resolves the `marketplace.json`
-> `$.plugins[0].version` path on the first release PR. If it does not, the CI
-> version-consistency check will fail and surface the drift immediately.
+The bump is computed from commit prefixes (see
+[CONTRIBUTING.md](../CONTRIBUTING.md)): `feat:` → minor, `fix:` → patch.
+
+**The `0.x` guard.** While the project is below `1.0.0`, a breaking change must
+**not** silently jump the version to `1.0.0`. `.releaserc.json` overrides the
+commit analyzer so a breaking change (`feat!:` / `BREAKING CHANGE:`) bumps
+**minor** (`0.1.0` → `0.2.0`):
+
+```jsonc
+"releaseRules": [{ "breaking": true, "release": "minor" }]
+```
+
+The jump to `1.0.0` is therefore a deliberate, manual act: when the API is stable
+enough to guarantee, **remove that release rule** (restoring the default
+breaking → major) and land a breaking change, or cut `1.0.0` by hand.
+
+## Release cadence
+
+Cadence is intentional, not per-merge (`.github/workflows/release.yml`):
+
+- **Weekly schedule** — a cron cuts the week's release from `main` (skipped
+  automatically if no releasable commits landed).
+- **`workflow_dispatch`** — trigger an ad-hoc release between weeks when needed.
+- Plain pushes to `main` never release.
+
+## Branch strategy
+
+Development is **trunk-based**: `main` is the trunk and is always releasable.
+Work lands on `main` through short-lived branches and reviewed PRs (squash-merge,
+so the PR title is the Conventional Commit that drives the bump). There are no
+long-lived `develop`/`release` branches — the release is a tag cut from `main` on
+the cadence above, not a branch.
 
 ## Required setup
 
-**Release token.** The `main` ruleset requires the `validate` and `tests` checks,
-but a PR opened with the default `GITHUB_TOKEN` does not start workflows — so the
-release PR's required checks would stay pending and block the merge. Create a PAT
-(or GitHub App token) with `contents` + `pull-requests` write and add it as the
-repo secret `RELEASE_PLEASE_TOKEN`; `release.yml` passes it to Release Please and
-falls back to `GITHUB_TOKEN` when it is unset.
+**Release token.** The release commits the version bump back to `main` and pushes
+the tag. Pushing past the `main` ruleset (and triggering the required checks)
+needs a PAT or GitHub App token with `contents` + `pull-requests` write, added as
+the repo secret `RELEASE_TOKEN`. `release.yml` uses it for both checkout and
+semantic-release, falling back to `GITHUB_TOKEN` (which cannot push to a protected
+`main`, so the release would fail until the secret is set). This is why the
+release pipeline stays inert until the token is issued.
 
-**version.txt invariant.** `version.txt` is bumped implicitly by Release Please's
-`release-type: "simple"` (it owns a root file of that exact name), not via
-`extra-files`. The version-consistency check gates on it, so do not rename it or
-change `release-type` without also updating how `version.txt` is maintained, or
-the `validate` check will fail on every release PR.
+**One-time baseline tag.** semantic-release defaults the *first* release to
+`1.0.0` when no prior tag exists. To start in the `0.x` range, seed the baseline
+once after this lands on `main`:
 
-[Release Please]: https://github.com/googleapis/release-please
+```bash
+git tag 0.1.0            # tagFormat is "${version}" — no v prefix
+git push origin 0.1.0
+```
+
+`release.yml` refuses to run when no tag exists, so a forgotten baseline fails
+the release loudly instead of silently cutting `1.0.0`. The next release then
+computes from `0.1.0` (`feat:` → `0.2.0`, `fix:` → `0.1.1`).
+
+[semantic-release]: https://github.com/semantic-release/semantic-release

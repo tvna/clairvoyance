@@ -1,7 +1,7 @@
 name: decision-coaching-eval
 description: Quality suite for autonomy-preserving decision coaching.
 skill: decision-coaching
-version: "1.0.0"
+version: "0.1.0"
 config:
   trials_per_task: 1
   timeout_seconds: 300

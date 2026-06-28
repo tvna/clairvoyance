@@ -1,18 +1,21 @@
 name: Release
 
-# Semantic versioning via Release Please. Conventional-commit history on `main`
-# is analyzed to compute the next semver. Release Please opens (or updates) a
-# release PR; merging that PR creates the git tag and GitHub Release and bumps
-# the version in plugin.json and marketplace.json. Tagging is gated behind the
-# release PR review, consistent with the repository's no-auto-merge posture.
+# Semantic versioning via semantic-release; the git tag is the single source of
+# truth. The full release flow and required setup live in docs/versioning.md.
+#
+# Cadence is intentional, not per-merge: a weekly schedule cuts the release, and
+# workflow_dispatch allows an ad-hoc release between weeks. Plain pushes to main
+# never release.
 
 on:
-  push:
-    branches: [main]
+  schedule:
+    # Mondays at 01:17 UTC (~10:17 JST). Off-minute by GitHub's own guidance.
+    - cron: "17 1 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 concurrency:
@@ -20,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release-please:
+  release:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -29,14 +32,41 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Run Release Please
-        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
-          # A PAT or GitHub App token is required so the release PR triggers the
-          # CI checks the main ruleset requires — PRs opened with GITHUB_TOKEN do
-          # not start workflows. Falls back to GITHUB_TOKEN (the release PR opens,
-          # but its required checks stay pending until RELEASE_PLEASE_TOKEN is
-          # set as a repo secret). See docs/versioning.md.
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+          # Full history + tags so semantic-release can find the last tag and the
+          # commits since it. persist-credentials so @semantic-release/git can push
+          # the release commit. A PAT/App token (RELEASE_TOKEN) is required to push
+          # past the main ruleset and to trigger the required checks; it falls back
+          # to GITHUB_TOKEN (release will fail to push to a protected main).
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+      - name: Require a baseline tag
+        # semantic-release defaults the first release to 1.0.0 when no tag exists.
+        # The 0.x baseline must be seeded once (see docs/versioning.md); fail loudly
+        # rather than silently cutting 1.0.0.
+        run: |
+          if [ -z "$(git tag)" ]; then
+            echo "::error::No git tag found. Seed the 0.x baseline first: git tag 0.1.0 && git push origin 0.1.0"
+            exit 1
+          fi
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+        # Versions pinned by major. semantic-release runs on the runner's
+        # preinstalled Node; no node manifest is committed to this Python repo.
+        run: >
+          npx --yes
+          -p semantic-release@^24
+          -p @semantic-release/commit-analyzer@^13
+          -p @semantic-release/release-notes-generator@^14
+          -p @semantic-release/changelog@^6
+          -p @semantic-release/exec@^7
+          -p @semantic-release/git@^10
+          -p @semantic-release/github@^11
+          -p conventional-changelog-conventionalcommits@^8
+          semantic-release

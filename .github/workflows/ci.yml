@@ -1,9 +1,10 @@
 name: CI
 
 # Static validation that runs without any LLM/eval backend. Guards JSON
-# manifests, version consistency across all version-bearing files (the single
-# source of truth is plugin.json; Release Please keeps the others in sync), and
-# hook script integrity including the cross-platform run-hook entry point.
+# manifests and hook script integrity including the cross-platform run-hook entry
+# point. The version is owned by the git tag and written into plugin.json at
+# release time (see docs/versioning.md), so there is no in-repo version drift to
+# check here.
 
 on:
   pull_request:
@@ -40,16 +41,23 @@ jobs:
             plugin/.claude-plugin/plugin.json
             .claude-plugin/marketplace.json
             plugin/hooks/hooks.json
-            .release-please-manifest.json
-            release-please-config.json
+            .releaserc.json
           )
           for f in "${files[@]}"; do
             python3 -m json.tool "$f" > /dev/null
             echo "ok: $f"
           done
 
-      - name: Check version consistency
-        run: python3 scripts/check_version_consistency.py
+      - name: Check marketplace carries no version
+        # The git tag / plugin.json own the version (see docs/versioning.md);
+        # marketplace.json must carry none, or Claude Code silently prefers
+        # plugin.json and masks a stale marketplace value. Drift gate for that
+        # single-source-of-truth invariant.
+        run: >
+          python3 -c "import json,sys;
+          d=json.load(open('.claude-plugin/marketplace.json'));
+          bad=[p.get('name','?') for p in d['plugins'] if 'version' in p];
+          sys.exit('marketplace.json must not carry a version: '+', '.join(bad)) if bad else print('ok: marketplace.json carries no version')"
 
       - name: Validate hook scripts
         run: bash scripts/check_hooks.sh

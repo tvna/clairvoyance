@@ -3,7 +3,7 @@
 ## Conventional Commits (required)
 
 Commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/).
-Release Please reads them to compute the next semantic version, so the prefix is
+semantic-release reads them to compute the next semantic version, so the prefix is
 not cosmetic — it determines the release.
 
 | Prefix | Version effect | Use for |
@@ -13,7 +13,10 @@ not cosmetic — it determines the release.
 | `feat!:` / `fix!:` or `BREAKING CHANGE:` footer | major | a backward-incompatible change |
 | `docs:` `chore:` `test:` `refactor:` `ci:` | none | no release on their own |
 
-See [docs/versioning.md](docs/versioning.md) for the full release flow.
+While the project is on `0.x.x`, a breaking change bumps **minor** (not major) —
+the version stays below `1.0.0` until the API is declared stable (configured by a
+release rule in `.releaserc.json`). See [docs/versioning.md](docs/versioning.md)
+for the full release flow, the git-tag source of truth, and the branch strategy.
 
 ## Authoring skills
 
@@ -29,9 +32,9 @@ See [docs/versioning.md](docs/versioning.md) for the full release flow.
 cd plugin && waza check   # spec, links, schema, token budget — no quota needed
 ```
 
-CI re-runs static validation (JSON manifests, version consistency, hook scripts,
-deterministic skill best-practice checks via `scripts/check_skills.py`, and
-cross-lane coverage via `scripts/check_coverage.py`) on every PR. None of it
+CI re-runs static validation (JSON manifests, hook scripts, deterministic skill
+best-practice checks via `scripts/check_skills.py`, and cross-lane coverage via
+`scripts/check_coverage.py`) on every PR. None of it
 requires an external service. `waza check` stays the richer local gate;
 `scripts/check_skills.py` is the subset that runs everywhere.
 
@@ -54,8 +57,8 @@ prek run --all-files     # run across the whole repo
 
 It runs format hygiene (JSON/YAML, end-of-file, line endings), `shellcheck` on the
 bash hook, `ruff` lint/format and `mypy` types on Python, and the project's own validators
-(`waza check`, version consistency, and hook-script checks via the shared
-`scripts/`). `waza check` needs the `waza` binary on your PATH.
+(`waza check` and hook-script checks via the shared `scripts/`). `waza check` needs
+the `waza` binary on your PATH.
 
 ## Tests
 
@@ -106,8 +109,16 @@ get `402 quota_exceeded`. Fallbacks and the assertion-style convention are in
 (`Verdict`, `Premortem`, `AskUserQuestion`, …) plus `output_not_contains`
 guardrails. Avoid brittle concept-keyword matches that depend on phrasing.
 
+## Branching and releases
+
+Development is **trunk-based**: `main` is always releasable, work lands through
+short-lived branches and squash-merged PRs (the PR title becomes the Conventional
+Commit that drives the bump), and releasing is decoupled from merging — a tag is
+cut weekly (plus on-demand `workflow_dispatch`), not on every merge. Full detail
+in [docs/versioning.md](docs/versioning.md).
+
 ## Pull requests
 
 - Fill in the PR template.
-- Do not auto-merge; releases and instruction syncs land behind review.
+- Do not auto-merge; changes land behind review.
 - Design rationale and migration plans belong in GitHub Issues, not committed docs.
