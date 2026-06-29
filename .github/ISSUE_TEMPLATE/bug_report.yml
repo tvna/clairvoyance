@@ -15,6 +15,7 @@ body:
         - review-verdict
         - architecture-tradeoff
         - decision-coaching
+        - human-harness
         - hooks
         - evals
         - release / CI
