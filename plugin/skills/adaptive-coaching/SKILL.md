@@ -1,6 +1,6 @@
 ---
 name: adaptive-coaching
-description: Corrects a person's adaptive challenge rather than a technical gap on the path to a goal, gated on locally accumulated anonymous signal, and builds durable capability with an AskUserQuestion quiz. Use when repeated avoidance, misjudgement, or a problem mislabeled as technical blocks the goal and enough observations have accumulated to coach.
+description: Coaches a person's recurring adaptive challenge (not a technical gap), gated on locally accumulated anonymous signal, with an AskUserQuestion quiz. Use when avoidance, misjudgement, or a problem mislabeled as technical keeps blocking the goal.
 ---
 
 # Adaptive Coaching
@@ -21,7 +21,7 @@ The most common failure is mislabeling an adaptive challenge as technical. Name 
 ## Data sufficiency gate
 
 1. Record each adaptive observation as anonymous coded metadata in the local store, never prompt text or code:
-   `bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" record --category <category> [--signal <coded-label>]` (Codex substitutes `${PLUGIN_ROOT}`). Categories: `avoidance`, `mislabeled-technical`, `loss-aversion`, `values-conflict`, `no-experiment`, `authority-dependence`, `other`. The store uses the `sqlite3` CLI (`choco install sqlite`), falling back to `python3`.
+   `bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" record --category <category> [--signal <coded-label>]` (Codex substitutes `${PLUGIN_ROOT}`). Categories: `avoidance`, `mislabeled-technical`, `loss-aversion`, `values-conflict`, `no-experiment`, `authority-dependence`, `other`. The store uses the `sqlite3` CLI (`choco install sqlite`).
 2. Do not coach on a single instance. Query `... adaptive-store.sh status` and coach only when it reports `ready` (enough accumulated observations). The SessionStart hook also surfaces readiness.
 3. The store persists on a local Windows workstation (`%LOCALAPPDATA%\clairvoyance`) and tolerates volatility: ephemeral or remote sessions simply do not persist, and an unavailable store means hold coaching, not fail.
 

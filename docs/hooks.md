@@ -34,25 +34,17 @@ prompt text, code, or file paths.
   sandboxes) simply do not persist, and any storage error degrades to
   "not available / not ready" rather than failing the session.
 
-### Backends (SQLite, no Python required)
+### Backend (SQLite CLI, no Python)
 
-The store keeps a SQLite database but does **not** require Python. Two
-interchangeable backends sit behind `adaptive-store.sh`, selected by
-`$CLAIRVOYANCE_STORE_BACKEND` (default `auto`):
+The store is backed by the `sqlite3` CLI — install with `choco install sqlite` on
+Windows (Git for Windows bundles no `sqlite3`); on macOS/Linux it is usually
+present. There is **no Python fallback**: if the CLI is absent the store degrades
+to "not available" and coaching simply stays inactive (the session is unaffected).
+`session-start.sh` detects readiness from the store's JSON with a shell glob, so
+the readiness cue needs no runtime of its own.
 
-- **`sqlite3` CLI (primary)** — install with `choco install sqlite` on Windows
-  (Git for Windows bundles no `sqlite3`); on macOS/Linux it is usually present.
-- **`python3` stdlib `sqlite3` (fallback)** — used when the CLI is absent.
-- **`auto`** picks the CLI if present, else `python3`, else degrades to
-  "not available" (coaching simply stays inactive; the session is unaffected).
-
-Both backends read and write the same `coaching.db` and emit byte-identical JSON;
-`tests/test_adaptive_store.py` runs every behavioural case against both and asserts
-their equivalence so they cannot drift. `session-start.sh` detects readiness from the
-store's JSON with a shell glob, so the readiness cue itself needs neither runtime.
-
-`scripts/check_hooks.sh` syntax-checks both `adaptive-store.sh` (`bash -n`) and the
-`adaptive-store.py` fallback (no side effects).
+`scripts/check_hooks.sh` syntax-checks `adaptive-store.sh` (`bash -n`, no side
+effects); `tests/test_adaptive_store.py` exercises its behaviour.
 
 ### Codex
 

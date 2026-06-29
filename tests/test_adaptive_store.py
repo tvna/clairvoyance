@@ -5,11 +5,9 @@ coverage scope), so it is exercised the same way ``check_hooks.sh`` exercises
 the bash hooks: through its real CLI via subprocess, with the data directory
 redirected to a tmp path so nothing touches the developer's workstation.
 
-The store has two interchangeable backends behind one entry point
-(``adaptive-store.sh``): the ``sqlite3`` CLI (primary) and the ``python3``
-stdlib fallback. Every behavioural test runs against both — ``sqlite3`` is
-skipped when the CLI is absent — and ``test_backends_are_equivalent`` asserts
-the two cannot drift.
+The store is backed by the ``sqlite3`` CLI with no Python fallback, so the
+recording cases are skipped when the CLI is absent; the argument-validation case
+needs no backend and always runs.
 """
 
 import json
@@ -25,12 +23,12 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 STORE_SH = REPO_ROOT / "plugin" / "hooks" / "adaptive-store.sh"
 
 HAS_SQLITE3 = shutil.which("sqlite3") is not None
-BACKENDS = ["python", *(["sqlite3"] if HAS_SQLITE3 else [])]
+needs_sqlite3 = pytest.mark.skipif(not HAS_SQLITE3, reason="sqlite3 CLI not installed")
 
 
-def run_raw(args, data_dir, backend, threshold=None):
-    """Invoke the store entry point on one backend; return the CompletedProcess."""
-    env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(data_dir), "CLAIRVOYANCE_STORE_BACKEND": backend}
+def run_raw(args, data_dir, threshold=None):
+    """Invoke the store entry point with an isolated data dir; return the process."""
+    env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(data_dir)}
     env.pop("LOCALAPPDATA", None)
     env.pop("XDG_DATA_HOME", None)
     if threshold is not None:
@@ -38,34 +36,34 @@ def run_raw(args, data_dir, backend, threshold=None):
     return subprocess.run(["bash", str(STORE_SH), *args], capture_output=True, text=True, env=env)
 
 
-def run(args, data_dir, backend, threshold=None):
+def run(args, data_dir, threshold=None):
     """Invoke the store and parse its JSON, asserting a clean exit."""
-    result = run_raw(args, data_dir, backend, threshold)
+    result = run_raw(args, data_dir, threshold)
     assert result.returncode == 0, result.stderr
     return json.loads(result.stdout)
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
-def test_status_on_empty_store_is_not_ready(tmp_path, backend):
+@needs_sqlite3
+def test_status_on_empty_store_is_not_ready(tmp_path):
     """A fresh workstation has no data, so coaching must not trigger."""
-    out = run(["status"], tmp_path / "store", backend, threshold=3)
+    out = run(["status"], tmp_path / "store", threshold=3)
     assert out == {"available": False, "count": 0, "threshold": 3, "ready": False}
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
-def test_record_accumulates_until_threshold(tmp_path, backend):
+@needs_sqlite3
+def test_record_accumulates_until_threshold(tmp_path):
     """Coaching becomes ready only once enough observations accumulate."""
     data_dir = tmp_path / "store"
-    first = run(["record", "--category", "avoidance"], data_dir, backend, threshold=2)
+    first = run(["record", "--category", "avoidance"], data_dir, threshold=2)
     assert first["recorded"] is True
     assert first["count"] == 1
     assert first["ready"] is False
 
-    second = run(["record", "--category", "loss-aversion", "--outcome", "incorrect"], data_dir, backend, threshold=2)
+    second = run(["record", "--category", "loss-aversion", "--outcome", "incorrect"], data_dir, threshold=2)
     assert second["count"] == 2
     assert second["ready"] is True
 
-    status = run(["status"], data_dir, backend, threshold=2)
+    status = run(["status"], data_dir, threshold=2)
     assert status == {
         "available": True,
         "count": 2,
@@ -76,70 +74,52 @@ def test_record_accumulates_until_threshold(tmp_path, backend):
     }
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
-def test_unknown_category_is_folded_to_other(tmp_path, backend):
+@needs_sqlite3
+def test_unknown_category_is_folded_to_other(tmp_path):
     """Free-text categories never persist; they collapse to the coded 'other'."""
-    out = run(["record", "--category", "some free text leak"], tmp_path / "store", backend, threshold=5)
+    out = run(["record", "--category", "some free text leak"], tmp_path / "store", threshold=5)
     assert out["by_category"] == {"other": 1}
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
-def test_signal_is_coded_and_truncated(tmp_path, backend):
+@needs_sqlite3
+def test_signal_is_coded_and_truncated(tmp_path):
     """Signal labels are sanitised to a short [a-z0-9-] token, not content."""
     data_dir = tmp_path / "store"
-    run(["record", "--category", "avoidance", "--signal", "Skipped The Hard Call!!"], data_dir, backend)
+    run(["record", "--category", "avoidance", "--signal", "Skipped The Hard Call!!"], data_dir)
     db = data_dir / "coaching.db"
     assert db.exists()
     rows = sqlite3.connect(str(db)).execute("SELECT signal FROM observations").fetchall()
     assert rows == [("skipped-the-hard-call",)]
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
-def test_default_threshold_applies_when_unset(tmp_path, backend):
+@needs_sqlite3
+def test_default_threshold_applies_when_unset(tmp_path):
     """With no override the store uses the default coaching threshold."""
-    out = run(["record", "--category", "no-experiment"], tmp_path / "store", backend)
+    out = run(["record", "--category", "no-experiment"], tmp_path / "store")
     assert out["threshold"] == 5
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
-def test_invalid_threshold_falls_back_to_default(tmp_path, backend):
+@needs_sqlite3
+def test_invalid_threshold_falls_back_to_default(tmp_path):
     """A non-numeric or non-positive threshold degrades to the default."""
-    assert run(["status"], tmp_path / "store", backend, threshold="0")["threshold"] == 5
-    assert run(["status"], tmp_path / "store", backend, threshold="not-a-number")["threshold"] == 5
+    assert run(["status"], tmp_path / "store", threshold="0")["threshold"] == 5
+    assert run(["status"], tmp_path / "store", threshold="not-a-number")["threshold"] == 5
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
-def test_unwritable_data_dir_degrades_gracefully(tmp_path, backend):
+@needs_sqlite3
+def test_unwritable_data_dir_degrades_gracefully(tmp_path):
     """Volatility is tolerated: an unusable store reports not-available, not error."""
     blocker = tmp_path / "blocked"
     blocker.write_text("not a directory")  # a file where a dir is expected
-    out = run(["record", "--category", "avoidance"], blocker / "store", backend)
+    out = run(["record", "--category", "avoidance"], blocker / "store")
     assert out["available"] is False
     assert out["recorded"] is False
     assert out["ready"] is False
 
 
-@pytest.mark.parametrize("backend", BACKENDS)
-def test_record_requires_category(tmp_path, backend):
-    """Both backends reject an outcome-only record (no --category) the same way."""
+def test_record_requires_category(tmp_path):
+    """An outcome-only record (no --category) is rejected and writes nothing."""
     data_dir = tmp_path / "store"
-    result = run_raw(["record", "--outcome", "incorrect"], data_dir, backend)
+    result = run_raw(["record", "--outcome", "incorrect"], data_dir)
     assert result.returncode != 0
     assert not (data_dir / "coaching.db").exists()
-
-
-@pytest.mark.skipif(not HAS_SQLITE3, reason="sqlite3 CLI not installed")
-def test_backends_are_equivalent(tmp_path):
-    """The sqlite3 and python backends must emit identical JSON for the same ops."""
-    ops = [
-        ["record", "--category", "avoidance", "--signal", "Skipped The Hard Call!!"],
-        ["record", "--category", "free text leak", "--outcome", "incorrect"],
-        ["record", "--category", "authority-dependence", "--session-kind", "Startup"],
-        ["status"],
-    ]
-    sqlite_dir = tmp_path / "sqlite"
-    python_dir = tmp_path / "python"
-    for op in ops:
-        sqlite_out = run(op, sqlite_dir, "sqlite3", threshold=2)
-        python_out = run(op, python_dir, "python", threshold=2)
-        assert sqlite_out == python_out, op

@@ -1,27 +1,20 @@
 #!/usr/bin/env bash
-# Local, anonymous adaptive-coaching observation store -- portable entry point.
+# Local, anonymous adaptive-coaching observation store.
 #
-# Same contract as adaptive-store.py (subcommands `record` and `status`, one
-# JSON object on stdout, always exit 0), but the primary backend is the
-# `sqlite3` CLI (e.g. `choco install sqlite` on Windows), so the feature no
-# longer requires Python. Backend selection (`$CLAIRVOYANCE_STORE_BACKEND`,
-# default `auto`):
+# Subcommands `record` and `status` each print one JSON object on stdout and
+# (apart from a missing required `--category`) always exit 0. The store is
+# backed by the `sqlite3` CLI (e.g. `choco install sqlite` on Windows; usually
+# present on macOS/Linux). There is no Python fallback: if the CLI is absent the
+# store degrades to "not available" and coaching stays inactive, leaving the
+# session unaffected.
 #
-#   auto    -> sqlite3 CLI if present, else python3 adaptive-store.py, else
-#              degrade to "not available".
-#   sqlite3 -> force the sqlite3 CLI backend (this script).
-#   python  -> force the Python backend (delegate to adaptive-store.py).
-#
-# Both backends read and write the same SQLite file and emit byte-identical
-# JSON; tests/test_adaptive_store.py asserts that equivalence so the two cannot
-# drift. Storage location, threshold, anonymity, and volatility tolerance are
-# documented in adaptive-store.py and docs/hooks.md.
+# It records only coded metadata -- an adaptive-challenge category, a short
+# coded signal label, a quiz outcome, the session kind, and a UTC timestamp --
+# never prompt text, code, or file paths. Storage location, threshold,
+# anonymity, and volatility tolerance are documented in docs/hooks.md.
 set -euo pipefail
 
-script_dir="$(cd "$(dirname "$0")" && pwd)"
-
-# --- argument parsing (kept intact so the python backend can be re-invoked) ---
-argv=("$@")
+# --- argument parsing --------------------------------------------------------
 cmd="${1:-}"
 category=""
 signal=""
@@ -111,30 +104,10 @@ unavailable_json() {
   fi
 }
 
-# --- backend selection -------------------------------------------------------
-backend="${CLAIRVOYANCE_STORE_BACKEND:-auto}"
-case "${backend}" in
-  python) backend="python" ;;
-  sqlite3) backend="sqlite3" ;;
-  *)
-    if command -v sqlite3 >/dev/null 2>&1; then
-      backend="sqlite3"
-    elif command -v python3 >/dev/null 2>&1; then
-      backend="python"
-    else
-      emit "$(unavailable_json)"
-    fi
-    ;;
-esac
-
-if [ "${backend}" = "python" ]; then
-  command -v python3 >/dev/null 2>&1 || emit "$(unavailable_json)"
-  exec python3 "${script_dir}/adaptive-store.py" "${argv[@]}"
-fi
-
+# Requires the sqlite3 CLI; with none present the store is simply unavailable.
 command -v sqlite3 >/dev/null 2>&1 || emit "$(unavailable_json)"
 
-# --- sqlite3 CLI backend -----------------------------------------------------
+# --- sqlite3 store -----------------------------------------------------------
 data_dir="$(resolve_data_dir)"
 db="${data_dir}/coaching.db"
 schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT);"
@@ -161,9 +134,9 @@ ready_word() {
 
 case "${cmd}" in
   record)
-    # --category is required, mirroring adaptive-store.py's argparse, so both
-    # backends reject an outcome-only record identically (exit 2, nothing
-    # written) instead of one erroring and the other silently storing 'other'.
+    # --category is required: every observation row carries a category
+    # (schema: category TEXT NOT NULL). Reject an outcome-only record (exit 2,
+    # nothing written) rather than silently storing it as 'other'.
     if [ -z "${category}" ]; then
       printf 'adaptive-store.sh: record requires --category\n' >&2
       exit 2
