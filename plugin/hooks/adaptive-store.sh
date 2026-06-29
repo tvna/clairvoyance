@@ -19,10 +19,15 @@
 # CLI is absent the store degrades to "not available" and coaching stays
 # inactive, leaving the session unaffected.
 #
-# It records only coded metadata -- an adaptive-challenge category, a short
-# coded signal label, a quiz outcome, the session kind, a UTC timestamp, and an
-# anonymous session count -- never prompt text, code, or file paths. Storage
-# location, thresholds, anonymity, and volatility tolerance are in docs/hooks.md.
+# By default it records only coded metadata -- an adaptive-challenge category, a
+# short coded signal label, a quiz outcome, the session kind, a UTC timestamp,
+# and an anonymous session count -- never prompt text, code, or file paths.
+# Opt-in context capture (CLAIRVOYANCE_STORE_CONTEXT) additionally stores a
+# `--context` string -- an abstracted scenario summary, only as detailed as a
+# later reflection needs -- after a best-effort secret redaction; that scrub is a
+# backstop, the caller is the primary redactor. The store is bounded by rotation
+# (CLAIRVOYANCE_MAX_OBSERVATIONS, CLAIRVOYANCE_MAX_AGE_DAYS). Storage location,
+# thresholds, anonymity, rotation, and volatility are in docs/hooks.md.
 set -euo pipefail
 
 # --- argument parsing --------------------------------------------------------
@@ -31,12 +36,13 @@ category=""
 signal=""
 outcome=""
 session_kind=""
+context=""
 i=1
 while [ "$i" -lt "$#" ]; do
   i=$((i + 1))
   key="${!i}"
   case "$key" in
-    --category | --signal | --outcome | --session-kind)
+    --category | --signal | --outcome | --session-kind | --context)
       i=$((i + 1))
       value="${!i:-}"
       case "$key" in
@@ -44,6 +50,7 @@ while [ "$i" -lt "$#" ]; do
         --signal) signal="$value" ;;
         --outcome) outcome="$value" ;;
         --session-kind) session_kind="$value" ;;
+        --context) context="$value" ;;
       esac
       ;;
   esac
@@ -56,6 +63,13 @@ DEFAULT_THRESHOLD=5
 # who may not self-set-up the environment) is never quizzed during their first
 # ~50 sessions. Override with $CLAIRVOYANCE_SESSION_THRESHOLD (0 disables it).
 DEFAULT_SESSION_THRESHOLD=50
+# Rotation bounds so the local store never grows without limit. Both are
+# overridable and a value of 0 disables that bound: keep the newest
+# CLAIRVOYANCE_MAX_OBSERVATIONS rows, and drop rows older than
+# CLAIRVOYANCE_MAX_AGE_DAYS. Defaults are generous (a long personal history) yet
+# finite.
+DEFAULT_MAX_OBSERVATIONS=500
+DEFAULT_MAX_AGE_DAYS=180
 CATEGORIES="avoidance mislabeled-technical loss-aversion values-conflict no-experiment authority-dependence other"
 
 resolve_data_dir() {
@@ -88,6 +102,24 @@ resolve_session_threshold() {
   printf '%s' "$((10#${raw}))"
 }
 
+resolve_max_observations() {
+  # Non-negative: 0 disables the count bound; empty/non-numeric -> default.
+  local raw="${CLAIRVOYANCE_MAX_OBSERVATIONS:-}"
+  case "${raw}" in
+    '' | *[!0-9]*) printf '%s' "${DEFAULT_MAX_OBSERVATIONS}"; return ;;
+  esac
+  printf '%s' "$((10#${raw}))"
+}
+
+resolve_max_age_days() {
+  # Non-negative: 0 disables the age bound; empty/non-numeric -> default.
+  local raw="${CLAIRVOYANCE_MAX_AGE_DAYS:-}"
+  case "${raw}" in
+    '' | *[!0-9]*) printf '%s' "${DEFAULT_MAX_AGE_DAYS}"; return ;;
+  esac
+  printf '%s' "$((10#${raw}))"
+}
+
 normalize_category() {
   case " ${CATEGORIES} " in
     *" $1 "*) printf '%s' "$1" ;;
@@ -113,6 +145,41 @@ sql_value() {
   if [ -z "$1" ]; then printf 'NULL'; else printf "'%s'" "$1"; fi
 }
 
+# A SQLite string literal for arbitrary text: double every single quote so the
+# value cannot break out of the literal (this is what makes storing the raw
+# `--context` string by interpolation safe). Empty -> NULL.
+sql_text() {
+  local v="$1"
+  [ -z "${v}" ] && { printf 'NULL'; return; }
+  v="${v//\'/\'\'}"
+  printf "'%s'" "${v}"
+}
+
+# Context capture is opt-in and off by default; the default store stays
+# coded-only. Truthy values: 1/true/yes/on (any case).
+store_context_enabled() {
+  case "$(printf '%s' "${CLAIRVOYANCE_STORE_CONTEXT:-}" | tr '[:upper:]' '[:lower:]')" in
+    1 | true | yes | on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Best-effort secret scrub applied to raw context before it is stored. This is a
+# BACKSTOP only -- the caller is the primary redactor -- and is deliberately
+# conservative: it catches the most unambiguous secret shapes (cloud keys, JWTs,
+# provider tokens, bearer headers, key=value/`key: value` secrets, and lines
+# bearing a PRIVATE KEY marker). It cannot catch everything (e.g. multi-line PEM
+# bodies); never rely on it as the sole defence.
+redact_secrets() {
+  printf '%s' "$1" | sed -E \
+    -e 's/AKIA[0-9A-Z]{16}/[REDACTED]/g' \
+    -e 's/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/[REDACTED]/g' \
+    -e 's/(ghp|gho|ghu|ghs|ghr|github_pat|xox[baprs]|sk|pk)[_-][A-Za-z0-9_]{16,}/[REDACTED]/g' \
+    -e 's@[Bb][Ee][Aa][Rr][Ee][Rr][[:space:]]+[A-Za-z0-9._~+/-]+=*@Bearer [REDACTED]@g' \
+    -e 's/([Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii][_-]?[Kk][Ee][Yy]|[Aa][Cc][Cc][Ee][Ss][Ss][_-]?[Kk][Ee][Yy])([[:space:]]*[:=][[:space:]]*)("?)[^[:space:]"]+/\1\2\3[REDACTED]/g' \
+    -e 's/.*PRIVATE KEY.*/[REDACTED]/g'
+}
+
 emit() {
   printf '%s\n' "$1"
   exit 0
@@ -120,6 +187,8 @@ emit() {
 
 limit="$(resolve_threshold)"
 session_limit="$(resolve_session_threshold)"
+max_obs="$(resolve_max_observations)"
+max_age="$(resolve_max_age_days)"
 
 unavailable_json() {
   case "${cmd}" in
@@ -135,12 +204,43 @@ command -v sqlite3 >/dev/null 2>&1 || emit "$(unavailable_json)"
 # --- sqlite3 store -----------------------------------------------------------
 data_dir="$(resolve_data_dir)"
 db="${data_dir}/coaching.db"
-schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT); CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);"
+schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT, context TEXT); CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);"
 # Wait briefly for a concurrent writer instead of failing, so simultaneous
 # SessionStarts (multiple windows, compact storms) do not drop session counts.
 # The `.timeout` dot-command sets the busy timeout silently; a `PRAGMA
 # busy_timeout` would print its value and corrupt the captured query output.
 busy_opts=(-cmd ".timeout 2000")
+
+ensure_schema() {
+  # Create the tables, then migrate stores that predate the optional raw
+  # `context` column (SQLite has no ADD COLUMN IF NOT EXISTS).
+  sqlite3 "${busy_opts[@]}" "${db}" "${schema}" 2>/dev/null || return 1
+  # `PRAGMA table_info` works on every SQLite version (unlike the pragma_table_info
+  # table-valued function); each row is `cid|name|type|...`, so a present column
+  # shows up as `|context|`.
+  local cols
+  cols="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "PRAGMA table_info(observations);" 2>/dev/null)" || return 1
+  case "${cols}" in
+    *"|context|"*) : ;;
+    *) sqlite3 "${busy_opts[@]}" "${db}" "ALTER TABLE observations ADD COLUMN context TEXT;" 2>/dev/null || return 1 ;;
+  esac
+  return 0
+}
+
+prune_observations() {
+  # Keep the store bounded: drop rows past the age bound, then all but the newest
+  # ${max_obs}. A 0 bound is disabled. Rotation intentionally lets a since-faded
+  # signal age out of the readiness count.
+  if [ "${max_age}" -gt 0 ]; then
+    sqlite3 "${busy_opts[@]}" "${db}" \
+      "DELETE FROM observations WHERE julianday(ts) < julianday('now', '-${max_age} days');" 2>/dev/null || return 1
+  fi
+  if [ "${max_obs}" -gt 0 ]; then
+    sqlite3 "${busy_opts[@]}" "${db}" \
+      "DELETE FROM observations WHERE id NOT IN (SELECT id FROM observations ORDER BY id DESC LIMIT ${max_obs});" 2>/dev/null || return 1
+  fi
+  return 0
+}
 
 summary_json() {
   # Echoes: <total> <distinct> <by_category-json-body> on three lines, or fails.
@@ -189,11 +289,19 @@ case "${cmd}" in
     sig="$(coded_token "${signal}")"
     skind="$(coded_token "${session_kind}")"
     ts="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
+    # Context is opt-in and is only ever stored after a best-effort secret
+    # redaction; with context capture off, no scenario text is persisted at all.
+    ctx=""
+    if store_context_enabled && [ -n "${context}" ]; then
+      ctx="$(redact_secrets "${context}")"
+    fi
+    ensure_schema || emit "$(unavailable_json)"
     if ! sqlite3 "${busy_opts[@]}" "${db}" \
-      "${schema} INSERT INTO observations (ts, category, signal, outcome, session_kind) VALUES ('${ts}', '${cat_value}', $(sql_value "${sig}"), $(sql_value "${outcome}"), $(sql_value "${skind}"));" \
+      "INSERT INTO observations (ts, category, signal, outcome, session_kind, context) VALUES ('${ts}', '${cat_value}', $(sql_value "${sig}"), $(sql_value "${outcome}"), $(sql_value "${skind}"), $(sql_text "${ctx}"));" \
       2>/dev/null; then
       emit "$(unavailable_json)"
     fi
+    prune_observations || emit "$(unavailable_json)"
     if ! out="$(summary_json)"; then emit "$(unavailable_json)"; fi
     total="$(printf '%s' "${out}" | sed -n '1p')"
     distinct="$(printf '%s' "${out}" | sed -n '2p')"
