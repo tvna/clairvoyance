@@ -33,7 +33,7 @@ The most common failure is mislabeling an adaptive challenge as technical. Name 
 4. If the store is not `ready`, hold coaching. Acknowledge the pattern and note that more signal is needed before correction is fair.
 5. When `ready`, name the adaptive gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth.
 6. Coach with a prosthesis-building quiz: portable question handoff — AskUserQuestion when available, otherwise `AskUserQuestion:` text — with 2-3 choices and the correct answer marked.
-7. Record the quiz outcome (`... adaptive-store.sh record --outcome correct|incorrect`) and give the concrete corrective next move.
+7. Record the quiz outcome on the same category (`... adaptive-store.sh record --category <category> --outcome correct|incorrect`; `--category` is required on both backends) and give the concrete corrective next move.
 8. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
 
 ## Prosthesis effect via quiz

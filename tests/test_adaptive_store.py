@@ -28,14 +28,19 @@ HAS_SQLITE3 = shutil.which("sqlite3") is not None
 BACKENDS = ["python", *(["sqlite3"] if HAS_SQLITE3 else [])]
 
 
-def run(args, data_dir, backend, threshold=None):
-    """Invoke the store entry point on one backend with an isolated data dir."""
+def run_raw(args, data_dir, backend, threshold=None):
+    """Invoke the store entry point on one backend; return the CompletedProcess."""
     env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(data_dir), "CLAIRVOYANCE_STORE_BACKEND": backend}
     env.pop("LOCALAPPDATA", None)
     env.pop("XDG_DATA_HOME", None)
     if threshold is not None:
         env["CLAIRVOYANCE_COACH_THRESHOLD"] = str(threshold)
-    result = subprocess.run(["bash", str(STORE_SH), *args], capture_output=True, text=True, env=env)
+    return subprocess.run(["bash", str(STORE_SH), *args], capture_output=True, text=True, env=env)
+
+
+def run(args, data_dir, backend, threshold=None):
+    """Invoke the store and parse its JSON, asserting a clean exit."""
+    result = run_raw(args, data_dir, backend, threshold)
     assert result.returncode == 0, result.stderr
     return json.loads(result.stdout)
 
@@ -112,6 +117,15 @@ def test_unwritable_data_dir_degrades_gracefully(tmp_path, backend):
     assert out["available"] is False
     assert out["recorded"] is False
     assert out["ready"] is False
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_record_requires_category(tmp_path, backend):
+    """Both backends reject an outcome-only record (no --category) the same way."""
+    data_dir = tmp_path / "store"
+    result = run_raw(["record", "--outcome", "incorrect"], data_dir, backend)
+    assert result.returncode != 0
+    assert not (data_dir / "coaching.db").exists()
 
 
 @pytest.mark.skipif(not HAS_SQLITE3, reason="sqlite3 CLI not installed")

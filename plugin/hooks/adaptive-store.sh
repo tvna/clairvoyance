@@ -161,6 +161,13 @@ ready_word() {
 
 case "${cmd}" in
   record)
+    # --category is required, mirroring adaptive-store.py's argparse, so both
+    # backends reject an outcome-only record identically (exit 2, nothing
+    # written) instead of one erroring and the other silently storing 'other'.
+    if [ -z "${category}" ]; then
+      printf 'adaptive-store.sh: record requires --category\n' >&2
+      exit 2
+    fi
     mkdir -p "${data_dir}" 2>/dev/null || emit "$(unavailable_json)"
     cat_value="$(normalize_category "${category}")"
     case "${outcome}" in
