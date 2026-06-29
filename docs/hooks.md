@@ -33,6 +33,12 @@ prompt text, code, or file paths.
 - **Volatility is tolerated.** Ephemeral or read-only environments (remote sessions,
   sandboxes) simply do not persist, and any storage error degrades to
   "not available / not ready" rather than failing the session.
+- **Dependency.** The store reads and writes SQLite through Python's stdlib
+  `sqlite3`, so the adaptive-coaching feature needs `python3` on the workstation
+  (Git for Windows does not bundle a `sqlite3` CLI). This is the one feature that
+  requires Python; the rest of the SessionStart hook keeps its bash-required,
+  python-optional contract. With no `python3`, `session-start.sh` skips the
+  readiness query and the session starts normally — only coaching stays inactive.
 
 `scripts/check_hooks.sh` parses the store for syntax (no side effects); its behaviour
 is covered by `tests/test_adaptive_store.py`.
