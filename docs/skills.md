@@ -58,11 +58,25 @@ or an unbounded question. When only a human can unblock a decision, the skill us
 
 ## Quality bars
 
-Each skill keeps `SKILL.md` concise (the repo holds a 500-token budget, checked by
-`waza check`), carries an eval suite under `plugin/evals/`, and passes the deterministic
-checks in `scripts/check_skills.py` (frontmatter, name rules, description, and link
-resolution). Cross-lane coverage — every skill has an eval and a doc mention, and
-no eval is orphaned — is enforced by `scripts/check_coverage.py`; see
+Skill maturity is measured along two lanes — deterministic and probabilistic.
+
+**Deterministic.** Each skill keeps `SKILL.md` concise (the repo holds a 500-token
+budget, checked by `waza check`), carries an eval suite under `plugin/evals/`, and
+passes the best-practice checks in `scripts/check_skills.py`: frontmatter; name
+rules; the description (single-line, third person, no XML tags, a when-to-use
+trigger); body length; link resolution, forward slashes, and no upward traversal;
+and the progressive-disclosure rules on reference files (one level deep, table of
+contents past 100 lines). CI publishes a per-skill pass/fail table to the run's job
+summary on every push (the *Publish skill best-practice summary* step in
+[ci.yml](../.github/workflows/ci.yml)), so the latest deterministic state is always
+visible — run `python3 scripts/check_skills.py --summary` to preview it locally.
+Cross-lane coverage — every skill has an eval and a doc mention, and no eval is
+orphaned — is enforced by `scripts/check_coverage.py`; see
 [responsibility-matrix.md](responsibility-matrix.md) for the ownership lanes and
-gap-analysis procedure. See also [CONTRIBUTING.md](../CONTRIBUTING.md) and
+gap-analysis procedure.
+
+**Probabilistic.** The best-practice rules that need a model or a human to judge
+meaning, tone, or sufficiency cannot be scripted, so they are issued as a review
+checklist in [skill-maturity-checklist.md](skill-maturity-checklist.md) and run on
+any skill change. See also [CONTRIBUTING.md](../CONTRIBUTING.md) and
 [evaluations.md](evaluations.md).
