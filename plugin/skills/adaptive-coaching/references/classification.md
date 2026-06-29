@@ -7,6 +7,15 @@ the kind of work is, in his words, the most common source of leadership failure
 load-bearing step — get it wrong and a well-built quiz still aims at the wrong
 target.
 
+## Contents
+
+- What adaptive work actually is
+- Three kinds of work, not two
+- Diagnostic clues: how to tell it is adaptive
+- Work avoidance — the loudest adaptive signal
+- Stating the result
+- Sources
+
 ## What adaptive work actually is
 
 > Adaptive work consists of the learning required to address conflicts in the

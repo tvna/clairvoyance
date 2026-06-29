@@ -23,7 +23,7 @@ Deliver the quiz **only** when the person asks to reflect or do a retrospective,
 
 1. Confirm `ready` via the store (`status`). If not, acknowledge and hold — keep observing, do not quiz.
 2. Classify the dominant recurring gap — the technical-versus-adaptive split that shapes what the quiz reinforces (see [classification](references/classification.md)).
-3. Name the capability gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth (pacing and framing in [coaching practice](references/practice.md)).
+3. Name the capability gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth (see [coaching practice](references/practice.md) for pacing and framing).
 4. Deliver a prosthesis-building quiz: AskUserQuestion (or `AskUserQuestion:` text) with 2-3 choices and the correct answer marked (see [how to build the quiz](references/quiz.md)).
 5. Record the quiz outcome, then give the concrete corrective next move.
 6. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.

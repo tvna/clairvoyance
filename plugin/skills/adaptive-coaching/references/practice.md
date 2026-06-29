@@ -1,8 +1,8 @@
 # Coaching the gap: Heifetz's practice moves
 
-Once the gap is classified ([classification](classification.md)) and the store is
-ready, the reflection itself is an adaptive-leadership intervention — not just a
-quiz delivery. Heifetz's practice maps directly onto how this skill coaches.
+Once the gap is classified (the classification reference) and the store is ready,
+the reflection itself is an adaptive-leadership intervention — not just a quiz
+delivery. Heifetz's practice maps directly onto how this skill coaches.
 Each move below names the principle, the concrete coaching behaviour, and the
 skill mechanism that already carries it. (Sources: Heifetz, *Leadership Without
 Easy Answers*, 1994; Heifetz & Linsky, *Leadership on the Line*, 2002; Heifetz,
@@ -18,7 +18,7 @@ Authority supplies direction and order from on high; it resolves technical gaps.
 Leadership mobilises people to do their own learning, which is the only thing that
 moves an adaptive gap. For an adaptive gap, supplying the answer breeds dependence;
 the right move is to build the person's own judgement. This is why coaching is a
-retrieval quiz, not a lecture — detail in [quiz](quiz.md).
+retrieval quiz, not a lecture — detail in the quiz reference.
 
 ## Get on the balcony — diagnose the pattern, not the single instance
 
