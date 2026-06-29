@@ -18,26 +18,22 @@ target.
 
 ## What adaptive work actually is
 
-> Adaptive work consists of the learning required to address conflicts in the
-> values people hold, or to diminish the gap between the values people stand for
-> and the reality they face.
-> — Heifetz, *Leadership Without Easy Answers*, 1994
+Heifetz defines adaptive work as the learning a person has to do when the values
+they hold collide, or when a gap opens between the values they stand for and the
+reality they face — learning no one can do on their behalf (Heifetz, *Leadership
+Without Easy Answers*, 1994).
 
 The operational test: **is the obstacle a missing fact, or a gap between what the
 person values and what they actually do?** A fact can be supplied. A values–reality
 gap can only be closed by the person changing a priority, habit, belief, or
 behaviour — no amount of information substitutes for that learning.
 
-Heifetz & Linsky draw the line itself this way:
-
-> Every day, people have problems for which they do, in fact, have the necessary
-> know-how and procedures. We call these **technical problems**. But there is a
-> whole host of problems that are not amenable to authoritative expertise or
-> standard operating procedures. They cannot be solved by someone who provides
-> answers from on high. We call these **adaptive challenges** because they require
-> experiments, new discoveries, and adjustments from numerous places in the
-> organization or community.
-> — Heifetz & Linsky, *Leadership on the Line*, 2002
+Heifetz & Linsky draw the line this way. **Technical problems** are the ones
+people already have the know-how and procedures to handle, so an authority can
+supply the answer. **Adaptive challenges** resist authoritative expertise and
+standard operating procedures — they cannot be solved from on high, because they
+demand experiments, fresh discoveries, and adjustments from many places at once
+(Heifetz & Linsky, *Leadership on the Line*, 2002).
 
 ## Three kinds of work, not two
 
