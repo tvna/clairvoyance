@@ -1,22 +1,24 @@
 ---
 name: adaptive-coaching
-description: Coaches a person's recurring adaptive challenge (not a technical gap), gated on locally accumulated anonymous signal, with an AskUserQuestion quiz. Use when avoidance, misjudgement, or a problem mislabeled as technical keeps blocking the goal.
+description: Coaches a person's recurring capability gap across sessions — a misunderstood technical challenge or an adaptive one — once enough local signal has accumulated, using an AskUserQuestion quiz to build durable understanding. Use for a repeated pattern, not a single in-the-moment decision (route those to decision-coaching).
 ---
 
 # Adaptive Coaching
 
-Adaptive coaching corrects the *person's* adaptive challenge on the path to a goal while preserving autonomy and psychological safety, and only after enough signal has accumulated to coach fairly.
+Adaptive coaching builds a person's durable capability on the path to a goal while preserving autonomy and psychological safety, and only after enough signal has accumulated to coach fairly.
 
-**UTILITY SKILL:** invoked as `clairvoyance:adaptive-coaching` by `using-clairvoyance` for a person's recurring adaptive challenge across sessions.
+**UTILITY SKILL:** invoked as `clairvoyance:adaptive-coaching` by `using-clairvoyance` for a person's recurring capability gap across sessions.
+
+**Boundary with decision-coaching:** `decision-coaching` coaches a single decision in the moment (an LGTM or ambiguous call). `adaptive-coaching` coaches a *recurring* pattern across sessions, gated on accumulated signal, and builds durable capability with a quiz.
 
 ## Technical vs Adaptive
 
-Every blocker splits into two kinds of work (Heifetz):
+Diagnose which kind of work the blocker is (Heifetz). The split shapes *how* to coach, not *whether*:
 
-- **Technical challenge:** known expertise or authority resolves it. Hand back the fix; do not coach.
-- **Adaptive challenge:** progress needs the person to change a value, habit, belief, or behaviour. More information alone cannot solve it, and the work belongs to the person.
+- **Technical challenge:** a known answer exists. If the person already understands it, hand back the fix — no coaching needed. If they do not, coach the understanding: teach the known answer and let the quiz reinforce it.
+- **Adaptive challenge:** progress needs the person to change a value, habit, belief, or behaviour. More information alone cannot solve it; coach by facilitating the person's own change.
 
-The most common failure is mislabeling an adaptive challenge as technical. Name that split first, every time.
+Name the split — mislabeling an adaptive challenge as technical is the most common failure. Coach whenever the gap recurs and the person cannot yet make the call alone; skip only when the fix is understood and just execution remains.
 
 ## Data sufficiency gate
 
@@ -25,10 +27,10 @@ Coaching is fair only once a pattern is established, not on a single instance. R
 ## Steps
 
 1. Split the blocker into its technical parts and its adaptive part.
-2. If the work is purely technical, return the fix and stop; this is not coaching.
+2. If the technical fix is already understood and only execution remains, return it and stop. Otherwise coach the gap — teach a misunderstood technical challenge, or facilitate an adaptive one.
 3. Record the adaptive observation as anonymous signal (see [the store reference](references/store.md)).
 4. If the store is not `ready`, hold coaching. Acknowledge the pattern and note that more signal is needed before correction is fair.
-5. When `ready`, name the adaptive gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth.
+5. When `ready`, name the capability gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth.
 6. Coach with a prosthesis-building quiz: portable question handoff — AskUserQuestion when available, otherwise `AskUserQuestion:` text — with 2-3 choices and the correct answer marked.
 7. Record the quiz outcome, then give the concrete corrective next move.
 8. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
@@ -42,13 +44,13 @@ The プロテーゼ (prosthesis) effect: coaching should become an extension the
 Use these headings:
 
 - **Classification:** the technical-versus-adaptive split of the blocker.
-- **Adaptive Gap:** the person's change to make, named without shame.
+- **Capability Gap:** the understanding or change the person must make, named without shame (a misunderstood technical challenge or an adaptive one).
 - **Evidence:** the accumulated anonymous signal (count versus threshold) that makes coaching fair now.
 - **Quiz:** AskUserQuestion (or `AskUserQuestion:` fallback) with 2-3 choices and the marked correct answer.
 - **Why:** the prosthesis effect the quiz builds.
 - **Next Move:** the concrete corrective the person can adopt.
 
-Pattern: **Classification** -> **Adaptive Gap** -> **Evidence** -> **Quiz** -> **Next Move**. When the store is not `ready`, emit only **Classification**, **Evidence** (insufficient signal), and **Next Move** (keep observing) — do not coach yet.
+Pattern: **Classification** -> **Capability Gap** -> **Evidence** -> **Quiz** -> **Next Move**. When the store is not `ready`, emit only **Classification**, **Evidence** (insufficient signal), and **Next Move** (keep observing) — do not coach yet.
 
 ## Example
 

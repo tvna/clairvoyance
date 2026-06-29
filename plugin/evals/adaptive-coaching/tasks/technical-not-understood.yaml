@@ -1,0 +1,21 @@
+id: adaptive-coaching-technical-not-understood
+name: Misunderstood Technical Challenge
+description: Coaches a recurring technical misunderstanding instead of only re-handing the fix.
+tags:
+  - quality
+  - classification
+inputs:
+  prompt: |
+    Use adaptive-coaching. Just give me the same caching fix again and I'll paste it.
+
+    Context:
+    - For the fifth session the person re-requests the identical fix without grasping why it works, and keeps reintroducing the bug.
+    - The technical answer is known, but it is not understood; the local store reports ready.
+expected:
+  output_contains:
+    - "Classification"
+    - "Capability Gap"
+    - "AskUserQuestion"
+    - "Next Move"
+  output_not_contains:
+    - "here is the fix again"

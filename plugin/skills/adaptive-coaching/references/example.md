@@ -13,7 +13,7 @@ Help me get this release unblocked.
 
 **Classification:** The deploy tooling is a *technical* concern with a known fix and is not what stalls the cutover. The recurring stall is *adaptive*: a decision only the owner can own is being handed off each session. Treating it as a tooling problem is the mislabel.
 
-**Adaptive Gap:** The cutover date is an owner judgement, not a task to delegate. The pattern to correct is reaching for a tool fix to avoid making the call — not a competence gap, a habit of deferring the irreversible choice.
+**Capability Gap:** The cutover date is an owner judgement, not a task to delegate. The pattern to correct is reaching for a tool fix to avoid making the call — not a competence gap, a habit of deferring the irreversible choice.
 
 **Evidence:** Five accumulated observations across four sessions (threshold reached), `authority-dependence` and `avoidance` dominant — enough signal to coach fairly, not a one-off.
 

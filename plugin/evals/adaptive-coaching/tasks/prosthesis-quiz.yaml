@@ -14,7 +14,7 @@ inputs:
     - The decision is reversible and owner-owned.
 expected:
   output_contains:
-    - "Adaptive Gap"
+    - "Capability Gap"
     - "AskUserQuestion"
     - "Quiz"
     - "Next Move"
