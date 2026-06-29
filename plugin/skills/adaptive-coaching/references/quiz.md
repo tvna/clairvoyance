@@ -1,6 +1,6 @@
 # Building the prosthesis quiz
 
-The プロテーゼ (prosthesis) effect: coaching should become an extension the person
+The prosthesis effect: coaching should become an extension the person
 internalises into durable judgement, not a crutch they depend on. Active recall
 through a quiz beats being told — retrieval practice is what makes the corrected
 judgement stick.
