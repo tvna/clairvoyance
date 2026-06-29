@@ -24,3 +24,12 @@ Can we step back and reflect? I keep stalling these releases and I want to see m
 **Why:** Retrieving the right move under a concrete scenario — rather than being told — builds the prosthesis: next time the owner makes the reversible call themselves without the coach present.
 
 **Next Move:** Owner selects the recommended cutover option and names the rollback trigger this session; record the quiz outcome so the store can tell whether the deferral habit is fading.
+
+## Anti-pattern — the same reflection done wrong
+
+For contrast, the moves this output deliberately avoids (❌), each paired with what it did instead (✅):
+
+- ❌ **Re-handing the fix:** "Here are the two cutover options again — I'll pick the date for you." Re-creates the dependence and mislabels the adaptive stall as a tooling/decision task. ✅ Classify the stall as adaptive and give the call back through the quiz.
+- ❌ **Shaming:** "You keep avoiding this — that is the problem." Diagnoses the person's worth, not the gap, and triggers defensiveness. ✅ Name the habit warmly — "a habit of deferring the irreversible choice" — gap, not worth.
+- ❌ **Quizzing too early:** delivering this quiz on the first instance, or unprompted. Unfair, and it breaks autonomy. ✅ Wait for `ready` and the person's own reflection request (here: 5/5, and they asked).
+- ❌ **Telling the answer:** "The right move is the recommended option." Supplies the answer instead of building judgement. ✅ Make the person retrieve it through marked choices.

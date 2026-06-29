@@ -28,3 +28,22 @@ Each quiz item gives:
 Keep questions non-leading and non-shaming; the goal is the person's own next
 correct call without the coach present. Deliver via AskUserQuestion when
 available, otherwise an `AskUserQuestion:` text block with the same choices.
+
+## Good vs bad quiz items
+
+Same gap, contrasting builds — the failure modes are subtle, so each ❌ is paired
+with the ✅ that fixes it:
+
+- ❌ **Leading:** *"You wouldn't hand off your own cutover call again, would
+  you?"* — telegraphs the answer and shames; the person performs agreement
+  instead of reasoning.
+  ✅ **Non-leading:** *"A reversible cutover with two prepared options is waiting
+  on you. What is the soundest next move?"* — a real choice to reason through.
+- ❌ **Telling, not retrieving:** stating the correct move in prose, or offering a
+  one-real-option "quiz" — that is supplying the answer (authority), not giving
+  the work back.
+  ✅ **Retrieval:** 2–3 genuine options, the correct one marked, a one-line why
+  for each, so the person makes the call.
+- ❌ **Generic:** *"What makes a good decision?"* — abstract, not their pattern.
+  ✅ **Concrete:** drawn from the person's own recurring signal, so the recall
+  transfers to the next real moment.
