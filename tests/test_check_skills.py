@@ -1,3 +1,5 @@
+import io
+
 import check_skills as cs
 
 
@@ -170,3 +172,100 @@ def test_link_with_title_resolves(tmp_path):
 def test_mailto_link_is_skipped(tmp_path):
     _skill(tmp_path, "ok", body="Contact [m](mailto:a@b.com).\n")
     assert _errors(tmp_path) == []
+
+
+def test_description_with_xml_tag_is_flagged(tmp_path):
+    _skill(tmp_path, "ok", description="Wraps <b>output</b> in tags. Use when needed.")
+    assert any("must not contain XML tags" in m for _, m in _errors(tmp_path))
+
+
+def test_description_with_spaced_comparison_is_not_flagged(tmp_path):
+    # A prose comparison ("a < b and c > d") is not an XML tag and must pass.
+    _skill(tmp_path, "ok", description="Routes when a < b and c > d. Use when ordering matters.")
+    assert _errors(tmp_path) == []
+
+
+def test_description_without_when_trigger_is_flagged(tmp_path):
+    _skill(tmp_path, "ok", description="Produces an evidence-backed verdict for changed code.")
+    assert any("when to use the skill" in m for _, m in _errors(tmp_path))
+
+
+def test_description_with_use_on_trigger_passes(tmp_path):
+    _skill(tmp_path, "ok", description="Logs gaps locally. Use on a reflection request.")
+    assert _errors(tmp_path) == []
+
+
+def test_backslash_link_is_flagged(tmp_path):
+    _skill(tmp_path, "ok", body="See [x](references\\guide.md).\n")
+    assert any("forward slashes" in m for _, m in _errors(tmp_path))
+
+
+def _ref(tmp_path, dirname, refname, content):
+    refs = tmp_path / "skills" / dirname / "references"
+    refs.mkdir(parents=True, exist_ok=True)
+    (refs / refname).write_text(content)
+    return refs / refname
+
+
+def test_nested_reference_link_is_flagged(tmp_path):
+    _skill(tmp_path, "ok", body="See [r](references/a.md).\n")
+    _ref(tmp_path, "ok", "a.md", "# A\n\nSee [b](b.md) for more.\n")
+    _ref(tmp_path, "ok", "b.md", "# B\n")
+    assert any("one level deep" in m for _, m in _errors(tmp_path))
+
+
+def test_reference_external_and_anchor_links_are_allowed(tmp_path):
+    _skill(tmp_path, "ok", body="See [r](references/a.md).\n")
+    _ref(tmp_path, "ok", "a.md", "# A\n\nSee [x](https://example.com) and [y](#sec).\n")
+    assert _errors(tmp_path) == []
+
+
+def test_reference_broken_link_is_flagged(tmp_path):
+    # References get the same resolution checks as SKILL.md.
+    _skill(tmp_path, "ok", body="See [r](references/a.md).\n")
+    _ref(tmp_path, "ok", "a.md", "# A\n\n![img](missing.png)\n")
+    assert any("broken link" in m for _, m in _errors(tmp_path))
+
+
+def test_long_reference_without_toc_is_flagged(tmp_path):
+    _skill(tmp_path, "ok", body="See [r](references/a.md).\n")
+    _ref(tmp_path, "ok", "a.md", "# A\n" + "line\n" * 101)
+    assert any("table of contents" in m for _, m in _errors(tmp_path))
+
+
+def test_long_reference_with_toc_passes(tmp_path):
+    _skill(tmp_path, "ok", body="See [r](references/a.md).\n")
+    _ref(tmp_path, "ok", "a.md", "# A\n\n## Contents\n\n" + "line\n" * 101)
+    assert _errors(tmp_path) == []
+
+
+def test_build_summary_reports_pass_and_fail(tmp_path):
+    _skill(tmp_path, "good", name="good")
+    _skill(tmp_path, "bad", name="bad", description="")
+    summary = cs.build_summary(tmp_path / "skills")
+    assert "| `good` | ✅ pass | — |" in summary
+    assert "| `bad` | ❌ fail | 1 |" in summary
+    assert "**1/2 skills pass**" in summary
+    assert "Open issues" in summary
+    assert "has no description" in summary
+
+
+def test_build_summary_all_pass_has_no_issue_block(tmp_path):
+    _skill(tmp_path, "good", name="good")
+    summary = cs.build_summary(tmp_path / "skills")
+    assert "**1/1 skills pass**" in summary
+    assert "Open issues" not in summary
+
+
+def test_write_summary_to_stream(tmp_path):
+    _skill(tmp_path, "good")
+    buf = io.StringIO()
+    cs.write_summary(tmp_path / "skills", stream=buf)
+    assert "Skill best-practice compliance" in buf.getvalue()
+
+
+def test_write_summary_defaults_to_committed_skills_on_stdout(capsys):
+    cs.write_summary()
+    out = capsys.readouterr().out
+    assert "Skill best-practice compliance" in out
+    assert "skills pass" in out

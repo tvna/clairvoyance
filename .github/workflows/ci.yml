@@ -78,6 +78,13 @@ jobs:
       - name: Check skill best practices
         run: python3 scripts/check_skills.py
 
+      - name: Publish skill best-practice summary
+        # Always render the per-skill deterministic compliance table into the run's
+        # job summary, so the latest pass/fail state is visible on every CI run
+        # (including failures) without opening the step logs.
+        if: always()
+        run: python3 scripts/check_skills.py --summary >> "$GITHUB_STEP_SUMMARY"
+
       - name: Check skill coverage (eval + doc, no orphans)
         run: python3 scripts/check_coverage.py
 
