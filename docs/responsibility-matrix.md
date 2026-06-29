@@ -35,7 +35,7 @@ eval suite, and a repo-local doc mention.
 | `review-verdict` | `plugin/skills/review-verdict/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/review-verdict/` | `docs/skills.md` |
 | `architecture-tradeoff` | `plugin/skills/architecture-tradeoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/architecture-tradeoff/` | `docs/skills.md` |
 | `decision-coaching` | `plugin/skills/decision-coaching/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/decision-coaching/` | `docs/skills.md` |
-| `human-harness` | `plugin/skills/human-harness/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/human-harness/` | `docs/skills.md` |
+| `human-harness` | `plugin/skills/human-harness/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/human-harness/` | `docs/human-harness.md`, `docs/skills.md` |
 | `session-handoff` | `plugin/skills/session-handoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/session-handoff/` | `docs/session-handoff.md`, `docs/skills.md` |
 
 The forward/backward coverage of this matrix is enforced deterministically by
