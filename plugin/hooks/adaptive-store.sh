@@ -1,17 +1,28 @@
 #!/usr/bin/env bash
 # Local, anonymous adaptive-coaching observation store.
 #
-# Subcommands `record` and `status` each print one JSON object on stdout and
-# (apart from a missing required `--category`) always exit 0. The store is
-# backed by the `sqlite3` CLI (e.g. `choco install sqlite` on Windows; usually
-# present on macOS/Linux). There is no Python fallback: if the CLI is absent the
-# store degrades to "not available" and coaching stays inactive, leaving the
-# session unaffected.
+# Subcommands:
+#   record --category C [--signal S] [--outcome correct|incorrect] [--session-kind K]
+#   record-session   -- count one chat session toward the grace period
+#   status           -- report counts and whether coaching should trigger
+# Each prints one JSON object on stdout and (apart from a missing required
+# `--category` on `record`) always exits 0.
+#
+# Coaching is gated on two counters so a first-time user is never quizzed early:
+#   1. a grace period -- the first ~50 chat sessions (CLAIRVOYANCE_SESSION_THRESHOLD)
+#      record no coaching, and
+#   2. accumulated adaptive signal (CLAIRVOYANCE_COACH_THRESHOLD observations).
+# `ready` is true only once BOTH thresholds are met.
+#
+# The store is backed by the `sqlite3` CLI (e.g. `choco install sqlite` on
+# Windows; usually present on macOS/Linux). There is no Python fallback: if the
+# CLI is absent the store degrades to "not available" and coaching stays
+# inactive, leaving the session unaffected.
 #
 # It records only coded metadata -- an adaptive-challenge category, a short
-# coded signal label, a quiz outcome, the session kind, and a UTC timestamp --
-# never prompt text, code, or file paths. Storage location, threshold,
-# anonymity, and volatility tolerance are documented in docs/hooks.md.
+# coded signal label, a quiz outcome, the session kind, a UTC timestamp, and an
+# anonymous session count -- never prompt text, code, or file paths. Storage
+# location, thresholds, anonymity, and volatility tolerance are in docs/hooks.md.
 set -euo pipefail
 
 # --- argument parsing --------------------------------------------------------
@@ -41,6 +52,10 @@ done
 # Five observations is the smallest sample that reads as a repeated pattern
 # rather than a one-off; override per operator with $CLAIRVOYANCE_COACH_THRESHOLD.
 DEFAULT_THRESHOLD=5
+# Fifty chat sessions is the grace period: a first-time user (the core target,
+# who may not self-set-up the environment) is never quizzed during their first
+# ~50 sessions. Override with $CLAIRVOYANCE_SESSION_THRESHOLD (0 disables it).
+DEFAULT_SESSION_THRESHOLD=50
 CATEGORIES="avoidance mislabeled-technical loss-aversion values-conflict no-experiment authority-dependence other"
 
 resolve_data_dir() {
@@ -62,6 +77,15 @@ resolve_threshold() {
   esac
   local value=$((10#${raw}))
   if [ "${value}" -gt 0 ]; then printf '%s' "${value}"; else printf '%s' "${DEFAULT_THRESHOLD}"; fi
+}
+
+resolve_session_threshold() {
+  # Non-negative: 0 is a valid "no grace period" setting; empty/non-numeric -> default.
+  local raw="${CLAIRVOYANCE_SESSION_THRESHOLD:-}"
+  case "${raw}" in
+    '' | *[!0-9]*) printf '%s' "${DEFAULT_SESSION_THRESHOLD}"; return ;;
+  esac
+  printf '%s' "$((10#${raw}))"
 }
 
 normalize_category() {
@@ -95,13 +119,14 @@ emit() {
 }
 
 limit="$(resolve_threshold)"
+session_limit="$(resolve_session_threshold)"
 
 unavailable_json() {
-  if [ "${cmd}" = "record" ]; then
-    printf '{"recorded": false, "available": false, "count": 0, "threshold": %s, "ready": false}' "${limit}"
-  else
-    printf '{"available": false, "count": 0, "threshold": %s, "ready": false}' "${limit}"
-  fi
+  case "${cmd}" in
+    record) printf '{"recorded": false, "available": false, "count": 0, "threshold": %s, "ready": false}' "${limit}" ;;
+    record-session) printf '{"recorded_session": false, "available": false, "sessions": 0, "session_threshold": %s}' "${session_limit}" ;;
+    *) printf '{"available": false, "count": 0, "threshold": %s, "sessions": 0, "session_threshold": %s, "ready": false}' "${limit}" "${session_limit}" ;;
+  esac
 }
 
 # Requires the sqlite3 CLI; with none present the store is simply unavailable.
@@ -110,7 +135,7 @@ command -v sqlite3 >/dev/null 2>&1 || emit "$(unavailable_json)"
 # --- sqlite3 store -----------------------------------------------------------
 data_dir="$(resolve_data_dir)"
 db="${data_dir}/coaching.db"
-schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT);"
+schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT); CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);"
 
 summary_json() {
   # Echoes: <total> <distinct> <by_category-json-body> on three lines, or fails.
@@ -128,8 +153,17 @@ EOF
   printf '%s\n%s\n%s\n' "${total}" "${distinct}" "${pairs}"
 }
 
-ready_word() {
-  if [ "$1" -ge "${limit}" ]; then printf 'true'; else printf 'false'; fi
+read_sessions() {
+  # The accumulated session count, or 0 if unset/unreadable.
+  local v
+  v="$(sqlite3 -noheader "${db}" "SELECT value FROM meta WHERE key='sessions';" 2>/dev/null)" || { printf '0'; return 0; }
+  [ -z "${v}" ] && v=0
+  printf '%s' "${v}"
+}
+
+combined_ready() {
+  # $1 = observation total, $2 = session count. Both gates must pass.
+  if [ "$1" -ge "${limit}" ] && [ "$2" -ge "${session_limit}" ]; then printf 'true'; else printf 'false'; fi
 }
 
 case "${cmd}" in
@@ -159,7 +193,18 @@ case "${cmd}" in
     total="$(printf '%s' "${out}" | sed -n '1p')"
     distinct="$(printf '%s' "${out}" | sed -n '2p')"
     pairs="$(printf '%s' "${out}" | sed -n '3p')"
-    emit "$(printf '{"recorded": true, "available": true, "count": %s, "threshold": %s, "ready": %s, "distinct_categories": %s, "by_category": {%s}}' "${total}" "${limit}" "$(ready_word "${total}")" "${distinct}" "${pairs}")"
+    sessions="$(read_sessions)"
+    emit "$(printf '{"recorded": true, "available": true, "count": %s, "threshold": %s, "sessions": %s, "session_threshold": %s, "ready": %s, "distinct_categories": %s, "by_category": {%s}}' "${total}" "${limit}" "${sessions}" "${session_limit}" "$(combined_ready "${total}" "${sessions}")" "${distinct}" "${pairs}")"
+    ;;
+  record-session)
+    mkdir -p "${data_dir}" 2>/dev/null || emit "$(unavailable_json)"
+    if ! sqlite3 "${db}" \
+      "${schema} INSERT INTO meta (key, value) VALUES ('sessions', 1) ON CONFLICT(key) DO UPDATE SET value = value + 1;" \
+      2>/dev/null; then
+      emit "$(unavailable_json)"
+    fi
+    sessions="$(read_sessions)"
+    emit "$(printf '{"recorded_session": true, "available": true, "sessions": %s, "session_threshold": %s}' "${sessions}" "${session_limit}")"
     ;;
   status)
     [ -f "${db}" ] || emit "$(unavailable_json)"
@@ -168,7 +213,8 @@ case "${cmd}" in
     total="$(printf '%s' "${out}" | sed -n '1p')"
     distinct="$(printf '%s' "${out}" | sed -n '2p')"
     pairs="$(printf '%s' "${out}" | sed -n '3p')"
-    emit "$(printf '{"available": true, "count": %s, "threshold": %s, "ready": %s, "distinct_categories": %s, "by_category": {%s}}' "${total}" "${limit}" "$(ready_word "${total}")" "${distinct}" "${pairs}")"
+    sessions="$(read_sessions)"
+    emit "$(printf '{"available": true, "count": %s, "threshold": %s, "sessions": %s, "session_threshold": %s, "ready": %s, "distinct_categories": %s, "by_category": {%s}}' "${total}" "${limit}" "${sessions}" "${session_limit}" "$(combined_ready "${total}" "${sessions}")" "${distinct}" "${pairs}")"
     ;;
   *)
     printf 'adaptive-store.sh: unknown command %s\n' "${cmd:-<none>}" >&2

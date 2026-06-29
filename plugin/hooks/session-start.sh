@@ -52,6 +52,9 @@ fi
 coaching_block=""
 store_sh="${plugin_root}/hooks/adaptive-store.sh"
 if [ -f "${store_sh}" ]; then
+  # Count this SessionStart (startup/clear/compact) toward the grace period, then
+  # read readiness. Reading no stdin keeps the hook from ever blocking.
+  bash "${store_sh}" record-session >/dev/null 2>&1 || true
   status_json="$(bash "${store_sh}" status 2>/dev/null || true)"
   case "${status_json}" in
     *'"ready": true'*)

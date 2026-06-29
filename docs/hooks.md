@@ -9,8 +9,11 @@ and `compact`). It runs `plugin/hooks/session-start.sh`, which:
    `additionalContext` so the agent has the bootstrap router from the first turn.
 2. Resolves the project owner's language and injects it as authoritative for
    Clairvoyance handoffs.
-3. Queries the adaptive-coaching store (below) and, only when it reports `ready`,
-   appends a cue telling the agent to load `adaptive-coaching` for the next handoff.
+3. Counts this session toward the coaching grace period (`record-session`) and
+   queries the adaptive-coaching store (below); only when it reports `ready` does
+   it append a cue telling the agent to load `adaptive-coaching` for the next
+   handoff. The session count advances on every SessionStart (startup, clear, and
+   compact), and the hook reads no stdin so it never blocks.
 
 If the bootstrap skill file is missing, the hook exits 0 and injects nothing.
 
@@ -24,12 +27,17 @@ coded signal label, a quiz outcome, the session kind, and a UTC timestamp — ne
 prompt text, code, or file paths.
 
 - **Subcommands.** `record --category <c> [--signal …] [--outcome correct|incorrect]
-  [--session-kind …]` appends one observation; `status` reports the count and whether
-  it is `ready`. Both print one JSON object and always exit 0.
+  [--session-kind …]` appends one observation; `record-session` counts one chat
+  session; `status` reports the counts and whether it is `ready`. Each prints one
+  JSON object and (apart from a missing required `--category`) always exits 0.
+- **Two-gate readiness.** `ready` is true only when **both** hold, so a first-time
+  user is never quizzed early: a **session grace period**
+  (`$CLAIRVOYANCE_SESSION_THRESHOLD`, default 50 sessions; 0 disables it) **and**
+  **accumulated adaptive signal** (`$CLAIRVOYANCE_COACH_THRESHOLD`, default 5
+  observations).
 - **Location** (first match wins): `$CLAIRVOYANCE_DATA_DIR`, else
   `%LOCALAPPDATA%\clairvoyance` (the Windows workstation default), else
   `$XDG_DATA_HOME/clairvoyance`, else `~/.clairvoyance`; the file is `coaching.db`.
-- **Threshold.** `$CLAIRVOYANCE_COACH_THRESHOLD` (default 5).
 - **Volatility is tolerated.** Ephemeral or read-only environments (remote sessions,
   sandboxes) simply do not persist, and any storage error degrades to
   "not available / not ready" rather than failing the session.

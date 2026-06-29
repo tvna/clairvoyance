@@ -22,7 +22,7 @@ Name the split — mislabeling an adaptive challenge as technical is the most co
 
 ## Data sufficiency gate
 
-Coaching is fair only once a pattern is established, not on a single instance. Record each adaptive observation as anonymous signal, and coach only when the local store reports `ready`; an unavailable store means hold coaching, not fail. The exact record/status commands, categories, and storage details are in [the store reference](references/store.md).
+Coaching is fair only once a pattern is established, not on a single instance — and never for a first-time user still finding their feet. Record each adaptive observation as anonymous signal, and coach only when the local store reports `ready`, which needs **both** a session grace period (the first ~50 chat sessions are quiet) **and** accumulated signal. An unavailable store means hold coaching, not fail. The exact record/status commands, categories, thresholds, and storage details are in [the store reference](references/store.md).
 
 ## Steps
 

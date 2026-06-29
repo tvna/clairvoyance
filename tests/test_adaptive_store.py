@@ -7,7 +7,9 @@ redirected to a tmp path so nothing touches the developer's workstation.
 
 The store is backed by the ``sqlite3`` CLI with no Python fallback, so the
 recording cases are skipped when the CLI is absent; the argument-validation case
-needs no backend and always runs.
+needs no backend and always runs. Readiness has two gates -- a session grace
+period and accumulated adaptive signal -- so the observation-focused tests set
+the session threshold to 0 to isolate the signal gate.
 """
 
 import json
@@ -26,19 +28,25 @@ HAS_SQLITE3 = shutil.which("sqlite3") is not None
 needs_sqlite3 = pytest.mark.skipif(not HAS_SQLITE3, reason="sqlite3 CLI not installed")
 
 
-def run_raw(args, data_dir, threshold=None):
-    """Invoke the store entry point with an isolated data dir; return the process."""
+def run_raw(args, data_dir, threshold=None, session_threshold=0):
+    """Invoke the store with an isolated data dir; return the CompletedProcess.
+
+    ``session_threshold`` defaults to 0 (grace disabled) so signal-gate tests are
+    not blocked by it; pass ``None`` to leave it unset and exercise the default.
+    """
     env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(data_dir)}
-    env.pop("LOCALAPPDATA", None)
-    env.pop("XDG_DATA_HOME", None)
+    for key in ("LOCALAPPDATA", "XDG_DATA_HOME", "CLAIRVOYANCE_COACH_THRESHOLD", "CLAIRVOYANCE_SESSION_THRESHOLD"):
+        env.pop(key, None)
     if threshold is not None:
         env["CLAIRVOYANCE_COACH_THRESHOLD"] = str(threshold)
-    return subprocess.run(["bash", str(STORE_SH), *args], capture_output=True, text=True, env=env)
+    if session_threshold is not None:
+        env["CLAIRVOYANCE_SESSION_THRESHOLD"] = str(session_threshold)
+    return subprocess.run(["bash", str(STORE_SH), *args], capture_output=True, text=True, env=env, input="")
 
 
-def run(args, data_dir, threshold=None):
+def run(args, data_dir, threshold=None, session_threshold=0):
     """Invoke the store and parse its JSON, asserting a clean exit."""
-    result = run_raw(args, data_dir, threshold)
+    result = run_raw(args, data_dir, threshold, session_threshold)
     assert result.returncode == 0, result.stderr
     return json.loads(result.stdout)
 
@@ -47,12 +55,19 @@ def run(args, data_dir, threshold=None):
 def test_status_on_empty_store_is_not_ready(tmp_path):
     """A fresh workstation has no data, so coaching must not trigger."""
     out = run(["status"], tmp_path / "store", threshold=3)
-    assert out == {"available": False, "count": 0, "threshold": 3, "ready": False}
+    assert out == {
+        "available": False,
+        "count": 0,
+        "threshold": 3,
+        "sessions": 0,
+        "session_threshold": 0,
+        "ready": False,
+    }
 
 
 @needs_sqlite3
 def test_record_accumulates_until_threshold(tmp_path):
-    """Coaching becomes ready only once enough observations accumulate."""
+    """With the grace gate disabled, readiness follows the adaptive-signal gate."""
     data_dir = tmp_path / "store"
     first = run(["record", "--category", "avoidance"], data_dir, threshold=2)
     assert first["recorded"] is True
@@ -68,10 +83,64 @@ def test_record_accumulates_until_threshold(tmp_path):
         "available": True,
         "count": 2,
         "threshold": 2,
+        "sessions": 0,
+        "session_threshold": 0,
         "ready": True,
         "distinct_categories": 2,
         "by_category": {"avoidance": 1, "loss-aversion": 1},
     }
+
+
+@needs_sqlite3
+def test_session_grace_blocks_until_threshold(tmp_path):
+    """Even with signal met, coaching waits out the session grace period."""
+    data_dir = tmp_path / "store"
+    # Signal gate satisfied immediately (threshold 1), but grace needs 2 sessions.
+    recorded = run(["record", "--category", "avoidance"], data_dir, threshold=1, session_threshold=2)
+    assert recorded["count"] == 1
+    assert recorded["ready"] is False  # sessions 0 < 2
+
+    run(["record-session"], data_dir, session_threshold=2)
+    blocked = run(["status"], data_dir, threshold=1, session_threshold=2)
+    assert blocked["sessions"] == 1
+    assert blocked["ready"] is False  # sessions 1 < 2
+
+    run(["record-session"], data_dir, session_threshold=2)
+    ready = run(["status"], data_dir, threshold=1, session_threshold=2)
+    assert ready["sessions"] == 2
+    assert ready["ready"] is True  # sessions 2 >= 2 and count 1 >= 1
+
+
+@needs_sqlite3
+def test_sessions_without_signal_are_not_ready(tmp_path):
+    """Reaching the session count alone does not trigger coaching without signal."""
+    data_dir = tmp_path / "store"
+    run(["record-session"], data_dir, session_threshold=1)
+    out = run(["status"], data_dir, threshold=5, session_threshold=1)
+    assert out["sessions"] == 1
+    assert out["count"] == 0
+    assert out["ready"] is False
+
+
+@needs_sqlite3
+def test_record_session_increments(tmp_path):
+    """record-session counts up and reports the configured grace threshold."""
+    data_dir = tmp_path / "store"
+    for expected in (1, 2, 3):
+        out = run(["record-session"], data_dir, session_threshold=50)
+        assert out == {
+            "recorded_session": True,
+            "available": True,
+            "sessions": expected,
+            "session_threshold": 50,
+        }
+
+
+@needs_sqlite3
+def test_default_session_threshold_is_50(tmp_path):
+    """With no override the grace period defaults to 50 sessions."""
+    out = run(["record-session"], tmp_path / "store", session_threshold=None)
+    assert out["session_threshold"] == 50
 
 
 @needs_sqlite3
