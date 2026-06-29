@@ -178,6 +178,17 @@ jobs:
           which sqlite3
           sqlite3 -version
 
+      - name: Diagnose store script on Windows
+        # Temporary: confirm LF line endings and dump the raw store output so any
+        # remaining Windows-only breakage is visible in the log rather than hidden
+        # behind pytest's truncated assertion repr.
+        continue-on-error: true
+        shell: bash
+        run: |
+          head -c 40 plugin/hooks/adaptive-store.sh | od -c | head -3
+          tmp=$(mktemp -d)
+          CLAIRVOYANCE_DATA_DIR="$tmp" CLAIRVOYANCE_SESSION_THRESHOLD=0 bash plugin/hooks/adaptive-store.sh status | od -c | head -20
+
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
         with:

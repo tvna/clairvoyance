@@ -1,0 +1,5 @@
+# Shell scripts must stay LF so they run under Git Bash on Windows checkouts.
+# The Windows CI runner defaults to core.autocrlf=true, which would otherwise
+# rewrite these to CRLF and break bash parsing. The .cmd polyglot is left to the
+# platform default (it must work as a Windows batch file).
+*.sh text eol=lf
