@@ -10,7 +10,7 @@ Can we step back and reflect? I keep stalling these releases and I want to see m
 
 ## Output
 
-**Classification:** The deploy tooling is a *technical* concern with a known fix and is not what stalls the cutover. The recurring stall is *adaptive*: a decision only the owner can own is being handed off each session. Treating it as a tooling problem is the mislabel.
+**Classification:** *Type III — adaptive.* The deploy tooling is a *Type I technical* concern with a known fix and is not what stalls the cutover. The recurring stall is *adaptive*: a decision only the owner can own is being handed off each session. Recasting it as a tooling problem is the work-avoidance mislabel — dressing an adaptive challenge as a technical one.
 
 **Capability Gap:** The cutover date is an owner judgement, not a task to delegate. The pattern to correct is reaching for a tool fix to avoid making the call — not a competence gap, a habit of deferring the irreversible choice.
 

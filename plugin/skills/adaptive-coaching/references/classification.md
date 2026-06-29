@@ -37,27 +37,32 @@ demand experiments, fresh discoveries, and adjustments from many places at once
 
 ## Three kinds of work, not two
 
-Heifetz, Grashow & Linsky (*The Practice of Adaptive Leadership*, 2009) classify
-work along three axes — who can define the problem, who can supply the solution,
-and where the work has to be done. Most real challenges are **mixed**; forcing a
-binary is itself a common mislabel.
+It is a spectrum, not a binary. Heifetz first drew it through a doctor–patient
+analogy with **three situational types**, keyed to *who must do the work*
+(*Leadership Without Easy Answers*, 1994), and the same three axes — who defines
+the problem, who supplies the solution, where the work has to be done — recur in
+*The Practice of Adaptive Leadership* (Heifetz, Grashow & Linsky, 2009). Most
+real challenges are **Type II or III**, not the clean Type I a quick glance
+suggests; forcing a binary is itself a common mislabel.
 
-| Kind of challenge       | Problem definition | Solution & implementation | Primary locus of the work |
-| ----------------------- | ------------------ | ------------------------- | ------------------------- |
-| Technical               | Clear              | Clear                     | Authority / expert        |
-| Technical *and* adaptive | Clear              | Requires learning         | Authority *and* stakeholders |
-| Adaptive                | Requires learning  | Requires learning         | Stakeholders (those with the problem) |
+| Type | Problem definition | Solution & implementation | Primary locus of the work |
+| ---- | ------------------ | ------------------------- | ------------------------- |
+| **I — technical** | Clear | Clear | Authority / expert (the physician applies the fix) |
+| **II — mixed** | Clear | Requires the person's own learning | Shared: the expert advises, but only the person can carry it out |
+| **III — adaptive** | Requires learning | Requires learning | The person who holds the problem; the coach mobilises the learning |
 
-- **Technical:** a known answer exists and an expert can apply it. If the person
-  already understands it, there is nothing to coach. If they keep getting it
-  wrong, the quiz reinforces the correct, knowable understanding.
-- **Technical and adaptive:** the fix is partly known but lands only if the person
-  also changes how they work. Coach the adaptive half — the part that requires
-  their own learning — and let the technical half be answered.
-- **Adaptive:** progress needs the person to change a value, habit, belief, or
-  behaviour. More information alone cannot solve it; the quiz builds the person's
-  own judgement so they make the call themselves next time (the prosthesis
-  effect).
+- **Type I — technical:** a known answer exists and an expert can apply it. If the
+  person already understands it, there is nothing to coach. If they keep getting
+  it wrong, the quiz reinforces the correct, knowable understanding.
+- **Type II — mixed:** the fix is partly known but lands only if the person also
+  changes how they work. Heifetz's example is heart disease: the diagnosis and
+  the medication are clear (technical), but recovery depends on the patient
+  changing diet, exercise, and habits (adaptive). Coach the adaptive half — the
+  part that requires their own learning — and let the technical half be answered.
+- **Type III — adaptive:** progress needs the person to change a value, habit,
+  belief, or behaviour. More information alone cannot solve it; the quiz builds
+  the person's own judgement so they make the call themselves next time (the
+  prosthesis effect).
 
 ## Diagnostic clues: how to tell it is adaptive
 
@@ -124,10 +129,11 @@ the person, not to indict them.
 
 ## Stating the result
 
-Name the split in the **Classification** heading of the output. Be explicit about
-mixed cases — "the tooling is technical and solvable; the recurring stall is the
-adaptive call being handed off" — because separating the two is what lets the quiz
-aim at the part that actually requires the person's learning.
+Name the split — and which of the three types it is — in the **Classification**
+heading of the output. Be explicit about mixed (Type II) cases — "the tooling is
+a technical concern that is solvable; the recurring stall is the adaptive call
+being handed off" — because separating the two is what lets the quiz aim at the
+part that actually requires the person's learning.
 
 ## Sources (Heifetz primary works)
 
