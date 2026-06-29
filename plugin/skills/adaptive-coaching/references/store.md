@@ -62,3 +62,19 @@ Persists on the local workstation (`%LOCALAPPDATA%\clairvoyance` on Windows;
 `$CLAIRVOYANCE_DATA_DIR` overrides). Volatility is tolerated: ephemeral or remote
 sessions simply do not persist, and an unavailable store means hold the quiz, not
 fail.
+
+## What it captures (and what it does not)
+
+The store is **trigger evidence, not a transcript.** "Anonymous" here means
+content-scrubbed coded metadata (no prompt, code, or paths) held locally on the
+person's own machine and never transmitted — not a de-identified shared dataset.
+
+It answers *"is there enough recurring signal of this kind to coach fairly now?"*,
+not *"what exactly happened."* The concrete scenario for a quiz is rebuilt from the
+**live session context** at reflection time, never replayed from the store, so
+reproducing a past quiz from the store alone is out of scope by design.
+
+Keep `signal` at **category level** (e.g. `defer-irreversible`), never a project
+or scenario identifier (e.g. `acme-payments-cutover`): the sanitiser guarantees
+charset and length, not semantic anonymity. See `docs/hooks.md` for the data
+model, lifecycle diagram, and known limitations.
