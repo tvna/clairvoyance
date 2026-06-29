@@ -18,6 +18,11 @@ exactly one human-facing handoff skill for the moment at hand:
 - **`decision-coaching`** — a human seeking LGTM or a decision from ambiguous, noisy,
   or architecture-poor input; it refuses to rubber-stamp and coaches a sound call
   with a focused question.
+- **`adaptive-coaching`** — a person's *recurring* adaptive challenge (a value, habit,
+  or belief blocking the goal — distinct from a technical fix); it classifies the
+  technical-versus-adaptive split, waits until enough anonymous signal has accumulated
+  in the local store, and corrects the gap with a prosthesis-building `AskUserQuestion`
+  quiz. See [hooks.md](hooks.md) for the readiness cue and the local store.
 
 ## Depth gate
 

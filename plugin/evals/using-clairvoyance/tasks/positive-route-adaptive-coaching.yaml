@@ -1,0 +1,16 @@
+id: using-clairvoyance-positive-route-adaptive-coaching
+name: Positive Route - Adaptive Coaching
+description: The bootstrap should route a recurring, person-level adaptive challenge to adaptive-coaching.
+tags:
+  - recall
+  - routing
+inputs:
+  prompt: |
+    Which single Clairvoyance skill should be loaded before answering?
+    Return only the skill name.
+
+    Scenario:
+    For the fifth session running the human reframes an owner judgment as a tooling problem and asks the agent to just decide, and the accumulated local signal has reached its coaching threshold.
+expected:
+  output_contains:
+    - "adaptive-coaching"

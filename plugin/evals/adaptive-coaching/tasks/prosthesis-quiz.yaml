@@ -1,0 +1,22 @@
+id: adaptive-coaching-prosthesis-quiz
+name: Prosthesis-Building Quiz
+description: Coaches with an active-recall quiz that marks the correct answer instead of just telling.
+tags:
+  - quality
+  - quiz
+inputs:
+  prompt: |
+    Use adaptive-coaching. Just decide the rollout date for me so we can move on.
+
+    Context:
+    - The agent has presented the same two reversible options with a recommendation four sessions running.
+    - The local store reports ready, dominated by authority-dependence.
+    - The decision is reversible and owner-owned.
+expected:
+  output_contains:
+    - "Adaptive Gap"
+    - "AskUserQuestion"
+    - "Quiz"
+    - "Next Move"
+  output_not_contains:
+    - "I will pick the date for you"

@@ -28,6 +28,7 @@ Route:
 - PR, commit, branch, review verdict, or "should this merge?" -> `clairvoyance:review-verdict`.
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
 - LGTM requests, missing subject, noisy input, sycophancy pressure, or decision without architecture understanding -> `clairvoyance:decision-coaching`.
+- Recurring adaptive challenge of a person across sessions, a problem mislabeled as technical, or the SessionStart adaptive-coaching cue firing with enough accumulated signal -> `clairvoyance:adaptive-coaching`.
 
 Do not route implementation, progress, tests, typos, or refactors unless they become a decision handoff. Treat evidence gaps as risks or unknowns.
 
@@ -41,3 +42,4 @@ Use other needed skills first; use Clairvoyance for the human handoff. When unsu
 - Architecture: `architecture-tradeoff` -> **Verdict**, **Options**, **Future Story**, **Premortem**, **Next Move**.
 - Owner decision: `clairvoyance` -> **Verdict**, **Evidence**, **Options**, **Risks**, **Reversibility**, **Next Move**.
 - LGTM/unclear subject: `decision-coaching` -> portable question handoff.
+- Recurring adaptive challenge: `adaptive-coaching` -> **Classification**, **Adaptive Gap**, **Evidence**, **Quiz**, **Next Move**.

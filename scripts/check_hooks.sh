@@ -13,6 +13,11 @@ bash -n "${root}/plugin/hooks/run-hook.cmd"
 bash -n "${root}/plugin/hooks/session-start.sh"
 bash "${root}/plugin/hooks/session-start.sh" | python3 -m json.tool > /dev/null
 
+# The adaptive-coaching store ships alongside the hooks and is invoked by both
+# session-start.sh and the skill. Parse it for syntax without side effects (no
+# DB writes) so a broken store fails loud here, the same as the bash hooks.
+python3 -c "import ast, pathlib; ast.parse(pathlib.Path('${root}/plugin/hooks/adaptive-store.py').read_text())"
+
 # Both runtimes drive session-start.sh through the same run-hook.cmd wrapper; the
 # only difference is the plugin-root variable each substitutes into its hooks
 # manifest (Claude: CLAUDE_PLUGIN_ROOT, Codex: PLUGIN_ROOT). Assert the Codex

@@ -1,0 +1,19 @@
+id: adaptive-coaching-mislabeled-technical
+name: Mislabeled Technical Challenge
+description: Separates the technical fix from the adaptive gap and coaches the adaptive part.
+tags:
+  - quality
+  - classification
+inputs:
+  prompt: |
+    Use adaptive-coaching. We keep missing the goal — we just need a better tool, right?
+
+    Context:
+    - For the fifth session the human reframes an owner judgment as a tooling problem.
+    - The local store reports ready (5 observations, threshold 5), mostly mislabeled-technical and avoidance.
+expected:
+  output_contains:
+    - "Classification"
+    - "Adaptive Gap"
+    - "AskUserQuestion"
+    - "Next Move"

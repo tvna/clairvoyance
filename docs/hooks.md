@@ -9,8 +9,33 @@ and `compact`). It runs `plugin/hooks/session-start.sh`, which:
    `additionalContext` so the agent has the bootstrap router from the first turn.
 2. Resolves the project owner's language and injects it as authoritative for
    Clairvoyance handoffs.
+3. Queries the adaptive-coaching store (below) and, only when it reports `ready`,
+   appends a cue telling the agent to load `adaptive-coaching` for the next handoff.
 
 If the bootstrap skill file is missing, the hook exits 0 and injects nothing.
+
+## Adaptive-coaching store
+
+`plugin/hooks/adaptive-store.py` is a stdlib-only (`sqlite3`) CLI that persists a
+small, **anonymous** record of adaptive-challenge observations on the operator's own
+workstation, so `adaptive-coaching` waits until enough signal has accumulated before
+it coaches. It stores only coded metadata — an adaptive-challenge category, a short
+coded signal label, a quiz outcome, the session kind, and a UTC timestamp — never
+prompt text, code, or file paths.
+
+- **Subcommands.** `record --category <c> [--signal …] [--outcome correct|incorrect]
+  [--session-kind …]` appends one observation; `status` reports the count and whether
+  it is `ready`. Both print one JSON object and always exit 0.
+- **Location** (first match wins): `$CLAIRVOYANCE_DATA_DIR`, else
+  `%LOCALAPPDATA%\clairvoyance` (the Windows workstation default), else
+  `$XDG_DATA_HOME/clairvoyance`, else `~/.clairvoyance`; the file is `coaching.db`.
+- **Threshold.** `$CLAIRVOYANCE_COACH_THRESHOLD` (default 5).
+- **Volatility is tolerated.** Ephemeral or read-only environments (remote sessions,
+  sandboxes) simply do not persist, and any storage error degrades to
+  "not available / not ready" rather than failing the session.
+
+`scripts/check_hooks.sh` parses the store for syntax (no side effects); its behaviour
+is covered by `tests/test_adaptive_store.py`.
 
 ### Codex
 
