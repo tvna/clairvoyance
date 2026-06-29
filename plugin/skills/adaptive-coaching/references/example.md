@@ -2,12 +2,11 @@
 
 ## Input
 
-Help me get this release unblocked.
+Can we step back and reflect? I keep stalling these releases and I want to see my own pattern, not just unblock this one.
 
-- For the fourth session running, the owner asks the agent to "just pick" the rollout cutover date instead of deciding it.
-- Each time, the agent has already laid out the same two reversible options with a recommendation.
+- For four sessions running, the owner asked the agent to "just pick" the rollout cutover date instead of deciding it, each time framing the blocker as "we need a better deploy tool."
+- Each time, the agent had already laid out the same two reversible options with a recommendation.
 - The local store now reports `ready` (5 observations, threshold 5), mostly `authority-dependence` and `avoidance`.
-- The owner says the blocker is "we need a better deploy tool."
 
 ## Output
 

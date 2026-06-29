@@ -9,15 +9,11 @@ and `compact`). It runs `plugin/hooks/session-start.sh`, which:
    `additionalContext` so the agent has the bootstrap router from the first turn.
 2. Resolves the project owner's language and injects it as authoritative for
    Clairvoyance handoffs.
-3. Counts this session toward the coaching grace period (`record-session`) and
-   queries the adaptive-coaching store (below); only when it reports `ready` does
-   it append an **advisory** readiness note. The note does not override routing
-   and is not a request to coach now — `using-clairvoyance` still selects the one
-   skill that fits the request, and routes to `adaptive-coaching` only when the
-   request is itself a recurring-coaching moment (the note is the observable
-   tiebreak between the two coaching skills). The session count advances on every
-   SessionStart (startup, clear, and compact), and the hook reads no stdin so it
-   never blocks.
+3. Counts this session toward the adaptive-coaching grace period
+   (`record-session`). The hook pushes **no** coaching: the reflection quiz fires
+   only when the human asks to reflect (handled by `adaptive-coaching` reading the
+   store), never from this hook. The session count advances on every SessionStart
+   (startup, clear, and compact), and the hook reads no stdin so it never blocks.
 
 If the bootstrap skill file is missing, the hook exits 0 and injects nothing.
 
@@ -34,8 +30,9 @@ prompt text, code, or file paths.
   [--session-kind …]` appends one observation; `record-session` counts one chat
   session; `status` reports the counts and whether it is `ready`. Each prints one
   JSON object and (apart from a missing required `--category`) always exits 0.
-- **Two-gate readiness.** `ready` is true only when **both** hold, so a first-time
-  user is never quizzed early: a **session grace period**
+- **Two-gate readiness.** A reflection quiz is delivered only when the human asks
+  AND `ready` is true, so a first-time user with thin data is never quizzed:
+  `ready` needs **both** a **session grace period**
   (`$CLAIRVOYANCE_SESSION_THRESHOLD`, default 50 sessions; 0 disables it) **and**
   **accumulated adaptive signal** (`$CLAIRVOYANCE_COACH_THRESHOLD`, default 5
   observations).

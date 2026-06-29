@@ -1,9 +1,10 @@
 # Adaptive-coaching observation store
 
-The store is the mechanism behind the data-sufficiency gate: it accumulates
-anonymous signal locally so coaching waits until correction is fair. Entry point
-`adaptive-store.sh`, backed by the `sqlite3` CLI (`choco install sqlite`). Record
-only coded metadata — never prompt text, code, or file paths.
+The store accumulates anonymous signal locally so a reflection quiz has enough
+data to be fair. It does not trigger anything on its own: the quiz fires only when
+the person asks to reflect. Entry point `adaptive-store.sh`, backed by the
+`sqlite3` CLI (`choco install sqlite`). Record only coded metadata — never prompt
+text, code, or file paths.
 
 ## Commands
 
@@ -21,7 +22,7 @@ Record a quiz outcome (same category as the observation it scores):
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" record --category <category> --outcome correct|incorrect
 ```
 
-Check whether enough has accumulated to coach:
+On a reflection request, check whether enough has accumulated for a fair quiz:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" status
@@ -33,12 +34,12 @@ required on every `record`; an outcome-only record is rejected.
 
 The SessionStart hook calls `record-session` on each session to advance the
 grace period — the skill does not need to. (`record-session` bumps the anonymous
-session count; it takes no flags.)
+session count; it takes no flags.) The hook pushes no coaching of its own.
 
 ## Readiness: two gates
 
-Coaching triggers only when **both** hold, so a first-time user is never quizzed
-early:
+A reflection quiz is delivered only when the person asks AND **both** gates hold,
+so a first-time user with thin data is never quizzed:
 
 - **Session grace:** at least `$CLAIRVOYANCE_SESSION_THRESHOLD` chat sessions
   have elapsed (default 50; 0 disables the grace period).
@@ -59,5 +60,5 @@ token so no free text persists.
 
 Persists on the local workstation (`%LOCALAPPDATA%\clairvoyance` on Windows;
 `$CLAIRVOYANCE_DATA_DIR` overrides). Volatility is tolerated: ephemeral or remote
-sessions simply do not persist, and an unavailable store means hold coaching, not
-fail. The SessionStart hook also surfaces readiness.
+sessions simply do not persist, and an unavailable store means hold the quiz, not
+fail.

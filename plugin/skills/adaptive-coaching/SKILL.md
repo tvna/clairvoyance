@@ -1,39 +1,41 @@
 ---
 name: adaptive-coaching
-description: Coaches a person's recurring capability gap across sessions — a misunderstood technical challenge or an adaptive one — once enough local signal has accumulated, using an AskUserQuestion quiz to build durable understanding. Use for a repeated pattern, not a single in-the-moment decision (route those to decision-coaching).
+description: Logs a person's recurring capability gaps as anonymous local signal, and — only when the person asks to reflect (a retrospective) — turns that accumulated signal into an AskUserQuestion quiz that builds durable understanding. Use on a reflection request or to log a recurring gap; not for a single in-the-moment decision (route those to decision-coaching).
 ---
 
 # Adaptive Coaching
 
-Adaptive coaching builds a person's durable capability on the path to a goal while preserving autonomy and psychological safety, and only after enough signal has accumulated to coach fairly.
+Adaptive coaching builds a person's durable capability over time while preserving autonomy and psychological safety. It has two parts: it **records** recurring capability gaps as anonymous signal, and — **only when the person asks to reflect** — turns that accumulated signal into a quiz. The quiz is never pushed automatically.
 
-**UTILITY SKILL:** invoked as `clairvoyance:adaptive-coaching` by `using-clairvoyance` for a person's recurring capability gap across sessions.
+**UTILITY SKILL:** invoked as `clairvoyance:adaptive-coaching` by `using-clairvoyance` when the person asks to reflect on their recurring patterns, or to log a recurring gap.
 
-**Boundary with decision-coaching:** `decision-coaching` coaches a single decision in the moment (an LGTM or ambiguous call). `adaptive-coaching` coaches a *recurring* pattern across sessions, gated on accumulated signal, and builds durable capability with a quiz.
+**Boundary with decision-coaching:** `decision-coaching` coaches a single decision in the moment (an LGTM or ambiguous call). `adaptive-coaching` works across sessions: it logs recurring gaps and delivers a reflection quiz only on the person's own request.
 
 ## Technical vs Adaptive
 
-Diagnose which kind of work the blocker is (Heifetz). The split shapes *how* to coach, not *whether*:
+Diagnose which kind of work a recurring gap is (Heifetz). The split shapes *what the quiz reinforces*, not whether to coach:
 
-- **Technical challenge:** a known answer exists. If the person already understands it, hand back the fix — no coaching needed. If they do not, coach the understanding: teach the known answer and let the quiz reinforce it.
-- **Adaptive challenge:** progress needs the person to change a value, habit, belief, or behaviour. More information alone cannot solve it; coach by facilitating the person's own change.
+- **Technical challenge:** a known answer exists. If the person already understands it, there is nothing to coach. If they keep getting it wrong, the quiz reinforces the correct understanding.
+- **Adaptive challenge:** progress needs the person to change a value, habit, belief, or behaviour. More information alone cannot solve it; the quiz builds the person's own judgement.
 
-Name the split — mislabeling an adaptive challenge as technical is the most common failure. Coach whenever the gap recurs and the person cannot yet make the call alone; skip only when the fix is understood and just execution remains.
+Name the split — mislabeling an adaptive challenge as technical is the most common failure.
 
-## Data sufficiency gate
+## Recording observations
 
-Coaching is fair only once a pattern is established, not on a single instance — and never for a first-time user still finding their feet. Record each adaptive observation as anonymous signal, and coach only when the local store reports `ready`, which needs **both** a session grace period (the first ~50 chat sessions are quiet) **and** accumulated signal. An unavailable store means hold coaching, not fail. The exact record/status commands, categories, thresholds, and storage details are in [the store reference](references/store.md).
+Whenever a recurring capability gap surfaces, record it as anonymous coded signal (never prompt text or code) so a later reflection has data. This logging is passive: it does not coach and does not quiz. Record commands, categories, and storage details are in [the store reference](references/store.md).
 
-## Steps
+## Reflection quiz (on request)
 
-1. Split the blocker into its technical parts and its adaptive part.
-2. If the technical fix is already understood and only execution remains, return it and stop. Otherwise coach the gap — teach a misunderstood technical challenge, or facilitate an adaptive one.
-3. Record the adaptive observation as anonymous signal (see [the store reference](references/store.md)).
-4. If the store is not `ready`, hold coaching. Acknowledge the pattern and note that more signal is needed before correction is fair.
-5. When `ready`, name the capability gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth.
-6. Coach with a prosthesis-building quiz: portable question handoff — AskUserQuestion when available, otherwise `AskUserQuestion:` text — with 2-3 choices and the correct answer marked.
-7. Record the quiz outcome, then give the concrete corrective next move.
-8. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
+Deliver the quiz **only** when the person asks to reflect or do a retrospective, **and** the store reports `ready` (enough accumulated signal: a session grace period plus accumulated observations). Never quiz on a single instance, on an unrelated handoff, or for a first-time user still finding their feet. If the person asks to reflect but the store is not `ready`, say so warmly and keep observing — do not manufacture a quiz. An unavailable store means hold, not fail.
+
+### Steps
+
+1. Confirm `ready` via the store (`status`). If not, acknowledge and hold — keep observing, do not quiz.
+2. Classify the dominant recurring gap (the technical-versus-adaptive split).
+3. Name the capability gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth.
+4. Deliver a prosthesis-building quiz: portable question handoff — AskUserQuestion when available, otherwise `AskUserQuestion:` text — with 2-3 choices and the correct answer marked.
+5. Record the quiz outcome, then give the concrete corrective next move.
+6. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
 
 ## Prosthesis effect via quiz
 
@@ -41,16 +43,16 @@ The プロテーゼ (prosthesis) effect: coaching should become an extension the
 
 ## Output
 
-Use these headings:
+A reflection quiz uses these headings:
 
-- **Classification:** the technical-versus-adaptive split of the blocker.
-- **Capability Gap:** the understanding or change the person must make, named without shame (a misunderstood technical challenge or an adaptive one).
-- **Evidence:** the accumulated anonymous signal (count versus threshold) that makes coaching fair now.
+- **Classification:** the technical-versus-adaptive split of the recurring gap.
+- **Capability Gap:** the understanding or change the person must make, named without shame.
+- **Evidence:** the accumulated anonymous signal (count versus threshold) that makes the reflection fair now.
 - **Quiz:** AskUserQuestion (or `AskUserQuestion:` fallback) with 2-3 choices and the marked correct answer.
 - **Why:** the prosthesis effect the quiz builds.
 - **Next Move:** the concrete corrective the person can adopt.
 
-Pattern: **Classification** -> **Capability Gap** -> **Evidence** -> **Quiz** -> **Next Move**. When the store is not `ready`, emit only **Classification**, **Evidence** (insufficient signal), and **Next Move** (keep observing) — do not coach yet.
+Pattern: **Classification** -> **Capability Gap** -> **Evidence** -> **Quiz** -> **Next Move**. When the store is not `ready`, emit only **Classification**, **Evidence** (insufficient signal), and **Next Move** (keep observing) — do not quiz.
 
 ## Example
 

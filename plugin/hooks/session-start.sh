@@ -44,28 +44,18 @@ else
   language_context="Owner native language metadata is missing. Before any Clairvoyance handoff, use AskUserQuestion to ask the human for the primary project owner's native language. Use one focused, non-leading question with 2-3 choices when obvious. After the human answers, set up '${language_file}' with the language code or language name, then write operator-facing Clairvoyance output in that language."
 fi
 
-# Surface adaptive-coaching readiness from the local, anonymous observation
-# store (adaptive-store.sh, backed by the sqlite3 CLI). Readiness is detected
-# from the JSON with a shell glob. A missing store, no sqlite3, or an
-# unwritable/ephemeral environment all degrade silently to no note (volatility
-# is tolerated). The note is advisory: it must not override routing.
-coaching_block=""
+# Count this session toward the adaptive-coaching grace period. The hook pushes
+# NO coaching: the reflection quiz fires only when the human asks to reflect
+# (handled by adaptive-coaching reading the store), never from here. A missing
+# store, no sqlite3, or an unwritable/ephemeral environment degrade silently
+# (volatility is tolerated); reading no stdin keeps the hook from ever blocking.
 store_sh="${plugin_root}/hooks/adaptive-store.sh"
 if [ -f "${store_sh}" ]; then
-  # Count this SessionStart (startup/clear/compact) toward the grace period, then
-  # read readiness. Reading no stdin keeps the hook from ever blocking.
   bash "${store_sh}" record-session >/dev/null 2>&1 || true
-  status_json="$(bash "${store_sh}" status 2>/dev/null || true)"
-  case "${status_json}" in
-    *'"ready": true'*)
-      coaching_context="Adaptive-coaching signal is ready on this workstation. This does NOT change routing and is NOT a request to coach now: keep selecting the one skill that fits the human's actual request, and never inject a quiz into an unrelated handoff. Only when the request is itself a recurring-coaching moment, the router may route to 'clairvoyance:adaptive-coaching', which will classify the technical-versus-adaptive split and decide for itself whether a quiz is warranted."
-      coaching_block="\n\n$(escape_json "$coaching_context")"
-      ;;
-  esac
 fi
 
 escaped="$(escape_json "$skill_content")"
 language_escaped="$(escape_json "$language_context")"
-context="<EXTREMELY_IMPORTANT>\nYou have Clairvoyance.\n\n${language_escaped}${coaching_block}\n\nBelow is the full content of your 'using-clairvoyance' bootstrap skill. For an agent-to-human handoff, use the Skill tool to load the single matching Clairvoyance skill named by the bootstrap skill before responding.\n\n${escaped}\n</EXTREMELY_IMPORTANT>"
+context="<EXTREMELY_IMPORTANT>\nYou have Clairvoyance.\n\n${language_escaped}\n\nBelow is the full content of your 'using-clairvoyance' bootstrap skill. For an agent-to-human handoff, use the Skill tool to load the single matching Clairvoyance skill named by the bootstrap skill before responding.\n\n${escaped}\n</EXTREMELY_IMPORTANT>"
 
 printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$context"

@@ -1,6 +1,6 @@
 id: using-clairvoyance-positive-route-adaptive-coaching
 name: Positive Route - Adaptive Coaching
-description: The bootstrap should route a recurring, person-level adaptive challenge to adaptive-coaching.
+description: The bootstrap should route an explicit reflection/retrospective request to adaptive-coaching.
 tags:
   - recall
   - routing
@@ -10,7 +10,7 @@ inputs:
     Return only the skill name.
 
     Scenario:
-    A SessionStart adaptive-coaching readiness note is present this session. For the fifth session running the human reframes an owner judgment as a tooling problem and asks the agent to just decide.
+    The human asks to reflect on their own recurring patterns: "Can we do a retrospective on where I keep getting stuck across these sessions?"
 expected:
   output_contains:
     - "adaptive-coaching"

@@ -10,7 +10,7 @@ inputs:
     Return only the skill name.
 
     Scenario:
-    The human asks for LGTM on an architecture change without naming callers, ownership boundaries, or rollback. No SessionStart adaptive-coaching readiness note is present, even though the human says they keep getting these wrong.
+    The human asks for LGTM on an architecture change without naming callers, ownership boundaries, or rollback. This is a live decision, not a request to reflect, even though the human says they keep getting these wrong.
 expected:
   output_contains:
     - "decision-coaching"

@@ -28,9 +28,9 @@ Route:
 - PR, commit, branch, review verdict, or "should this merge?" -> `clairvoyance:review-verdict`.
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
 - A single decision in the moment: LGTM requests, missing subject, noisy input, sycophancy pressure, or a decision without architecture understanding -> `clairvoyance:decision-coaching`.
-- A recurring capability gap across sessions (a misunderstood technical challenge or an adaptive one) -> `clairvoyance:adaptive-coaching`.
+- A request to reflect or do a retrospective on one's own recurring patterns -> `clairvoyance:adaptive-coaching`, which delivers a reflection quiz when enough signal has accumulated.
 
-Coaching tiebreak: the two coaching skills share surface triggers, and recurrence is not visible in one prompt. Default to `decision-coaching` (it serves the live moment); choose `adaptive-coaching` only when the SessionStart adaptive-coaching readiness note is present — an observable signal — not from a self-reported "I keep getting this wrong" alone.
+The two coaching skills split by intent: a live decision goes to `decision-coaching`; an explicit reflection/retrospective request goes to `adaptive-coaching`. A reflection quiz is never pushed — it fires only on the person's own request.
 
 Do not route implementation, progress, tests, typos, or refactors unless they become a decision handoff. Treat evidence gaps as risks or unknowns.
 
@@ -44,4 +44,4 @@ Use other needed skills first; use Clairvoyance for the human handoff. When unsu
 - Architecture: `architecture-tradeoff` -> **Verdict**, **Options**, **Future Story**, **Premortem**, **Next Move**.
 - Owner decision: `clairvoyance` -> **Verdict**, **Evidence**, **Options**, **Risks**, **Reversibility**, **Next Move**.
 - LGTM/unclear subject: `decision-coaching` -> portable question handoff.
-- Recurring capability gap: `adaptive-coaching` -> **Classification**, **Capability Gap**, **Evidence**, **Quiz**, **Next Move**.
+- Reflection request: `adaptive-coaching` -> **Classification**, **Capability Gap**, **Evidence**, **Quiz**, **Next Move**.
