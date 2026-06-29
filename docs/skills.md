@@ -78,5 +78,7 @@ gap-analysis procedure.
 **Probabilistic.** The best-practice rules that need a model or a human to judge
 meaning, tone, or sufficiency cannot be scripted, so they are issued as a review
 checklist in [skill-maturity-checklist.md](skill-maturity-checklist.md) and run on
-any skill change. See also [CONTRIBUTING.md](../CONTRIBUTING.md) and
-[evaluations.md](evaluations.md).
+any skill change. The standards behind that checklist — extracted so they can be
+injected into a harness that does not already carry them — live in
+[skill-quality-knowledge.md](skill-quality-knowledge.md). See also
+[CONTRIBUTING.md](../CONTRIBUTING.md) and [evaluations.md](evaluations.md).
