@@ -16,7 +16,7 @@ dev = [
     "pytest-cov>=5.0",
     # Lint gate. Bounded major to avoid silent rule churn on upgrade, mirroring
     # the upstream tvna/claude-md pyproject pin.
-    "ruff>=0.15.18,<0.16",
+    "ruff>=0.15.20,<0.16",
     # Type gate. 1.x line is stable; cap on 2.x for the same churn reason.
     "mypy>=2.1.0,<3",
 ]
