@@ -24,6 +24,27 @@ import pytest
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 STORE_SH = REPO_ROOT / "plugin" / "hooks" / "adaptive-store.sh"
 
+
+def _resolve_bash():
+    """A POSIX bash for running the bundled .sh.
+
+    On Windows a bare ``bash`` resolves to the System32 WSL launcher, which —
+    with no distro installed — prints a UTF-16 "…to install" notice and exits
+    non-zero. Prefer Git Bash (the same interpreter run-hook.cmd locates in
+    production); fall back to whatever ``bash`` is on PATH elsewhere.
+    """
+    if os.name == "nt":
+        for candidate in (
+            r"C:\Program Files\Git\bin\bash.exe",
+            r"C:\Program Files\Git\usr\bin\bash.exe",
+        ):
+            if pathlib.Path(candidate).exists():
+                return candidate
+    return shutil.which("bash") or "bash"
+
+
+BASH = _resolve_bash()
+
 HAS_SQLITE3 = shutil.which("sqlite3") is not None
 needs_sqlite3 = pytest.mark.skipif(not HAS_SQLITE3, reason="sqlite3 CLI not installed")
 
@@ -55,9 +76,7 @@ def run_raw(args, data_dir, threshold=None, session_threshold=0, env_extra=None,
         env["CLAIRVOYANCE_SESSION_THRESHOLD"] = str(session_threshold)
     if env_extra:
         env.update({k: str(v) for k, v in env_extra.items()})
-    return subprocess.run(
-        ["bash", STORE_SH.as_posix(), *args], capture_output=True, text=True, env=env, input=stdin_text
-    )
+    return subprocess.run([BASH, STORE_SH.as_posix(), *args], capture_output=True, text=True, env=env, input=stdin_text)
 
 
 def run(args, data_dir, threshold=None, session_threshold=0, env_extra=None, stdin_text=""):
@@ -219,7 +238,7 @@ def test_home_fallback_dir_is_dotted(tmp_path):
     for key in ("CLAIRVOYANCE_DATA_DIR", "LOCALAPPDATA", "XDG_DATA_HOME"):
         env.pop(key, None)
     result = subprocess.run(
-        ["bash", STORE_SH.as_posix(), "record-session"], capture_output=True, text=True, env=env, input=""
+        [BASH, STORE_SH.as_posix(), "record-session"], capture_output=True, text=True, env=env, input=""
     )
     assert result.returncode == 0, result.stderr
     assert (home / ".clairvoyance" / "coaching.db").exists()
