@@ -19,6 +19,17 @@ person values and what they actually do?** A fact can be supplied. A values–re
 gap can only be closed by the person changing a priority, habit, belief, or
 behaviour — no amount of information substitutes for that learning.
 
+Heifetz & Linsky draw the line itself this way:
+
+> Every day, people have problems for which they do, in fact, have the necessary
+> know-how and procedures. We call these **technical problems**. But there is a
+> whole host of problems that are not amenable to authoritative expertise or
+> standard operating procedures. They cannot be solved by someone who provides
+> answers from on high. We call these **adaptive challenges** because they require
+> experiments, new discoveries, and adjustments from numerous places in the
+> organization or community.
+> — Heifetz & Linsky, *Leadership on the Line*, 2002
+
 ## Three kinds of work, not two
 
 Heifetz, Grashow & Linsky (*The Practice of Adaptive Leadership*, 2009) classify
@@ -60,7 +71,11 @@ signal, not a single instance:
 4. **The work belongs to the person, not the authority.** It cannot be delegated
    to the agent/expert without recreating dependence; only the person who holds
    the problem can do the learning. (`authority-dependence`.)
-5. **Avoidance behaviour is present** (see below). (`avoidance`, `no-experiment`.)
+5. **No shared definition of the problem.** Stakeholders disagree on what the
+   problem even *is*, not just how to fix it — each is experiencing a different
+   system. Contested problem definition is itself an adaptive marker.
+   (`values-conflict`.)
+6. **Avoidance behaviour is present** (see below). (`avoidance`, `no-experiment`.)
 
 If none of these hold, treat it as technical and simply reinforce the right
 answer.
