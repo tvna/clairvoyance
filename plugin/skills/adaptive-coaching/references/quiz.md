@@ -46,3 +46,23 @@ with the ✅ that fixes it:
 - ❌ **Generic:** *"What makes a good decision?"* — abstract, not their pattern.
   ✅ **Concrete:** drawn from the person's own recurring signal, so the recall
   transfers to the next real moment.
+
+## Meet the person where they are
+
+The quiz builds judgement only if the person can actually parse it — giving the
+work back *at a rate they can stand*. A scenario pitched above their level gets
+skim-read or guessed, and no learning happens. So calibrate to the person:
+
+- **Plain language.** Write the scenario in concrete, everyday terms, and define
+  any unavoidable term inline on first use — e.g. "the cutover (the moment traffic
+  switches to the new release)".
+- **Their lived instance, not an abstraction.** Anchor the scenario in the actual
+  situation they were in and already understand, not a generalised reframing.
+- **Scaffold a not-understood concept first.** When the gap is a concept they do
+  not yet grasp (a recurring Type I technical gap), give the one-line *why* before
+  the quiz, then have them retrieve it — don't pose options that assume the
+  understanding.
+
+Calibrate vocabulary and scaffolding, never the difficulty of the call itself —
+the judgement still belongs to the person. Lowering the language barrier is giving
+the work back; handing over the answer is not.
