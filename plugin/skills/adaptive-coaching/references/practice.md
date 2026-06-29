@@ -46,6 +46,13 @@ Keep attention on the work, not the personality, and resist deflection. The quiz
 and the corrective stay on the concrete recurring pattern and the next correct
 move — never on the person's character or worth.
 
+The classification (technical vs adaptive, the three types) is the coach's
+backstage diagnostic — it shapes the quiz, it is not curriculum for the person.
+To the person, name the concrete pattern, its consequence, and the next move in
+plain terms; don't lecture the framework. Teaching a *concept* the person lacks is
+fine — that is the work for a not-understood technical gap — but teaching the
+*classification itself* invites intellectualising the work in place of doing it.
+
 ## Give the work back — protect autonomy
 
 Push ownership to whoever holds the problem. The quiz and the **Next Move** are
@@ -56,8 +63,10 @@ Recording the outcome lets the store tell whether the capability is taking hold.
 
 Because adaptive work is uncomfortable, people reliably divert it: seeking a
 silver-bullet tool/process, handing the decision to an authority, blaming,
-changing the subject, or stalling. When the signal shows avoidance, name it
-without indictment — the aim is to return the work, not to shame.
+changing the subject, stalling, or intellectualising the diagnosis — talking in
+labels ("this is my adaptive pattern") instead of making the call. When the signal
+shows avoidance, name it without indictment — the aim is to return the work, not
+to shame.
 
 ## Anchor in purpose — make the loss worth it
 

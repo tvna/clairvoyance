@@ -25,8 +25,11 @@ Each quiz item gives:
 - a one-line why for each choice.
 
 Keep questions non-leading and non-shaming; the goal is the person's own next
-correct call without the coach present. Deliver via AskUserQuestion when
-available, otherwise an `AskUserQuestion:` text block with the same choices.
+correct call without the coach present. Keep the feedback on the move and its
+consequence, not on the classification — lecturing the technical/adaptive
+framework turns coaching into a topic to study and invites intellectualising the
+work. Deliver via AskUserQuestion when available, otherwise an `AskUserQuestion:`
+text block with the same choices.
 
 ## Good vs bad quiz items
 
