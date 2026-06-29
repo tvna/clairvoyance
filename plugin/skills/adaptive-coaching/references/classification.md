@@ -80,6 +80,27 @@ signal, not a single instance:
 If none of these hold, treat it as technical and simply reinforce the right
 answer.
 
+### Expanded diagnostic table
+
+A fuller side-by-side for harder calls. This is a practitioner synthesis
+(Mathews, *Leading Sapiens*, 2025) built on Heifetz's primary distinction — use
+it to read the dominant signal, not as a checklist where every row must agree
+(mixed challenges will straddle the two columns).
+
+| Dimension | Technical problem | Adaptive challenge |
+| --------- | ----------------- | ------------------ |
+| Problem definition | Clear, agreed; everyone sees the same issue | Disputed or ambiguous; people define it differently |
+| Solution availability | Known, or reachable with current expertise | Unknown; must be discovered or co-created |
+| Location of the work | Outside the person; can be delegated to experts | Inside the person; cannot be outsourced |
+| Type of work | Apply knowledge, execute, optimise | Learn, experiment, negotiate values, sensemake |
+| Time horizon | Short–medium; plannable | Medium–long; emergent, non-linear |
+| Kind of change | Transactional — tweak routines/tools | Transformational — shift mental models, roles, assumptions |
+| Role of authority | Authority can define and deliver the fix | Authority alone is insufficient; others must engage |
+| Nature of resistance | Minimal/technical — method or timeline | Emotional/political — fear of loss, identity, values |
+| Marker of misdiagnosis | Fix implemented but problem recurs | Repeated initiatives, surface compliance, underlying stagnation |
+| Risk of avoidance | Low — fixing is desirable and clear | High — naming it provokes conflict or threatens norms |
+| Sign you are in adaptive work | The "fix" doesn't stick; pushback without clarity | Progress requires loss, unlearning, tolerating ambiguity |
+
 ## Work avoidance — the loudest adaptive signal
 
 Because adaptive work is uncomfortable, people reliably divert it rather than do
