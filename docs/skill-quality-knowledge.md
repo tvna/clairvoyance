@@ -229,6 +229,76 @@ against every model it targets — in this repo, the Haiku/Sonnet/Opus spread:
 Behaviour observed on one model is not evidence for the others. A skill tuned only
 for Opus may under-guide Haiku; one padded for Haiku may waste Opus's context.
 
+## Evaluation methods — how to measure those dimensions
+
+The dimensions above are *what good looks like*; a method is *how you find out*.
+**Battle testing is one method** — hostile-input probing. It is not the whole
+toolbox, and no single method covers every dimension: structural validation cannot
+judge a description's aptness, an output-contract eval cannot prove a skill *helps*,
+and an adversarial probe says nothing about conciseness. Use a layered set, cheapest
+first, and let each catch what the cheaper ones cannot.
+
+Ordered from cheapest/earliest to richest/latest. The "In this repo" column states
+the current factual status; items marked *not a standing method* are best-practice
+techniques this repository does not yet run as a gate — treat them as recommended
+additions, not existing ones.
+
+| Method | The question it answers | What it uniquely catches | In this repo |
+|---|---|---|---|
+| Deterministic structural validation | Is it well-formed? | Frontmatter/name/path/length/reference-depth violations | `scripts/check_skills.py`, `waza check` |
+| Coverage gating | Does every skill have its carriers? | A skill with no eval or no doc; an orphan eval | `scripts/check_coverage.py` |
+| Baseline ablation | Does the skill actually *help* vs no skill? | Zero-lift skills; skills documenting imagined problems | **Not a standing method** — see below |
+| Behavioural output-contract eval | Does the real trigger produce the contract? | A skill that no longer emits its headings | `waza run` ([evaluations.md](evaluations.md)) |
+| Adversarial / guardrail (battle) | Does it hold under hostile input? | Injection, rubber-stamping, fabricated evidence, mis-routing | [`battle/`](../battle/README.md) |
+| Consistency over trials | Is it reliable, or just lucky once? | Flicker and proportionality oscillation at N=1 | `battle --trials N`; eval `trials_per_task` |
+| LLM-as-judge with rubric | Is a semantic / refusal / non-English output correct? | Correctness regex cannot see (a refusal that contains `LGTM`) | `battle --judge` (`judge_rubric`) |
+| Probabilistic maturity review | Is it *good*, not merely valid? | Weak triggers, verbosity, freedom mismatch, bad splits | [skill-maturity-checklist.md](skill-maturity-checklist.md) + dimensions above |
+| Cross-model differential | Does it work on every targeted model? | Under-guidance on Haiku; over-explaining wasted on Opus | Haiku/Sonnet/Opus spread (dimension 9) |
+| Navigation observation | How does the model actually traverse it? | Dead references, ignored files, overreliance, wrong read order | **Not a standing method** — see below |
+| Real-usage dogfooding | Does it activate and work in the wild? | Discovery misses and gaps that only real tasks reveal | Informal; not gated |
+
+### The two methods worth adding
+
+These are foundational in the [Agent Skills best practices][skills-bp] but are not
+yet run as standing methods here.
+
+- **Baseline ablation (evaluation-driven development).** The best practices put this
+  *first*: before writing a skill, run the model on representative tasks **without**
+  it, document the specific failures, and make that the baseline. The skill's value
+  is the measured lift over that baseline — not its existence. A skill that passes
+  every structural check and every behavioural eval can still be worthless if the
+  model already did the task fine unaided. None of the repo's current gates measure
+  lift; they all assume the skill is wanted and only check it is well-built. To run
+  it: take an eval task's `inputs.prompt`, execute it with the skill stripped from
+  context, and compare against the with-skill run on the same `expected` markers.
+
+- **Navigation observation.** Watch *how* the model moves through the skill on a real
+  task — not just whether the final output is right. Unexpected read order signals a
+  non-intuitive structure; a reference the model never opens is unnecessary or
+  poorly signalled; one it opens every time belongs in `SKILL.md`; a link it fails
+  to follow needs to be more prominent. This is a diagnostic, not a pass/fail gate:
+  it tells you *why* a dimension fails so the fix is targeted. It pairs naturally
+  with the dual-agent loop (one model authors and refines, a fresh instance uses the
+  skill on real work, observations feed back into the author).
+
+### Method ↔ dimension coverage
+
+No method is complete alone; the layering is the point. Mapping the dimensions
+(§1–§9) to the methods that actually probe them:
+
+- **Discovery (§1)** — baseline ablation and real-usage dogfooding (does it trigger
+  at all?), maturity review (is the trigger *apt*?). Structural validation only
+  confirms a trigger string exists.
+- **Conciseness (§2), freedom (§3), clarity (§4), references (§5), durability (§6)**
+  — maturity review is the primary probe; navigation observation corroborates §5.
+- **Scripts (§7)** — maturity review plus the script's own tests; structural
+  validation catches path/shape issues.
+- **Behavioural evidence (§8)** — output-contract evals and battle tests, graded over
+  trials and (for semantic cases) by rubric.
+- **Cross-model (§9)** — cross-model differential, by construction.
+
+A dimension with no method pointed at it is unmeasured, however green the gates look.
+
 ## How to run an evaluation on a foreign harness
 
 The portability recipe — the fix for the original failure:
