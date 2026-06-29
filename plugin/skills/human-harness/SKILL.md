@@ -16,14 +16,14 @@ The human harness pauses a risky instruction and makes the human confirm intent 
 3. Research the repository to settle your own questions first; ask the human only what evidence cannot.
 4. Hand a decision-ready choice, not a raw question: prove the outcomes, then offer reversible named options with a recommendation and trade-off. No rubber-stamp.
 5. Run a premortem: assume it ran and was regretted, then name the failure and its earliest warning signal.
-6. For a compliance conflict, judge whether the rule is overridable, per [compliance](references/compliance.md): an overridable risk may proceed on a recorded override; a mandatory safety gate is not waivable - route to a safer path or refuse.
+6. For a compliance conflict, judge whether the rule is overridable: an overridable risk may proceed on a recorded override; a mandatory safety gate is not waivable - route to a safer path or refuse. When the class is unclear, read [compliance](references/compliance.md).
 7. Stay non-shaming; for an overridable risk the human keeps authority to proceed after acknowledging it.
 8. Use portable question handoff: AskUserQuestion when available, else `AskUserQuestion:` text with the same choices.
 9. Write in the project owner's language unless a repository rule requires another for outward-facing artifacts.
 
 ## Output
 
-Use these headings; see [a worked example](references/example.md).
+Use these headings. When the handoff format is unclear, read [a worked example](references/example.md).
 
 - **Stop:** what the agent is holding back, and why.
 - **Blast Radius:** affected objects, canonical URLs, reversibility cost.
