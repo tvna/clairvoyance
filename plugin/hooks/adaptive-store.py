@@ -44,6 +44,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 DB_FILENAME = "coaching.db"
+# Five observations is the smallest sample that reads as a repeated pattern
+# rather than a one-off, so coaching stays fair without a long wait. Override
+# per operator with $CLAIRVOYANCE_COACH_THRESHOLD.
 DEFAULT_THRESHOLD = 5
 
 # Anonymous, coded adaptive-challenge categories (Heifetz framing). Anything
@@ -60,6 +63,8 @@ CATEGORIES = (
 )
 OUTCOMES = ("correct", "incorrect")
 SIGNAL_RE = re.compile(r"[^a-z0-9-]")
+# 40 chars fits a readable coded label (e.g. "skipped-the-hard-call") while
+# capping anything longer, so a stray free-text value cannot bloat the row.
 MAX_SIGNAL = 40
 
 

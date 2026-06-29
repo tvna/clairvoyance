@@ -45,6 +45,8 @@ while [ "$i" -lt "$#" ]; do
   esac
 done
 
+# Five observations is the smallest sample that reads as a repeated pattern
+# rather than a one-off; override per operator with $CLAIRVOYANCE_COACH_THRESHOLD.
 DEFAULT_THRESHOLD=5
 CATEGORIES="avoidance mislabeled-technical loss-aversion values-conflict no-experiment authority-dependence other"
 
