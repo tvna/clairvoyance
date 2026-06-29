@@ -160,14 +160,23 @@ jobs:
           persist-credentials: false
 
       - name: Install sqlite3 CLI
-        # Git for Windows ships no sqlite3; choco shims sqlite3.exe onto the
-        # chocolatey bin, which is already on PATH for later steps.
-        run: choco install sqlite -y --no-progress
+        # Git for Windows ships no sqlite3, and a bare `choco install` can leave a
+        # Store/stub `sqlite3` ahead of the real one on PATH (it prints a UTF-16
+        # "…to install" notice and breaks the store). Install via choco, then put
+        # the actual sqlite3.exe directory first on PATH for later steps.
         shell: pwsh
+        run: |
+          choco install sqlite -y --no-progress
+          $exe = Get-ChildItem -Path 'C:\ProgramData\chocolatey\lib' -Recurse -Filter sqlite3.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw 'sqlite3.exe not found after choco install sqlite' }
+          Write-Host "sqlite3 at $($exe.FullName)"
+          Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $exe.FullName)
 
-      - name: Verify sqlite3 is on PATH
-        run: sqlite3 -version
+      - name: Verify sqlite3 resolves to a real CLI
         shell: bash
+        run: |
+          which sqlite3
+          sqlite3 -version
 
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
