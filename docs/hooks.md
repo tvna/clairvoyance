@@ -22,14 +22,17 @@ If the bootstrap skill file is missing, the hook exits 0 and injects nothing.
 `plugin/hooks/adaptive-store.sh` is the store entry point: a CLI that persists a
 small, **anonymous** record of adaptive-challenge observations on the operator's own
 workstation, so `adaptive-coaching` waits until enough signal has accumulated before
-it coaches. It stores only coded metadata — an adaptive-challenge category, a short
-coded signal label, a quiz outcome, the session kind, and a UTC timestamp — never
-prompt text, code, or file paths.
+it coaches. By default it stores only coded metadata — an adaptive-challenge
+category, a short coded signal label, a quiz outcome, the session kind, and a UTC
+timestamp — never prompt text, code, or file paths. Opt-in context capture (below)
+can additionally store an abstracted, secret-redacted scenario summary.
 
 - **Subcommands.** `record --category <c> [--signal …] [--outcome correct|incorrect]
-  [--session-kind …]` appends one observation; `record-session` counts one chat
-  session; `status` reports the counts and whether it is `ready`. Each prints one
-  JSON object and (apart from a missing required `--category`) always exits 0.
+  [--session-kind …] [--context-stdin]` appends one observation (with
+  `--context-stdin` the context is read from stdin, never argv, and is stored only
+  with context capture on); `record-session` counts one chat session; `status`
+  reports the counts and whether it is `ready`. Each prints one JSON object and
+  (apart from a missing required `--category`) always exits 0.
 - **Two-gate readiness.** A reflection quiz is delivered only when the human asks
   AND `ready` is true, so a first-time user with thin data is never quizzed:
   `ready` needs **both** a **session grace period**
@@ -42,6 +45,12 @@ prompt text, code, or file paths.
 - **Volatility is tolerated.** Ephemeral or read-only environments (remote sessions,
   sandboxes) simply do not persist, and any storage error degrades to
   "not available / not ready" rather than failing the session.
+- **Context capture and rotation.** `CLAIRVOYANCE_STORE_CONTEXT=1` (default off)
+  stores an abstracted, secret-redacted summary (read from stdin via
+  `--context-stdin`) so a later reflection can reproduce the moment. Rotation keeps
+  the store bounded:
+  `CLAIRVOYANCE_MAX_OBSERVATIONS` (default 500, newest kept) and
+  `CLAIRVOYANCE_MAX_AGE_DAYS` (default 180); `0` disables either bound.
 
 ### Backend (SQLite CLI, no Python)
 
@@ -66,6 +75,7 @@ erDiagram
         text signal "coded a-z0-9-, max 40, nullable"
         text outcome "correct, incorrect, or null"
         text session_kind "coded, nullable"
+        text context "opt-in; abstracted summary, redacted, nullable"
     }
     meta {
         text key PK "always sessions"
@@ -80,8 +90,8 @@ sequenceDiagram
     participant A as adaptive-coaching
     participant P as Person
     H->>S: record-session (meta.sessions plus one)
-    A->>S: record --category [--signal] [--session-kind]
-    Note right of S: persists ts, category, signal, kind — no prompt, code, or paths
+    A->>S: record --category [--signal] [--session-kind] [--context-stdin (stdin)]
+    Note right of S: persists ts, category, signal, kind (and, opt-in, a redacted context) — never raw prompt, code, or paths
     P->>A: asks to reflect
     A->>S: status
     S-->>A: sessions, count, threshold, ready
@@ -96,21 +106,23 @@ sequenceDiagram
     end
 ```
 
-**What "anonymous" means, and reproduction as a non-goal.** The store holds
-content-scrubbed coded metadata on the person's own machine; it is not transmitted
-or aggregated. It answers *whether* to coach (recurring signal of a kind, fairly
-gated), not *what happened* — the concrete quiz scenario is rebuilt from the live
-session, never replayed from the store. Reproducing a past quiz from the store
-alone is therefore out of scope by design.
+**What "anonymous" means, and reproduction.** The store holds content-scrubbed
+coded metadata on the person's own machine; it is not transmitted or aggregated.
+By default it answers *whether* to coach (recurring signal of a kind, fairly
+gated), not *what happened* — the concrete scenario is rebuilt from the live
+session. With context capture enabled (opt-in), an abstracted, secret-redacted
+summary is retained, so a later reflection can reproduce the moment from the store;
+this trades some privacy for fidelity and stays local-only.
 
 ### Known limitations (cross-cutting gaps)
 
 Deliberate trade-offs and known gaps in the record → trigger → quiz → outcome
 procedure, so operators can judge the privacy/utility balance:
 
-1. **No scenario is persisted.** Reproduction depends on the pattern being live in
-   the reflection session; reflect in a fresh session and the quiz degrades to
-   generic. Only the category counter bridges sessions.
+1. **No scenario is persisted by default.** Reproduction then depends on the
+   pattern being live in the reflection session. Enabling context capture (opt-in)
+   retains an abstracted, redacted summary that bridges sessions; left off, only
+   the category counter does.
 2. **`signal` is optional and un-vocabularised**, so distinct patterns in one
    category collapse together; the lever that could keep them apart (anonymously)
    goes unused.
@@ -122,8 +134,10 @@ procedure, so operators can judge the privacy/utility balance:
 5. **Volatility vs. where work happens.** Remote or ephemeral sessions do not
    persist, so observations made there are lost and the recurring signal can
    undercount.
-6. **No recency or decay.** Readiness is a raw count ≥ threshold; observations of a
-   long-faded habit count equally with fresh ones.
+6. **Coarse decay.** Rotation bounds the store by count and age
+   (`CLAIRVOYANCE_MAX_OBSERVATIONS` / `CLAIRVOYANCE_MAX_AGE_DAYS`), so a long-faded
+   habit ages out; within the window, readiness is still a raw count with no finer
+   recency weighting.
 7. **Taxonomy mismatch.** The references' Type I/II/III and `technical-not-understood`
    have no matching store category, so the latter folds to `other`.
 

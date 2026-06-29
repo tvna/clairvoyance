@@ -24,29 +24,64 @@ import pytest
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 STORE_SH = REPO_ROOT / "plugin" / "hooks" / "adaptive-store.sh"
 
+
+def _resolve_bash():
+    """A POSIX bash for running the bundled .sh.
+
+    On Windows a bare ``bash`` resolves to the System32 WSL launcher, which —
+    with no distro installed — prints a UTF-16 "…to install" notice and exits
+    non-zero. Prefer Git Bash (the same interpreter run-hook.cmd locates in
+    production); fall back to whatever ``bash`` is on PATH elsewhere.
+    """
+    if os.name == "nt":
+        for candidate in (
+            r"C:\Program Files\Git\bin\bash.exe",
+            r"C:\Program Files\Git\usr\bin\bash.exe",
+        ):
+            if pathlib.Path(candidate).exists():
+                return candidate
+    return shutil.which("bash") or "bash"
+
+
+BASH = _resolve_bash()
+
 HAS_SQLITE3 = shutil.which("sqlite3") is not None
 needs_sqlite3 = pytest.mark.skipif(not HAS_SQLITE3, reason="sqlite3 CLI not installed")
 
 
-def run_raw(args, data_dir, threshold=None, session_threshold=0):
+def run_raw(args, data_dir, threshold=None, session_threshold=0, env_extra=None, stdin_text=""):
     """Invoke the store with an isolated data dir; return the CompletedProcess.
 
     ``session_threshold`` defaults to 0 (grace disabled) so signal-gate tests are
     not blocked by it; pass ``None`` to leave it unset and exercise the default.
+    ``env_extra`` sets extra environment variables (e.g. raw capture or rotation
+    bounds); all store-specific vars are cleared from the ambient env first so
+    tests are deterministic. ``stdin_text`` feeds stdin, used by ``--context-stdin``
+    so raw context never travels through argv.
     """
     env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(data_dir)}
-    for key in ("LOCALAPPDATA", "XDG_DATA_HOME", "CLAIRVOYANCE_COACH_THRESHOLD", "CLAIRVOYANCE_SESSION_THRESHOLD"):
+    for key in (
+        "LOCALAPPDATA",
+        "XDG_DATA_HOME",
+        "CLAIRVOYANCE_COACH_THRESHOLD",
+        "CLAIRVOYANCE_SESSION_THRESHOLD",
+        "CLAIRVOYANCE_STORE_CONTEXT",
+        "CLAIRVOYANCE_MAX_OBSERVATIONS",
+        "CLAIRVOYANCE_MAX_AGE_DAYS",
+    ):
         env.pop(key, None)
     if threshold is not None:
         env["CLAIRVOYANCE_COACH_THRESHOLD"] = str(threshold)
     if session_threshold is not None:
         env["CLAIRVOYANCE_SESSION_THRESHOLD"] = str(session_threshold)
-    return subprocess.run(["bash", str(STORE_SH), *args], capture_output=True, text=True, env=env, input="")
+    if env_extra:
+        env.update({k: str(v) for k, v in env_extra.items()})
+    return subprocess.run([BASH, STORE_SH.as_posix(), *args], capture_output=True, text=True, env=env, input=stdin_text)
 
 
-def run(args, data_dir, threshold=None, session_threshold=0):
+def run(args, data_dir, threshold=None, session_threshold=0, env_extra=None, stdin_text=""):
     """Invoke the store and parse its JSON, asserting a clean exit."""
-    result = run_raw(args, data_dir, threshold, session_threshold)
+    result = run_raw(args, data_dir, threshold, session_threshold, env_extra, stdin_text)
     assert result.returncode == 0, result.stderr
     return json.loads(result.stdout)
 
@@ -203,8 +238,114 @@ def test_home_fallback_dir_is_dotted(tmp_path):
     for key in ("CLAIRVOYANCE_DATA_DIR", "LOCALAPPDATA", "XDG_DATA_HOME"):
         env.pop(key, None)
     result = subprocess.run(
-        ["bash", str(STORE_SH), "record-session"], capture_output=True, text=True, env=env, input=""
+        [BASH, STORE_SH.as_posix(), "record-session"], capture_output=True, text=True, env=env, input=""
     )
     assert result.returncode == 0, result.stderr
     assert (home / ".clairvoyance" / "coaching.db").exists()
     assert not (home / "clairvoyance").exists()
+
+
+def _contexts(data_dir):
+    """The stored context column for every observation, oldest first."""
+    db = data_dir / "coaching.db"
+    return [
+        row[0] for row in sqlite3.connect(str(db)).execute("SELECT context FROM observations ORDER BY id").fetchall()
+    ]
+
+
+@needs_sqlite3
+def test_context_not_stored_by_default(tmp_path):
+    """Raw capture is opt-in: without it, stdin context is dropped, not persisted."""
+    data_dir = tmp_path / "store"
+    run(["record", "--category", "avoidance", "--context-stdin"], data_dir, stdin_text="deferred the cutover decision")
+    assert _contexts(data_dir) == [None]
+
+
+@needs_sqlite3
+def test_context_stored_verbatim_when_raw_enabled(tmp_path):
+    """With raw capture on, non-sensitive context is stored as-is."""
+    data_dir = tmp_path / "store"
+    run(
+        ["record", "--category", "authority-dependence", "--context-stdin"],
+        data_dir,
+        env_extra={"CLAIRVOYANCE_STORE_CONTEXT": "1"},
+        stdin_text="deferred the cutover decision again",
+    )
+    assert _contexts(data_dir) == ["deferred the cutover decision again"]
+
+
+@needs_sqlite3
+def test_raw_context_redacts_secrets(tmp_path):
+    """The store-side backstop scrubs obvious secrets before persisting context."""
+    data_dir = tmp_path / "store"
+    leaky = "use AKIAABCDEFGHIJKLMNOP and password: hunter2 and token=deadbeefcafe1234 then normal text"
+    run(
+        ["record", "--category", "other", "--context-stdin"],
+        data_dir,
+        env_extra={"CLAIRVOYANCE_STORE_CONTEXT": "on"},
+        stdin_text=leaky,
+    )
+    ctx = _contexts(data_dir)[0]
+    assert "AKIAABCDEFGHIJKLMNOP" not in ctx
+    assert "hunter2" not in ctx
+    assert "deadbeefcafe1234" not in ctx
+    assert "[REDACTED]" in ctx
+    assert "normal text" in ctx  # ordinary content survives
+
+
+@needs_sqlite3
+def test_raw_context_quotes_are_safe(tmp_path):
+    """A context with quotes and SQL metacharacters is stored literally, not executed."""
+    data_dir = tmp_path / "store"
+    tricky = "it's 'tricky'); DROP TABLE observations;--"
+    run(
+        ["record", "--category", "other", "--context-stdin"],
+        data_dir,
+        env_extra={"CLAIRVOYANCE_STORE_CONTEXT": "1"},
+        stdin_text=tricky,
+    )
+    # The table survived the injection attempt and stored the text verbatim.
+    assert _contexts(data_dir) == [tricky]
+
+
+@needs_sqlite3
+def test_rotation_by_count_keeps_newest(tmp_path):
+    """A count bound prunes oldest rows so the store cannot grow without limit."""
+    data_dir = tmp_path / "store"
+    for n in range(5):
+        run(
+            ["record", "--category", "avoidance", "--signal", f"n{n}"],
+            data_dir,
+            env_extra={"CLAIRVOYANCE_MAX_OBSERVATIONS": "2"},
+        )
+    out = run(["status"], data_dir)
+    assert out["count"] == 2
+
+
+@needs_sqlite3
+def test_rotation_by_age_drops_old(tmp_path):
+    """An age bound prunes rows older than the window on the next record."""
+    data_dir = tmp_path / "store"
+    run(["record", "--category", "avoidance"], data_dir)
+    # Backdate the existing row well past any window, then record under a 1-day bound.
+    conn = sqlite3.connect(str(data_dir / "coaching.db"))
+    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
+    conn.commit()
+    conn.close()
+    out = run(["record", "--category", "loss-aversion"], data_dir, env_extra={"CLAIRVOYANCE_MAX_AGE_DAYS": "1"})
+    assert out["count"] == 1
+    cats = sqlite3.connect(str(data_dir / "coaching.db")).execute("SELECT category FROM observations").fetchall()
+    assert cats == [("loss-aversion",)]
+
+
+@needs_sqlite3
+def test_rotation_zero_disables_bounds(tmp_path):
+    """A 0 bound disables that rotation, so nothing is pruned."""
+    data_dir = tmp_path / "store"
+    for _ in range(4):
+        run(
+            ["record", "--category", "avoidance"],
+            data_dir,
+            env_extra={"CLAIRVOYANCE_MAX_OBSERVATIONS": "0", "CLAIRVOYANCE_MAX_AGE_DAYS": "0"},
+        )
+    assert run(["status"], data_dir)["count"] == 4

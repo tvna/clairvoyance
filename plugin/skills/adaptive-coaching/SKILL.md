@@ -13,7 +13,7 @@ Adaptive coaching builds a person's durable capability over time while preservin
 
 ## Recording observations
 
-Whenever a recurring capability gap surfaces, record it as anonymous coded signal (never prompt text or code) so a later reflection has data. This logging is passive: it does not coach and does not quiz. Record commands, categories, and storage details are in [the store reference](references/store.md).
+Whenever a recurring capability gap surfaces, record it as anonymous coded signal — never prompt text or code, though opt-in context capture can add an abstracted, secret-free scenario summary (see the store reference) — so a later reflection has data. This logging is passive: it does not coach and does not quiz. Record commands, categories, and storage details are in [the store reference](references/store.md).
 
 ## Reflection quiz (on request)
 
