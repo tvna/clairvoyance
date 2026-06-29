@@ -18,6 +18,11 @@ exactly one human-facing handoff skill for the moment at hand:
 - **`decision-coaching`** — a human seeking LGTM or a decision from ambiguous, noisy,
   or architecture-poor input; it refuses to rubber-stamp and coaches a sound call
   with a focused question.
+- **`human-harness`** — the human harness: a high-blast-radius, irreversible, or
+  compliance-violating instruction. It is the inverse of rubber-stamping the human's
+  order — instead of executing, it stops, measures blast radius, and presses the
+  human to confirm intent one focused question at a time so a human error is caught
+  before it lands.
 
 ## Depth gate
 

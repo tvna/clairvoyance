@@ -28,8 +28,9 @@ Route:
 - PR, commit, branch, review verdict, or "should this merge?" -> `clairvoyance:review-verdict`.
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
 - LGTM requests, missing subject, noisy input, sycophancy pressure, or decision without architecture understanding -> `clairvoyance:decision-coaching`.
+- High-blast-radius, irreversible, or compliance-violating instruction (the human harness) -> `clairvoyance:human-harness`.
 
-Do not route implementation, progress, tests, typos, or refactors unless they become a decision handoff. Treat evidence gaps as risks or unknowns.
+Do not route implementation, progress, tests, typos, or refactors unless they become a decision handoff or carry high-blast-radius or compliance risk, which routes to `human-harness`. Treat evidence gaps as risks or unknowns.
 
 ## Priority
 
@@ -41,3 +42,4 @@ Use other needed skills first; use Clairvoyance for the human handoff. When unsu
 - Architecture: `architecture-tradeoff` -> **Verdict**, **Options**, **Future Story**, **Premortem**, **Next Move**.
 - Owner decision: `clairvoyance` -> **Verdict**, **Evidence**, **Options**, **Risks**, **Reversibility**, **Next Move**.
 - LGTM/unclear subject: `decision-coaching` -> portable question handoff.
+- Risky order: `human-harness` -> **Stop**, **Blast Radius**, **Premortem**, **Confirm**, **Next Move**.
