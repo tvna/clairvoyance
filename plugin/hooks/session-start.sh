@@ -44,6 +44,16 @@ else
   language_context="Owner native language metadata is missing. Before any Clairvoyance handoff, use AskUserQuestion to ask the human for the primary project owner's native language. Use one focused, non-leading question with 2-3 choices when obvious. After the human answers, set up '${language_file}' with the language code or language name, then write operator-facing Clairvoyance output in that language."
 fi
 
+# Count this session toward the adaptive-coaching grace period. The hook pushes
+# NO coaching: the reflection quiz fires only when the human asks to reflect
+# (handled by adaptive-coaching reading the store), never from here. A missing
+# store, no sqlite3, or an unwritable/ephemeral environment degrade silently
+# (volatility is tolerated); reading no stdin keeps the hook from ever blocking.
+store_sh="${plugin_root}/hooks/adaptive-store.sh"
+if [ -f "${store_sh}" ]; then
+  bash "${store_sh}" record-session >/dev/null 2>&1 || true
+fi
+
 escaped="$(escape_json "$skill_content")"
 language_escaped="$(escape_json "$language_context")"
 context="<EXTREMELY_IMPORTANT>\nYou have Clairvoyance.\n\n${language_escaped}\n\nBelow is the full content of your 'using-clairvoyance' bootstrap skill. For an agent-to-human handoff, use the Skill tool to load the single matching Clairvoyance skill named by the bootstrap skill before responding.\n\n${escaped}\n</EXTREMELY_IMPORTANT>"

@@ -18,6 +18,15 @@ exactly one human-facing handoff skill for the moment at hand:
 - **`decision-coaching`** — a human seeking LGTM or a decision from ambiguous, noisy,
   or architecture-poor input; it refuses to rubber-stamp and coaches a sound call
   with a focused question.
+- **`adaptive-coaching`** — works across sessions on a person's *recurring* capability
+  gaps (a misunderstood technical challenge or an adaptive one — a value, habit, or
+  belief). It logs those gaps as anonymous local signal, and — only when the person
+  asks to **reflect** (a retrospective) — turns the accumulated signal into a
+  prosthesis-building `AskUserQuestion` quiz, classifying the technical-versus-adaptive
+  split to shape it. The quiz is never pushed: it fires on the person's own request,
+  and only once enough has accumulated (a session grace period plus signal). The
+  boundary with `decision-coaching` is intent: a live decision there, an explicit
+  reflection request here. See [hooks.md](hooks.md) for the local store.
 - **`human-harness`** — the human harness: a high-blast-radius, irreversible, or
   compliance-violating instruction. It is the inverse of rubber-stamping the human's
   order — instead of executing, it stops, measures blast radius, and presses the

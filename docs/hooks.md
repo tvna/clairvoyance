@@ -9,8 +9,51 @@ and `compact`). It runs `plugin/hooks/session-start.sh`, which:
    `additionalContext` so the agent has the bootstrap router from the first turn.
 2. Resolves the project owner's language and injects it as authoritative for
    Clairvoyance handoffs.
+3. Counts this session toward the adaptive-coaching grace period
+   (`record-session`). The hook pushes **no** coaching: the reflection quiz fires
+   only when the human asks to reflect (handled by `adaptive-coaching` reading the
+   store), never from this hook. The session count advances on every SessionStart
+   (startup, clear, and compact), and the hook reads no stdin so it never blocks.
 
 If the bootstrap skill file is missing, the hook exits 0 and injects nothing.
+
+## Adaptive-coaching store
+
+`plugin/hooks/adaptive-store.sh` is the store entry point: a CLI that persists a
+small, **anonymous** record of adaptive-challenge observations on the operator's own
+workstation, so `adaptive-coaching` waits until enough signal has accumulated before
+it coaches. It stores only coded metadata — an adaptive-challenge category, a short
+coded signal label, a quiz outcome, the session kind, and a UTC timestamp — never
+prompt text, code, or file paths.
+
+- **Subcommands.** `record --category <c> [--signal …] [--outcome correct|incorrect]
+  [--session-kind …]` appends one observation; `record-session` counts one chat
+  session; `status` reports the counts and whether it is `ready`. Each prints one
+  JSON object and (apart from a missing required `--category`) always exits 0.
+- **Two-gate readiness.** A reflection quiz is delivered only when the human asks
+  AND `ready` is true, so a first-time user with thin data is never quizzed:
+  `ready` needs **both** a **session grace period**
+  (`$CLAIRVOYANCE_SESSION_THRESHOLD`, default 50 sessions; 0 disables it) **and**
+  **accumulated adaptive signal** (`$CLAIRVOYANCE_COACH_THRESHOLD`, default 5
+  observations).
+- **Location** (first match wins): `$CLAIRVOYANCE_DATA_DIR`, else
+  `%LOCALAPPDATA%\clairvoyance` (the Windows workstation default), else
+  `$XDG_DATA_HOME/clairvoyance`, else `~/.clairvoyance`; the file is `coaching.db`.
+- **Volatility is tolerated.** Ephemeral or read-only environments (remote sessions,
+  sandboxes) simply do not persist, and any storage error degrades to
+  "not available / not ready" rather than failing the session.
+
+### Backend (SQLite CLI, no Python)
+
+The store is backed by the `sqlite3` CLI — install with `choco install sqlite` on
+Windows (Git for Windows bundles no `sqlite3`); on macOS/Linux it is usually
+present. There is **no Python fallback**: if the CLI is absent the store degrades
+to "not available" and coaching simply stays inactive (the session is unaffected).
+`session-start.sh` detects readiness from the store's JSON with a shell glob, so
+the readiness cue needs no runtime of its own.
+
+`scripts/check_hooks.sh` syntax-checks `adaptive-store.sh` (`bash -n`, no side
+effects); `tests/test_adaptive_store.py` exercises its behaviour.
 
 ### Codex
 

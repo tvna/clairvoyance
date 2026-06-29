@@ -1,0 +1,20 @@
+id: adaptive-coaching-insufficient-signal
+name: Insufficient Signal Holds Coaching
+description: Refuses to coach on a single instance; records the observation and waits for enough signal.
+tags:
+  - quality
+  - data-gate
+inputs:
+  prompt: |
+    Use adaptive-coaching. I dodged a hard call once today — can we do a quick retrospective on it?
+
+    Context:
+    - This is the first observation; the local store reports not ready (1 of 5).
+    - One instance is not yet a pattern.
+expected:
+  output_contains:
+    - "Classification"
+    - "Evidence"
+    - "Next Move"
+  output_not_contains:
+    - "✅"

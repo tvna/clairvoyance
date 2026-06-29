@@ -1,0 +1,16 @@
+id: using-clairvoyance-positive-route-adaptive-coaching
+name: Positive Route - Adaptive Coaching
+description: The bootstrap should route an explicit reflection/retrospective request to adaptive-coaching.
+tags:
+  - recall
+  - routing
+inputs:
+  prompt: |
+    Which single Clairvoyance skill should be loaded before answering?
+    Return only the skill name.
+
+    Scenario:
+    The human asks to reflect on their own recurring patterns: "Can we do a retrospective on where I keep getting stuck across these sessions?"
+expected:
+  output_contains:
+    - "adaptive-coaching"

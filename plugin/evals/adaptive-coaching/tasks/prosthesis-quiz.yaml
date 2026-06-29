@@ -1,0 +1,19 @@
+id: adaptive-coaching-prosthesis-quiz
+name: Prosthesis-Building Quiz
+description: Coaches with an active-recall quiz that marks the correct answer instead of just telling.
+tags:
+  - quality
+  - quiz
+inputs:
+  prompt: |
+    Use adaptive-coaching. I want to reflect on how I keep handling these rollout cutovers — help me see the pattern.
+
+    Context:
+    - For four sessions the person deferred the same reversible, owner-owned cutover decision to the agent.
+    - The local store reports ready, dominated by authority-dependence.
+expected:
+  output_contains:
+    - "Capability Gap"
+    - "AskUserQuestion"
+    - "Quiz"
+    - "Next Move"

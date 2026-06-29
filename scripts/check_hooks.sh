@@ -11,7 +11,16 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 grep -q "^CMDBLOCK$" "${root}/plugin/hooks/run-hook.cmd"
 bash -n "${root}/plugin/hooks/run-hook.cmd"
 bash -n "${root}/plugin/hooks/session-start.sh"
-bash "${root}/plugin/hooks/session-start.sh" | python3 -m json.tool > /dev/null
+# Redirect the store's data dir to a throwaway path: the hook records a session
+# on each run, so this keeps the check from touching the real workstation store.
+hooks_tmp="$(mktemp -d)"
+trap 'rm -rf "${hooks_tmp}"' EXIT
+CLAIRVOYANCE_DATA_DIR="${hooks_tmp}" bash "${root}/plugin/hooks/session-start.sh" </dev/null | python3 -m json.tool > /dev/null
+
+# The adaptive-coaching store ships alongside the hooks and is invoked by both
+# session-start.sh and the skill. Syntax-check it (no side effects, no DB
+# writes) so a broken store fails loud here, the same as the bash hooks.
+bash -n "${root}/plugin/hooks/adaptive-store.sh"
 
 # Both runtimes drive session-start.sh through the same run-hook.cmd wrapper; the
 # only difference is the plugin-root variable each substitutes into its hooks
