@@ -1,6 +1,6 @@
 ---
 name: adaptive-coaching
-description: Logs a person's recurring capability gaps as anonymous local signal, and — only when the person asks to reflect (a retrospective) — turns that accumulated signal into an AskUserQuestion quiz that builds durable understanding. Use on a reflection request or to log a recurring gap; not for a single in-the-moment decision (route those to decision-coaching).
+description: Logs a person's recurring capability gaps locally and, when they ask to reflect, turns the accumulated signal into a prosthesis-building AskUserQuestion quiz. Use on a reflection or retrospective request, not a single decision.
 ---
 
 # Adaptive Coaching
