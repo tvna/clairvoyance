@@ -55,6 +55,78 @@ the readiness cue needs no runtime of its own.
 `scripts/check_hooks.sh` syntax-checks `adaptive-store.sh` (`bash -n`, no side
 effects); `tests/test_adaptive_store.py` exercises its behaviour.
 
+### Data model and lifecycle
+
+```mermaid
+erDiagram
+    observations {
+        integer id PK
+        text ts "UTC, to the second"
+        text category "7-value enum; else other"
+        text signal "coded a-z0-9-, max 40, nullable"
+        text outcome "correct, incorrect, or null"
+        text session_kind "coded, nullable"
+    }
+    meta {
+        text key PK "always sessions"
+        integer value "counter"
+    }
+```
+
+```mermaid
+sequenceDiagram
+    participant H as SessionStart hook
+    participant S as Store (coaching.db)
+    participant A as adaptive-coaching
+    participant P as Person
+    H->>S: record-session (meta.sessions plus one)
+    A->>S: record --category [--signal] [--session-kind]
+    Note right of S: persists ts, category, signal, kind — no prompt, code, or paths
+    P->>A: asks to reflect
+    A->>S: status
+    S-->>A: sessions, count, threshold, ready
+    alt not ready
+        A-->>P: acknowledge and hold (no quiz)
+    else ready
+        Note over A: classify from LIVE context, build a concrete quiz
+        A-->>P: AskUserQuestion quiz
+        P-->>A: choice
+        A->>S: record --category --outcome correct or incorrect
+        A-->>P: feedback plus Next Move
+    end
+```
+
+**What "anonymous" means, and reproduction as a non-goal.** The store holds
+content-scrubbed coded metadata on the person's own machine; it is not transmitted
+or aggregated. It answers *whether* to coach (recurring signal of a kind, fairly
+gated), not *what happened* — the concrete quiz scenario is rebuilt from the live
+session, never replayed from the store. Reproducing a past quiz from the store
+alone is therefore out of scope by design.
+
+### Known limitations (cross-cutting gaps)
+
+Deliberate trade-offs and known gaps in the record → trigger → quiz → outcome
+procedure, so operators can judge the privacy/utility balance:
+
+1. **No scenario is persisted.** Reproduction depends on the pattern being live in
+   the reflection session; reflect in a fresh session and the quiz degrades to
+   generic. Only the category counter bridges sessions.
+2. **`signal` is optional and un-vocabularised**, so distinct patterns in one
+   category collapse together; the lever that could keep them apart (anonymously)
+   goes unused.
+3. **Outcome rows are not linked to the observation they score** and also count
+   toward `count`, so the readiness gate conflates observations with quiz
+   scorings, and "is this habit fading?" is only a category-level trend.
+4. **The sanitiser enforces charset and length, not semantic anonymity** — a
+   careless `signal` can still encode identifying specifics.
+5. **Volatility vs. where work happens.** Remote or ephemeral sessions do not
+   persist, so observations made there are lost and the recurring signal can
+   undercount.
+6. **No recency or decay.** Readiness is a raw count ≥ threshold; observations of a
+   long-faded habit count equally with fresh ones.
+7. **Taxonomy mismatch.** The references' Type I/II/III and `technical-not-understood`
+   have no matching store category, so the latter folds to `other`.
+
 ### Codex
 
 Codex reads its own `SessionStart` manifest, `plugin/hooks/codex-hooks.json`
