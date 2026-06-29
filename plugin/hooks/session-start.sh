@@ -45,10 +45,10 @@ else
 fi
 
 # Surface adaptive-coaching readiness from the local, anonymous observation
-# store. The store (adaptive-store.sh) uses the sqlite3 CLI, falling back to
-# python3, so this cue needs neither here: readiness is detected from the JSON
-# with a shell glob. A missing store, no backend, or an unwritable/ephemeral
-# environment all degrade silently to no cue (volatility is tolerated).
+# store (adaptive-store.sh, backed by the sqlite3 CLI). Readiness is detected
+# from the JSON with a shell glob. A missing store, no sqlite3, or an
+# unwritable/ephemeral environment all degrade silently to no note (volatility
+# is tolerated). The note is advisory: it must not override routing.
 coaching_block=""
 store_sh="${plugin_root}/hooks/adaptive-store.sh"
 if [ -f "${store_sh}" ]; then
@@ -58,7 +58,7 @@ if [ -f "${store_sh}" ]; then
   status_json="$(bash "${store_sh}" status 2>/dev/null || true)"
   case "${status_json}" in
     *'"ready": true'*)
-      coaching_context="Adaptive-coaching signal has reached its threshold on this workstation. Before the next agent-to-human handoff, load 'clairvoyance:adaptive-coaching', classify the technical versus adaptive split, and deliver a prosthesis-building AskUserQuestion quiz that corrects the person's adaptive challenge."
+      coaching_context="Adaptive-coaching signal is ready on this workstation. This does NOT change routing and is NOT a request to coach now: keep selecting the one skill that fits the human's actual request, and never inject a quiz into an unrelated handoff. Only when the request is itself a recurring-coaching moment, the router may route to 'clairvoyance:adaptive-coaching', which will classify the technical-versus-adaptive split and decide for itself whether a quiz is warranted."
       coaching_block="\n\n$(escape_json "$coaching_context")"
       ;;
   esac

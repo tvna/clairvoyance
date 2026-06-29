@@ -66,7 +66,7 @@ resolve_data_dir() {
   elif [ -n "${XDG_DATA_HOME:-}" ]; then
     printf '%s' "${XDG_DATA_HOME}/clairvoyance"
   else
-    printf '%s' "${HOME}/clairvoyance"
+    printf '%s' "${HOME}/.clairvoyance"
   fi
 }
 
@@ -136,12 +136,17 @@ command -v sqlite3 >/dev/null 2>&1 || emit "$(unavailable_json)"
 data_dir="$(resolve_data_dir)"
 db="${data_dir}/coaching.db"
 schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT); CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);"
+# Wait briefly for a concurrent writer instead of failing, so simultaneous
+# SessionStarts (multiple windows, compact storms) do not drop session counts.
+# The `.timeout` dot-command sets the busy timeout silently; a `PRAGMA
+# busy_timeout` would print its value and corrupt the captured query output.
+busy_opts=(-cmd ".timeout 2000")
 
 summary_json() {
   # Echoes: <total> <distinct> <by_category-json-body> on three lines, or fails.
   local total rows pairs="" distinct=0 cat cnt
-  total="$(sqlite3 -noheader "${db}" "SELECT COUNT(*) FROM observations;" 2>/dev/null)" || return 1
-  rows="$(sqlite3 -noheader -separator '|' "${db}" "SELECT category, COUNT(*) FROM observations GROUP BY category ORDER BY category;" 2>/dev/null)" || return 1
+  total="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "SELECT COUNT(*) FROM observations;" 2>/dev/null)" || return 1
+  rows="$(sqlite3 "${busy_opts[@]}" -noheader -separator '|' "${db}" "SELECT category, COUNT(*) FROM observations GROUP BY category ORDER BY category;" 2>/dev/null)" || return 1
   while IFS='|' read -r cat cnt; do
     [ -z "${cat}" ] && continue
     [ -n "${pairs}" ] && pairs="${pairs}, "
@@ -156,7 +161,7 @@ EOF
 read_sessions() {
   # The accumulated session count, or 0 if unset/unreadable.
   local v
-  v="$(sqlite3 -noheader "${db}" "SELECT value FROM meta WHERE key='sessions';" 2>/dev/null)" || { printf '0'; return 0; }
+  v="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "SELECT value FROM meta WHERE key='sessions';" 2>/dev/null)" || { printf '0'; return 0; }
   [ -z "${v}" ] && v=0
   printf '%s' "${v}"
 }
@@ -184,7 +189,7 @@ case "${cmd}" in
     sig="$(coded_token "${signal}")"
     skind="$(coded_token "${session_kind}")"
     ts="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
-    if ! sqlite3 "${db}" \
+    if ! sqlite3 "${busy_opts[@]}" "${db}" \
       "${schema} INSERT INTO observations (ts, category, signal, outcome, session_kind) VALUES ('${ts}', '${cat_value}', $(sql_value "${sig}"), $(sql_value "${outcome}"), $(sql_value "${skind}"));" \
       2>/dev/null; then
       emit "$(unavailable_json)"
@@ -198,8 +203,10 @@ case "${cmd}" in
     ;;
   record-session)
     mkdir -p "${data_dir}" 2>/dev/null || emit "$(unavailable_json)"
-    if ! sqlite3 "${db}" \
-      "${schema} INSERT INTO meta (key, value) VALUES ('sessions', 1) ON CONFLICT(key) DO UPDATE SET value = value + 1;" \
+    # Portable increment (INSERT OR IGNORE then UPDATE) so it works on sqlite
+    # before 3.24, which lacks UPSERT's ON CONFLICT ... DO UPDATE.
+    if ! sqlite3 "${busy_opts[@]}" "${db}" \
+      "${schema} INSERT OR IGNORE INTO meta (key, value) VALUES ('sessions', 0); UPDATE meta SET value = value + 1 WHERE key = 'sessions';" \
       2>/dev/null; then
       emit "$(unavailable_json)"
     fi
@@ -208,7 +215,7 @@ case "${cmd}" in
     ;;
   status)
     [ -f "${db}" ] || emit "$(unavailable_json)"
-    sqlite3 "${db}" "${schema}" >/dev/null 2>&1 || emit "$(unavailable_json)"
+    sqlite3 "${busy_opts[@]}" "${db}" "${schema}" >/dev/null 2>&1 || emit "$(unavailable_json)"
     if ! out="$(summary_json)"; then emit "$(unavailable_json)"; fi
     total="$(printf '%s' "${out}" | sed -n '1p')"
     distinct="$(printf '%s' "${out}" | sed -n '2p')"

@@ -28,7 +28,9 @@ Route:
 - PR, commit, branch, review verdict, or "should this merge?" -> `clairvoyance:review-verdict`.
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
 - A single decision in the moment: LGTM requests, missing subject, noisy input, sycophancy pressure, or a decision without architecture understanding -> `clairvoyance:decision-coaching`.
-- A recurring capability gap across sessions (a misunderstood technical challenge or an adaptive one), or the SessionStart adaptive-coaching cue firing with enough accumulated signal -> `clairvoyance:adaptive-coaching`.
+- A recurring capability gap across sessions (a misunderstood technical challenge or an adaptive one) -> `clairvoyance:adaptive-coaching`.
+
+Coaching tiebreak: the two coaching skills share surface triggers, and recurrence is not visible in one prompt. Default to `decision-coaching` (it serves the live moment); choose `adaptive-coaching` only when the SessionStart adaptive-coaching readiness note is present — an observable signal — not from a self-reported "I keep getting this wrong" alone.
 
 Do not route implementation, progress, tests, typos, or refactors unless they become a decision handoff. Treat evidence gaps as risks or unknowns.
 

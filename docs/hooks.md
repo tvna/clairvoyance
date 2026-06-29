@@ -11,9 +11,13 @@ and `compact`). It runs `plugin/hooks/session-start.sh`, which:
    Clairvoyance handoffs.
 3. Counts this session toward the coaching grace period (`record-session`) and
    queries the adaptive-coaching store (below); only when it reports `ready` does
-   it append a cue telling the agent to load `adaptive-coaching` for the next
-   handoff. The session count advances on every SessionStart (startup, clear, and
-   compact), and the hook reads no stdin so it never blocks.
+   it append an **advisory** readiness note. The note does not override routing
+   and is not a request to coach now — `using-clairvoyance` still selects the one
+   skill that fits the request, and routes to `adaptive-coaching` only when the
+   request is itself a recurring-coaching moment (the note is the observable
+   tiebreak between the two coaching skills). The session count advances on every
+   SessionStart (startup, clear, and compact), and the hook reads no stdin so it
+   never blocks.
 
 If the bootstrap skill file is missing, the hook exits 0 and injects nothing.
 

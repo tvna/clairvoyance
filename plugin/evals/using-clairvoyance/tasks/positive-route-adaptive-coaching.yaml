@@ -10,7 +10,7 @@ inputs:
     Return only the skill name.
 
     Scenario:
-    For the fifth session running the human reframes an owner judgment as a tooling problem and asks the agent to just decide, and the accumulated local signal has reached its coaching threshold.
+    A SessionStart adaptive-coaching readiness note is present this session. For the fifth session running the human reframes an owner judgment as a tooling problem and asks the agent to just decide.
 expected:
   output_contains:
     - "adaptive-coaching"

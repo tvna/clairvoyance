@@ -192,3 +192,19 @@ def test_record_requires_category(tmp_path):
     result = run_raw(["record", "--outcome", "incorrect"], data_dir)
     assert result.returncode != 0
     assert not (data_dir / "coaching.db").exists()
+
+
+@needs_sqlite3
+def test_home_fallback_dir_is_dotted(tmp_path):
+    """With no override vars set, the store falls back to ~/.clairvoyance (dotted)."""
+    home = tmp_path / "home"
+    home.mkdir()
+    env = {**os.environ, "HOME": str(home)}
+    for key in ("CLAIRVOYANCE_DATA_DIR", "LOCALAPPDATA", "XDG_DATA_HOME"):
+        env.pop(key, None)
+    result = subprocess.run(
+        ["bash", str(STORE_SH), "record-session"], capture_output=True, text=True, env=env, input=""
+    )
+    assert result.returncode == 0, result.stderr
+    assert (home / ".clairvoyance" / "coaching.db").exists()
+    assert not (home / "clairvoyance").exists()
