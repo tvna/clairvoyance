@@ -247,7 +247,7 @@ additions, not existing ones.
 |---|---|---|---|
 | Deterministic structural validation | Is it well-formed? | Frontmatter/name/path/length/reference-depth violations | `scripts/check_skills.py`, `waza check` |
 | Coverage gating | Does every skill have its carriers? | A skill with no eval or no doc; an orphan eval | `scripts/check_coverage.py` |
-| Baseline ablation | Does the skill actually *help* vs no skill? | Zero-lift skills; skills documenting imagined problems | **Not a standing method** — see below |
+| Baseline ablation | Does the skill actually *help* vs no skill? | Zero-lift skills; skills documenting imagined problems | `battle/run_battle.py --ablate` |
 | Behavioural output-contract eval | Does the real trigger produce the contract? | A skill that no longer emits its headings | `waza run` ([evaluations.md](evaluations.md)) |
 | Adversarial / guardrail (battle) | Does it hold under hostile input? | Injection, rubber-stamping, fabricated evidence, mis-routing | [`battle/`](../battle/README.md) |
 | Consistency over trials | Is it reliable, or just lucky once? | Flicker and proportionality oscillation at N=1 | `battle --trials N`; eval `trials_per_task` |
@@ -257,20 +257,28 @@ additions, not existing ones.
 | Navigation observation | How does the model actually traverse it? | Dead references, ignored files, overreliance, wrong read order | **Not a standing method** — see below |
 | Real-usage dogfooding | Does it activate and work in the wild? | Discovery misses and gaps that only real tasks reveal | Informal; not gated |
 
-### The two methods worth adding
+### Baseline ablation — now implemented
 
-These are foundational in the [Agent Skills best practices][skills-bp] but are not
-yet run as standing methods here.
+The best practices put this method *first*: before writing a skill, run the model on
+representative tasks **without** it, document the specific failures, and make that
+the baseline; the skill's value is the measured lift over that baseline, not its
+existence. A skill that passes every structural check and every behavioural eval can
+still be worthless if the model already did the task fine unaided. The repo's other
+gates do not measure lift — they assume the skill is wanted and only check it is
+well-built.
 
-- **Baseline ablation (evaluation-driven development).** The best practices put this
-  *first*: before writing a skill, run the model on representative tasks **without**
-  it, document the specific failures, and make that the baseline. The skill's value
-  is the measured lift over that baseline — not its existence. A skill that passes
-  every structural check and every behavioural eval can still be worthless if the
-  model already did the task fine unaided. None of the repo's current gates measure
-  lift; they all assume the skill is wanted and only check it is well-built. To run
-  it: take an eval task's `inputs.prompt`, execute it with the skill stripped from
-  context, and compare against the with-skill run on the same `expected` markers.
+This is now a standing method: `python3 battle/run_battle.py --ablate` runs each
+scenario through both arms (skill-injected and a no-skill baseline) on the same
+prompt, grades them through the identical pipeline, and reports the lift per cell
+(`LIFT` / `REGRESSION` / `REDUNDANT` / `NO-LIFT`) plus a per-skill rollup that flags
+any skill that never lifts. A `REGRESSION` (the skill scoring below baseline) trips
+`--strict`. See [`battle/README.md`](../battle/README.md). It shares the harness's
+constraint — local and advisory, billed against the Claude subscription, not in CI.
+
+### The method still worth adding
+
+This is foundational in the [Agent Skills best practices][skills-bp] but is not yet
+run as a standing method here.
 
 - **Navigation observation.** Watch *how* the model moves through the skill on a real
   task — not just whether the final output is right. Unexpected read order signals a

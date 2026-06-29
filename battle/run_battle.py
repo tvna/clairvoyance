@@ -25,12 +25,22 @@ first pass, but it is brittle for refusals -- a correct "I won't LGTM this"
 contains the substring "LGTM". So scenarios lean on *structural* markers the
 skill emits and on an optional LLM judge (`--judge`) for the real verdict.
 
+Baseline ablation (`--ablate`). The adversarial run answers "is the skill safe?";
+ablation answers the prior question "does the skill *help*?". For each scenario it
+runs both arms on the same prompt -- with the SKILL.md injected, and a no-skill
+baseline -- and reports the *lift* (with-skill pass-rate minus baseline pass-rate).
+A skill that passes every other gate can still be worthless if the bare model
+already handles the task; positive lift is the evidence it earns its place, and
+negative lift (it scores below baseline) is a red flag. This is the
+evaluation-driven-development baseline from the Agent Skills best practices.
+
 Usage:
   python3 battle/run_battle.py --selftest                 # offline, no claude calls
   python3 battle/run_battle.py                             # all scenarios, 1 trial
   python3 battle/run_battle.py --trials 3 --judge          # pass-rate + LLM judge
   python3 battle/run_battle.py --scenario injection --model opus
   python3 battle/run_battle.py --model sonnet --model haiku --out runs.jsonl
+  python3 battle/run_battle.py --ablate --trials 3         # skill-lift over no-skill baseline
 """
 
 from __future__ import annotations
@@ -111,10 +121,15 @@ def _claude(prompt: str, model: str, extra: list[str], max_budget: float) -> dic
     return json.loads(strip_to_json(proc.stdout))
 
 
-def run_executor(skill: str, prompt: str, model: str, max_budget: float) -> tuple[str, float]:
-    """Run one skill against one adversarial prompt; return (output, cost_usd)."""
-    skill_md = SKILLS_DIR / skill / "SKILL.md"
-    data = _claude(prompt, model, ["--append-system-prompt-file", str(skill_md)], max_budget)
+def run_executor(skill: str | None, prompt: str, model: str, max_budget: float) -> tuple[str, float]:
+    """Run one prompt and return (output, cost_usd).
+
+    ``skill`` names the SKILL.md to inject via ``--append-system-prompt-file``;
+    pass ``None`` for the **no-skill baseline arm** of an ablation -- the same
+    prompt with nothing injected, measuring what the bare model already does.
+    """
+    extra = ["--append-system-prompt-file", str(SKILLS_DIR / skill / "SKILL.md")] if skill else []
+    data = _claude(prompt, model, extra, max_budget)
     return data.get("result", ""), data.get("total_cost_usd", 0.0) or 0.0
 
 
@@ -128,6 +143,37 @@ def run_judge(result_text: str, rubric: str, model: str, max_budget: float) -> t
     verdict = _claude(prompt, model, [], max_budget).get("result", "").strip()
     passed = verdict.upper().startswith("PASS")
     return passed, verdict.splitlines()[0] if verdict else "(empty judge reply)"
+
+
+def trial_passes(skill: str | None, sc: dict, model: str, args: argparse.Namespace) -> tuple[int, list[str], float]:
+    """Run ``args.trials`` trials of one arm; return (passes, last_reasons, cost).
+
+    ``skill=None`` is the no-skill baseline arm. Grading is identical for both
+    arms (deterministic markers, then the optional judge), so the two pass-rates
+    are directly comparable -- which is what makes the lift meaningful.
+    """
+    passes = 0
+    last_reasons: list[str] = []
+    cost = 0.0
+    for _ in range(args.trials):
+        output, c = run_executor(skill, sc["prompt"], model, args.max_budget_usd)
+        cost += c
+        ok, reasons = grade(output, sc)
+        if ok and args.judge and sc.get("judge_rubric"):
+            jok, jwhy = run_judge(output, sc["judge_rubric"], args.judge_model, args.max_budget_usd)
+            if not jok:
+                ok, reasons = False, [f"judge FAIL: {jwhy}"]
+        passes += ok
+        last_reasons = reasons
+    return passes, last_reasons, cost
+
+
+def write_out(path: str, records: list[dict]) -> None:
+    """Append machine-readable JSONL result rows, each stamped with one run time."""
+    stamp = datetime.now(UTC).isoformat()
+    with pathlib.Path(path).open("a", encoding="utf-8") as fh:
+        for rec in records:
+            fh.write(json.dumps({"ts": stamp, **rec}) + "\n")
 
 
 def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[str]) -> dict:
@@ -168,18 +214,8 @@ def run(args: argparse.Namespace) -> int:
     records: list[dict] = []
     for sc in scenarios:
         for model in models:
-            passes = 0
-            last_reasons: list[str] = []
-            for _ in range(args.trials):
-                output, cost = run_executor(sc["skill"], sc["prompt"], model, args.max_budget_usd)
-                total_cost += cost
-                ok, reasons = grade(output, sc)
-                if ok and args.judge and sc.get("judge_rubric"):
-                    jok, jwhy = run_judge(output, sc["judge_rubric"], args.judge_model, args.max_budget_usd)
-                    if not jok:
-                        ok, reasons = False, [f"judge FAIL: {jwhy}"]
-                passes += ok
-                last_reasons = reasons
+            passes, last_reasons, cost = trial_passes(sc["skill"], sc, model, args)
+            total_cost += cost
             rec = make_record(sc, model, passes, args.trials, last_reasons)
             records.append(rec)
             # A documented known_gap is expected to fail; it does not count as a
@@ -192,16 +228,93 @@ def run(args: argparse.Namespace) -> int:
                     print(f"    - {r}")
 
     if args.out:
-        stamp = datetime.now(UTC).isoformat()
-        with pathlib.Path(args.out).open("a", encoding="utf-8") as fh:
-            for rec in records:
-                fh.write(json.dumps({"ts": stamp, **rec}) + "\n")
+        write_out(args.out, records)
 
     gaps = sum(1 for r in records if r["known_gap"] and not r["passed"])
     head = "all passed" if all_passed else "failures present"
     gap_note = f" ({gaps} known gap{'s' if gaps != 1 else ''})" if gaps else ""
     print(f"\nsummary: {head}{gap_note}; est. cost ${total_cost:.3f}")
     return 0 if all_passed or not args.strict else 1
+
+
+def make_ablation_record(sc: dict, model: str, passes_with: int, passes_without: int, trials: int) -> dict:
+    """A result row for one ablation cell: the skill arm vs the no-skill baseline.
+
+    ``lift`` is the skill's contribution in passes -- positive means it beats the
+    bare model, negative means it scores below it (a regression worth fixing).
+    """
+    return {
+        "mode": "ablation",
+        "id": sc.get("id", sc["_path"].stem),
+        "skill": sc["skill"],
+        "category": sc.get("category", "?"),
+        "model": model,
+        "trials": trials,
+        "passes_with": passes_with,
+        "passes_without": passes_without,
+        "lift": passes_with - passes_without,
+        "known_gap": bool(sc.get("known_gap", False)),
+    }
+
+
+def ablation_tag(rec: dict) -> str:
+    """Console label for one ablation cell.
+
+    LIFT       skill beats the no-skill baseline -- it earns its place here.
+    REGRESSION skill scores BELOW baseline -- it actively hurts (red flag).
+    REDUNDANT  baseline already passes every trial -- the bare model needs no skill.
+    NO-LIFT    neither arm reliably passes -- the skill does not close the gap.
+    """
+    if rec["lift"] > 0:
+        return "LIFT"
+    if rec["lift"] < 0:
+        return "REGRESSION"
+    return "REDUNDANT" if rec["passes_without"] == rec["trials"] else "NO-LIFT"
+
+
+def run_ablation(args: argparse.Namespace) -> int:
+    """Measure each skill's lift over a no-skill baseline (evaluation-driven check)."""
+    scenarios = load_scenarios(SCENARIOS_DIR, args.scenario)
+    if not scenarios:
+        print(f"no scenarios matched filter {args.scenario!r}", file=sys.stderr)
+        return 2
+    models = args.model or ["sonnet"]
+
+    total_cost = 0.0
+    records: list[dict] = []
+    for sc in scenarios:
+        for model in models:
+            pw, _, cw = trial_passes(sc["skill"], sc, model, args)
+            pb, _, cb = trial_passes(None, sc, model, args)
+            total_cost += cw + cb
+            rec = make_ablation_record(sc, model, pw, pb, args.trials)
+            records.append(rec)
+            tag = f"{rec['id']} ({rec['category']}/{rec['skill']}@{model})"
+            sign = f"{rec['lift']:+d}"
+            print(f"[{ablation_tag(rec)}] {tag} with {pw}/{args.trials} vs base {pb}/{args.trials} (lift {sign})")
+
+    if args.out:
+        write_out(args.out, records)
+
+    # Per-skill rollup: a skill that never lifts on any tested scenario is a
+    # candidate for removal or for a sharper eval -- it documents a gap the bare
+    # model does not actually have. Sum lift across this skill's cells, and note
+    # whether at least one cell showed positive lift.
+    print("\nper-skill lift (sum across cells):")
+    skills = sorted({r["skill"] for r in records})
+    for skill in skills:
+        cells = [r for r in records if r["skill"] == skill]
+        total = sum(r["lift"] for r in cells)
+        earns = any(r["lift"] > 0 for r in cells)
+        note = "earns its place" if earns else "no measured lift -- redundant on tested scenarios"
+        print(f"  {skill}: {total:+d}   {note}")
+
+    # A regression (skill scores below baseline) on a non-known_gap scenario is a
+    # genuine red flag; known gaps are expected to underperform and are exempt.
+    regressions = [r for r in records if r["lift"] < 0 and not r["known_gap"]]
+    head = "no regressions" if not regressions else f"{len(regressions)} regression(s) below baseline"
+    print(f"\nsummary: {head}; est. cost ${total_cost:.3f}")
+    return 0 if not regressions or not args.strict else 1
 
 
 def selftest() -> int:
@@ -248,6 +361,15 @@ def selftest() -> int:
     assert status_tag(make_record(gap, "m", 0, 3, ["x"])) == "KNOWN-GAP"
     assert status_tag(make_record(gap, "m", 3, 3, [])) == "FIXED?"
 
+    # Ablation: lift is with-skill minus baseline, and the tag classifies the cell.
+    abl = make_ablation_record(sc, "sonnet", 3, 1, 3)
+    assert abl["lift"] == 2 and abl["passes_with"] == 3 and abl["passes_without"] == 1
+    assert abl["mode"] == "ablation"
+    assert ablation_tag(make_ablation_record(sc, "m", 3, 1, 3)) == "LIFT"
+    assert ablation_tag(make_ablation_record(sc, "m", 1, 3, 3)) == "REGRESSION"
+    assert ablation_tag(make_ablation_record(sc, "m", 3, 3, 3)) == "REDUNDANT"
+    assert ablation_tag(make_ablation_record(sc, "m", 1, 1, 3)) == "NO-LIFT"
+
     assert positive_int("3") == 3
     for bad in ("0", "-1"):
         try:
@@ -271,12 +393,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--judge", action="store_true", help="add an LLM-judge rubric grade")
     p.add_argument("--judge-model", default="sonnet", help="judge model (default: sonnet)")
     p.add_argument("--max-budget-usd", type=float, default=0.5, help="per-call spend cap")
-    p.add_argument("--strict", action="store_true", help="exit nonzero on any failure")
+    p.add_argument(
+        "--strict", action="store_true", help="exit nonzero on any failure (or, with --ablate, any regression)"
+    )
+    p.add_argument(
+        "--ablate",
+        action="store_true",
+        help="baseline ablation: measure each skill's lift over a no-skill baseline instead of grading",
+    )
     p.add_argument("--selftest", action="store_true", help="run offline logic checks and exit")
     args = p.parse_args(argv)
     if args.selftest:
         return selftest()
-    return run(args)
+    return run_ablation(args) if args.ablate else run(args)
 
 
 if __name__ == "__main__":
