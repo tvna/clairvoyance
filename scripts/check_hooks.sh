@@ -14,8 +14,10 @@ bash -n "${root}/plugin/hooks/session-start.sh"
 bash "${root}/plugin/hooks/session-start.sh" | python3 -m json.tool > /dev/null
 
 # The adaptive-coaching store ships alongside the hooks and is invoked by both
-# session-start.sh and the skill. Parse it for syntax without side effects (no
-# DB writes) so a broken store fails loud here, the same as the bash hooks.
+# session-start.sh and the skill. Syntax-check both the sqlite3-CLI entry point
+# and its Python fallback, without side effects (no DB writes), so a broken
+# store fails loud here, the same as the bash hooks.
+bash -n "${root}/plugin/hooks/adaptive-store.sh"
 python3 -c "import ast, pathlib; ast.parse(pathlib.Path('${root}/plugin/hooks/adaptive-store.py').read_text())"
 
 # Both runtimes drive session-start.sh through the same run-hook.cmd wrapper; the

@@ -45,18 +45,20 @@ else
 fi
 
 # Surface adaptive-coaching readiness from the local, anonymous observation
-# store. It only injects a coaching cue once enough signal has accumulated on
-# this workstation; a missing python3, missing store, or unwritable/ephemeral
+# store. The store (adaptive-store.sh) uses the sqlite3 CLI, falling back to
+# python3, so this cue needs neither here: readiness is detected from the JSON
+# with a shell glob. A missing store, no backend, or an unwritable/ephemeral
 # environment all degrade silently to no cue (volatility is tolerated).
 coaching_block=""
-store_path="${plugin_root}/hooks/adaptive-store.py"
-if command -v python3 >/dev/null 2>&1 && [ -f "${store_path}" ]; then
-  status_json="$(python3 "${store_path}" status 2>/dev/null || true)"
-  ready_flag="$(printf '%s' "${status_json}" | python3 -c 'import json,sys; print("1" if json.load(sys.stdin).get("ready") else "")' 2>/dev/null || true)"
-  if [ -n "${ready_flag}" ]; then
-    coaching_context="Adaptive-coaching signal has reached its threshold on this workstation. Before the next agent-to-human handoff, load 'clairvoyance:adaptive-coaching', classify the technical versus adaptive split, and deliver a prosthesis-building AskUserQuestion quiz that corrects the person's adaptive challenge."
-    coaching_block="\n\n$(escape_json "$coaching_context")"
-  fi
+store_sh="${plugin_root}/hooks/adaptive-store.sh"
+if [ -f "${store_sh}" ]; then
+  status_json="$(bash "${store_sh}" status 2>/dev/null || true)"
+  case "${status_json}" in
+    *'"ready": true'*)
+      coaching_context="Adaptive-coaching signal has reached its threshold on this workstation. Before the next agent-to-human handoff, load 'clairvoyance:adaptive-coaching', classify the technical versus adaptive split, and deliver a prosthesis-building AskUserQuestion quiz that corrects the person's adaptive challenge."
+      coaching_block="\n\n$(escape_json "$coaching_context")"
+      ;;
+  esac
 fi
 
 escaped="$(escape_json "$skill_content")"

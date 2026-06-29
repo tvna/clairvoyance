@@ -35,7 +35,7 @@ eval suite, and a repo-local doc mention.
 | `review-verdict` | `plugin/skills/review-verdict/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/review-verdict/` | `docs/skills.md` |
 | `architecture-tradeoff` | `plugin/skills/architecture-tradeoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/architecture-tradeoff/` | `docs/skills.md` |
 | `decision-coaching` | `plugin/skills/decision-coaching/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/decision-coaching/` | `docs/skills.md` |
-| `adaptive-coaching` | `plugin/skills/adaptive-coaching/SKILL.md` | `scripts/check_skills.py`, `scripts/check_hooks.sh` + `plugin/hooks/adaptive-store.py` (paired test `tests/test_adaptive_store.py`) | `plugin/evals/adaptive-coaching/` | `docs/skills.md`, `docs/hooks.md` |
+| `adaptive-coaching` | `plugin/skills/adaptive-coaching/SKILL.md` | `scripts/check_skills.py`, `scripts/check_hooks.sh` + `plugin/hooks/adaptive-store.sh` (sqlite3 CLI) and `adaptive-store.py` (python fallback) (paired test `tests/test_adaptive_store.py`) | `plugin/evals/adaptive-coaching/` | `docs/skills.md`, `docs/hooks.md` |
 | `session-handoff` | `plugin/skills/session-handoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/session-handoff/` | `docs/session-handoff.md`, `docs/skills.md` |
 
 The forward/backward coverage of this matrix is enforced deterministically by
@@ -99,10 +99,11 @@ upstream sections 6.4 and 7 for the retrospective and review machinery.
 
 **Scope reversal (`adaptive-coaching`).** The upstream's repo-wide metrics store stays
 out, but a deliberately narrower store is now **in** scope: `adaptive-coaching` ships
-a local, anonymous, single-operator observation store (`plugin/hooks/adaptive-store.py`)
-so it can gate coaching on accumulated signal. It is scoped to one workstation, stores
-only coded metadata (never content), has no cross-repo or downstream surface, and
-tolerates volatility — so it does not reintroduce the upstream machinery this section
-otherwise excludes. It lives in the Harness lane (`plugin/hooks/*`) with a paired test.
+a local, anonymous, single-operator observation store (`plugin/hooks/adaptive-store.sh`,
+backed by the `sqlite3` CLI with a `python3` fallback) so it can gate coaching on
+accumulated signal. It is scoped to one workstation, stores only coded metadata (never
+content), has no cross-repo or downstream surface, and tolerates volatility — so it does
+not reintroduce the upstream machinery this section otherwise excludes. It lives in the
+Harness lane (`plugin/hooks/*`) with a paired test.
 
 [upstream]: https://github.com/tvna/claude-md/blob/main/docs/prd/agent-rules-design-philosophy.md

@@ -16,7 +16,7 @@ If the bootstrap skill file is missing, the hook exits 0 and injects nothing.
 
 ## Adaptive-coaching store
 
-`plugin/hooks/adaptive-store.py` is a stdlib-only (`sqlite3`) CLI that persists a
+`plugin/hooks/adaptive-store.sh` is the store entry point: a CLI that persists a
 small, **anonymous** record of adaptive-challenge observations on the operator's own
 workstation, so `adaptive-coaching` waits until enough signal has accumulated before
 it coaches. It stores only coded metadata — an adaptive-challenge category, a short
@@ -33,15 +33,26 @@ prompt text, code, or file paths.
 - **Volatility is tolerated.** Ephemeral or read-only environments (remote sessions,
   sandboxes) simply do not persist, and any storage error degrades to
   "not available / not ready" rather than failing the session.
-- **Dependency.** The store reads and writes SQLite through Python's stdlib
-  `sqlite3`, so the adaptive-coaching feature needs `python3` on the workstation
-  (Git for Windows does not bundle a `sqlite3` CLI). This is the one feature that
-  requires Python; the rest of the SessionStart hook keeps its bash-required,
-  python-optional contract. With no `python3`, `session-start.sh` skips the
-  readiness query and the session starts normally — only coaching stays inactive.
 
-`scripts/check_hooks.sh` parses the store for syntax (no side effects); its behaviour
-is covered by `tests/test_adaptive_store.py`.
+### Backends (SQLite, no Python required)
+
+The store keeps a SQLite database but does **not** require Python. Two
+interchangeable backends sit behind `adaptive-store.sh`, selected by
+`$CLAIRVOYANCE_STORE_BACKEND` (default `auto`):
+
+- **`sqlite3` CLI (primary)** — install with `choco install sqlite` on Windows
+  (Git for Windows bundles no `sqlite3`); on macOS/Linux it is usually present.
+- **`python3` stdlib `sqlite3` (fallback)** — used when the CLI is absent.
+- **`auto`** picks the CLI if present, else `python3`, else degrades to
+  "not available" (coaching simply stays inactive; the session is unaffected).
+
+Both backends read and write the same `coaching.db` and emit byte-identical JSON;
+`tests/test_adaptive_store.py` runs every behavioural case against both and asserts
+their equivalence so they cannot drift. `session-start.sh` detects readiness from the
+store's JSON with a shell glob, so the readiness cue itself needs neither runtime.
+
+`scripts/check_hooks.sh` syntax-checks both `adaptive-store.sh` (`bash -n`) and the
+`adaptive-store.py` fallback (no side effects).
 
 ### Codex
 
