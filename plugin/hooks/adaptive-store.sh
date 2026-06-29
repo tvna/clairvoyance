@@ -2,7 +2,7 @@
 # Local, anonymous adaptive-coaching observation store.
 #
 # Subcommands:
-#   record --category C [--signal S] [--outcome correct|incorrect] [--session-kind K]
+#   record --category C [--signal S] [--outcome correct|incorrect] [--session-kind K] [--context-stdin]
 #   record-session   -- count one chat session toward the grace period
 #   status           -- report counts and whether coaching should trigger
 # Each prints one JSON object on stdout and (apart from a missing required
@@ -23,9 +23,10 @@
 # short coded signal label, a quiz outcome, the session kind, a UTC timestamp,
 # and an anonymous session count -- never prompt text, code, or file paths.
 # Opt-in context capture (CLAIRVOYANCE_STORE_CONTEXT) additionally stores a
-# `--context` string -- an abstracted scenario summary, only as detailed as a
-# later reflection needs -- after a best-effort secret redaction; that scrub is a
-# backstop, the caller is the primary redactor. The store is bounded by rotation
+# scenario summary read from stdin via `--context-stdin` -- never an argv value,
+# so the unredacted text is not exposed in process listings before redaction --
+# only as detailed as a later reflection needs, and after a best-effort secret
+# redaction; that scrub is a backstop, the caller is the primary redactor. The store is bounded by rotation
 # (CLAIRVOYANCE_MAX_OBSERVATIONS, CLAIRVOYANCE_MAX_AGE_DAYS). Storage location,
 # thresholds, anonymity, rotation, and volatility are in docs/hooks.md.
 set -euo pipefail
@@ -37,12 +38,13 @@ signal=""
 outcome=""
 session_kind=""
 context=""
+context_stdin=""
 i=1
 while [ "$i" -lt "$#" ]; do
   i=$((i + 1))
   key="${!i}"
   case "$key" in
-    --category | --signal | --outcome | --session-kind | --context)
+    --category | --signal | --outcome | --session-kind)
       i=$((i + 1))
       value="${!i:-}"
       case "$key" in
@@ -50,8 +52,12 @@ while [ "$i" -lt "$#" ]; do
         --signal) signal="$value" ;;
         --outcome) outcome="$value" ;;
         --session-kind) session_kind="$value" ;;
-        --context) context="$value" ;;
       esac
+      ;;
+    --context-stdin)
+      # Boolean flag: read the raw context from stdin (see record below). Kept off
+      # argv so secret-bearing text never lands in a process listing.
+      context_stdin=1
       ;;
   esac
 done
@@ -147,7 +153,7 @@ sql_value() {
 
 # A SQLite string literal for arbitrary text: double every single quote so the
 # value cannot break out of the literal (this is what makes storing the raw
-# `--context` string by interpolation safe). Empty -> NULL.
+# context string by interpolation safe). Empty -> NULL.
 sql_text() {
   local v="$1"
   [ -z "${v}" ] && { printf 'NULL'; return; }
@@ -291,7 +297,12 @@ case "${cmd}" in
     ts="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
     # Context is opt-in and is only ever stored after a best-effort secret
     # redaction; with context capture off, no scenario text is persisted at all.
+    # The raw context arrives on stdin (never argv), so the unredacted text is not
+    # exposed in a process listing before redaction runs.
     ctx=""
+    if [ -n "${context_stdin}" ]; then
+      context="$(cat)"
+    fi
     if store_context_enabled && [ -n "${context}" ]; then
       ctx="$(redact_secrets "${context}")"
     fi

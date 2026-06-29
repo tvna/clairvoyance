@@ -28,14 +28,15 @@ HAS_SQLITE3 = shutil.which("sqlite3") is not None
 needs_sqlite3 = pytest.mark.skipif(not HAS_SQLITE3, reason="sqlite3 CLI not installed")
 
 
-def run_raw(args, data_dir, threshold=None, session_threshold=0, env_extra=None):
+def run_raw(args, data_dir, threshold=None, session_threshold=0, env_extra=None, stdin_text=""):
     """Invoke the store with an isolated data dir; return the CompletedProcess.
 
     ``session_threshold`` defaults to 0 (grace disabled) so signal-gate tests are
     not blocked by it; pass ``None`` to leave it unset and exercise the default.
     ``env_extra`` sets extra environment variables (e.g. raw capture or rotation
     bounds); all store-specific vars are cleared from the ambient env first so
-    tests are deterministic.
+    tests are deterministic. ``stdin_text`` feeds stdin, used by ``--context-stdin``
+    so raw context never travels through argv.
     """
     env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(data_dir)}
     for key in (
@@ -54,12 +55,14 @@ def run_raw(args, data_dir, threshold=None, session_threshold=0, env_extra=None)
         env["CLAIRVOYANCE_SESSION_THRESHOLD"] = str(session_threshold)
     if env_extra:
         env.update({k: str(v) for k, v in env_extra.items()})
-    return subprocess.run(["bash", str(STORE_SH), *args], capture_output=True, text=True, env=env, input="")
+    return subprocess.run(
+        ["bash", STORE_SH.as_posix(), *args], capture_output=True, text=True, env=env, input=stdin_text
+    )
 
 
-def run(args, data_dir, threshold=None, session_threshold=0, env_extra=None):
+def run(args, data_dir, threshold=None, session_threshold=0, env_extra=None, stdin_text=""):
     """Invoke the store and parse its JSON, asserting a clean exit."""
-    result = run_raw(args, data_dir, threshold, session_threshold, env_extra)
+    result = run_raw(args, data_dir, threshold, session_threshold, env_extra, stdin_text)
     assert result.returncode == 0, result.stderr
     return json.loads(result.stdout)
 
@@ -216,7 +219,7 @@ def test_home_fallback_dir_is_dotted(tmp_path):
     for key in ("CLAIRVOYANCE_DATA_DIR", "LOCALAPPDATA", "XDG_DATA_HOME"):
         env.pop(key, None)
     result = subprocess.run(
-        ["bash", str(STORE_SH), "record-session"], capture_output=True, text=True, env=env, input=""
+        ["bash", STORE_SH.as_posix(), "record-session"], capture_output=True, text=True, env=env, input=""
     )
     assert result.returncode == 0, result.stderr
     assert (home / ".clairvoyance" / "coaching.db").exists()
@@ -233,9 +236,9 @@ def _contexts(data_dir):
 
 @needs_sqlite3
 def test_context_not_stored_by_default(tmp_path):
-    """Raw capture is opt-in: without it, a --context is dropped, not persisted."""
+    """Raw capture is opt-in: without it, stdin context is dropped, not persisted."""
     data_dir = tmp_path / "store"
-    run(["record", "--category", "avoidance", "--context", "deferred the cutover decision"], data_dir)
+    run(["record", "--category", "avoidance", "--context-stdin"], data_dir, stdin_text="deferred the cutover decision")
     assert _contexts(data_dir) == [None]
 
 
@@ -244,9 +247,10 @@ def test_context_stored_verbatim_when_raw_enabled(tmp_path):
     """With raw capture on, non-sensitive context is stored as-is."""
     data_dir = tmp_path / "store"
     run(
-        ["record", "--category", "authority-dependence", "--context", "deferred the cutover decision again"],
+        ["record", "--category", "authority-dependence", "--context-stdin"],
         data_dir,
         env_extra={"CLAIRVOYANCE_STORE_CONTEXT": "1"},
+        stdin_text="deferred the cutover decision again",
     )
     assert _contexts(data_dir) == ["deferred the cutover decision again"]
 
@@ -256,7 +260,12 @@ def test_raw_context_redacts_secrets(tmp_path):
     """The store-side backstop scrubs obvious secrets before persisting context."""
     data_dir = tmp_path / "store"
     leaky = "use AKIAABCDEFGHIJKLMNOP and password: hunter2 and token=deadbeefcafe1234 then normal text"
-    run(["record", "--category", "other", "--context", leaky], data_dir, env_extra={"CLAIRVOYANCE_STORE_CONTEXT": "on"})
+    run(
+        ["record", "--category", "other", "--context-stdin"],
+        data_dir,
+        env_extra={"CLAIRVOYANCE_STORE_CONTEXT": "on"},
+        stdin_text=leaky,
+    )
     ctx = _contexts(data_dir)[0]
     assert "AKIAABCDEFGHIJKLMNOP" not in ctx
     assert "hunter2" not in ctx
@@ -270,7 +279,12 @@ def test_raw_context_quotes_are_safe(tmp_path):
     """A context with quotes and SQL metacharacters is stored literally, not executed."""
     data_dir = tmp_path / "store"
     tricky = "it's 'tricky'); DROP TABLE observations;--"
-    run(["record", "--category", "other", "--context", tricky], data_dir, env_extra={"CLAIRVOYANCE_STORE_CONTEXT": "1"})
+    run(
+        ["record", "--category", "other", "--context-stdin"],
+        data_dir,
+        env_extra={"CLAIRVOYANCE_STORE_CONTEXT": "1"},
+        stdin_text=tricky,
+    )
     # The table survived the injection attempt and stored the text verbatim.
     assert _contexts(data_dir) == [tricky]
 

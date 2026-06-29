@@ -5,8 +5,8 @@ data to be fair. It does not trigger anything on its own: the quiz fires only wh
 the person asks to reflect. Entry point `adaptive-store.sh`, backed by the
 `sqlite3` CLI (`choco install sqlite`). By default record only coded metadata —
 never prompt text, code, or file paths. Opt-in context capture (below) can also
-store an abstracted `--context` summary, secret-redacted, when the operator
-enables it.
+store an abstracted summary — passed on stdin via `--context-stdin`, secret-redacted
+— when the operator enables it.
 
 ## Contents
 
@@ -29,10 +29,12 @@ bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" record --category <category
 
 Optionally attach an abstracted context summary — stored only when context capture
 is enabled, abstracted to what a later reflection needs and always secret-redacted
-first (redact known secrets yourself before passing it):
+first (redact known secrets yourself before passing it). Pass it on **stdin** via
+`--context-stdin`, never as an argv value, so the unredacted text is not exposed in
+a process listing:
 
 ```bash
-CLAIRVOYANCE_STORE_CONTEXT=1 bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" record --category <category> --context "<original text>"
+printf '%s' "<abstracted summary>" | CLAIRVOYANCE_STORE_CONTEXT=1 bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" record --category <category> --context-stdin
 ```
 
 Record a quiz outcome (same category as the observation it scores):
@@ -78,8 +80,8 @@ token so no free text persists.
 ## Context capture and rotation
 
 - **Context capture (opt-in).** `CLAIRVOYANCE_STORE_CONTEXT=1` (default off) stores
-  the `--context` summary so a later reflection can reproduce the concrete moment —
-  abstract it to what the experience needs, no more. It is always run through a
+  the stdin `--context-stdin` summary so a later reflection can reproduce the
+  concrete moment — abstract it to what the experience needs, no more. It is always run through a
   best-effort secret scrub first (cloud keys, JWTs, tokens, `key=value` secrets,
   PRIVATE KEY lines). That scrub is a backstop, not a guarantee — the caller is the
   primary redactor.

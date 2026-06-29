@@ -144,3 +144,39 @@ jobs:
           disable_search: true
           fail_ci_if_error: false
           use_oidc: true
+
+  tests-windows:
+    # The plugin's bundled scripts target Windows (run-hook.cmd locates Git Bash;
+    # the store resolves %LOCALAPPDATA% and expects choco-installed sqlite3), but
+    # the Linux jobs above never prove they run there. Exercise the store's bash
+    # CLI on a real Windows runner via Git Bash. harden-runner is Linux-only, so
+    # it is omitted here.
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install sqlite3 CLI
+        # Git for Windows ships no sqlite3; choco shims sqlite3.exe onto the
+        # chocolatey bin, which is already on PATH for later steps.
+        run: choco install sqlite -y --no-progress
+        shell: pwsh
+
+      - name: Verify sqlite3 is on PATH
+        run: sqlite3 -version
+        shell: bash
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Run store tests on Windows (bash scripts via Git Bash)
+        # Confirms the bundled adaptive-store.sh runs under Windows Git Bash.
+        # Coverage (--cov-fail-under=100) is enforced by the Linux job, so disable
+        # it here — this run is about cross-platform execution, not coverage.
+        run: uv run --frozen pytest tests/test_adaptive_store.py --no-cov
+        shell: bash

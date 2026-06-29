@@ -28,8 +28,9 @@ timestamp — never prompt text, code, or file paths. Opt-in context capture (be
 can additionally store an abstracted, secret-redacted scenario summary.
 
 - **Subcommands.** `record --category <c> [--signal …] [--outcome correct|incorrect]
-  [--session-kind …] [--context …]` appends one observation (`--context` is stored
-  only with context capture on); `record-session` counts one chat session; `status`
+  [--session-kind …] [--context-stdin]` appends one observation (with
+  `--context-stdin` the context is read from stdin, never argv, and is stored only
+  with context capture on); `record-session` counts one chat session; `status`
   reports the counts and whether it is `ready`. Each prints one JSON object and
   (apart from a missing required `--category`) always exits 0.
 - **Two-gate readiness.** A reflection quiz is delivered only when the human asks
@@ -45,8 +46,9 @@ can additionally store an abstracted, secret-redacted scenario summary.
   sandboxes) simply do not persist, and any storage error degrades to
   "not available / not ready" rather than failing the session.
 - **Context capture and rotation.** `CLAIRVOYANCE_STORE_CONTEXT=1` (default off)
-  stores an abstracted, secret-redacted `--context` summary so a later reflection
-  can reproduce the moment. Rotation keeps the store bounded:
+  stores an abstracted, secret-redacted summary (read from stdin via
+  `--context-stdin`) so a later reflection can reproduce the moment. Rotation keeps
+  the store bounded:
   `CLAIRVOYANCE_MAX_OBSERVATIONS` (default 500, newest kept) and
   `CLAIRVOYANCE_MAX_AGE_DAYS` (default 180); `0` disables either bound.
 
@@ -88,7 +90,7 @@ sequenceDiagram
     participant A as adaptive-coaching
     participant P as Person
     H->>S: record-session (meta.sessions plus one)
-    A->>S: record --category [--signal] [--session-kind] [--context]
+    A->>S: record --category [--signal] [--session-kind] [--context-stdin (stdin)]
     Note right of S: persists ts, category, signal, kind (and, opt-in, a redacted context) — never raw prompt, code, or paths
     P->>A: asks to reflect
     A->>S: status
