@@ -27,6 +27,12 @@ exactly one human-facing handoff skill for the moment at hand:
   and only once enough has accumulated (a session grace period plus signal). The
   boundary with `decision-coaching` is intent: a live decision there, an explicit
   reflection request here. See [hooks.md](hooks.md) for the local store.
+- **`human-harness`** — the human harness: a high-blast-radius, irreversible, or
+  compliance-violating instruction. It is the inverse of rubber-stamping the human's
+  order — instead of executing, it stops, measures blast radius, and presses the
+  human to confirm intent one focused question at a time so a human error is caught
+  before it lands. It is one layer; the deterministic, process, and eval measures
+  that must back it live outside the skill — see [human-harness.md](human-harness.md).
 
 ## Depth gate
 

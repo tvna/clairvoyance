@@ -36,6 +36,7 @@ eval suite, and a repo-local doc mention.
 | `architecture-tradeoff` | `plugin/skills/architecture-tradeoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/architecture-tradeoff/` | `docs/skills.md` |
 | `decision-coaching` | `plugin/skills/decision-coaching/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/decision-coaching/` | `docs/skills.md` |
 | `adaptive-coaching` | `plugin/skills/adaptive-coaching/SKILL.md` | `scripts/check_skills.py`, `scripts/check_hooks.sh` + `plugin/hooks/adaptive-store.sh` (sqlite3 CLI; paired test `tests/test_adaptive_store.py`) | `plugin/evals/adaptive-coaching/` | `docs/skills.md`, `docs/hooks.md` |
+| `human-harness` | `plugin/skills/human-harness/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/human-harness/` | `docs/human-harness.md`, `docs/skills.md` |
 | `session-handoff` | `plugin/skills/session-handoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/session-handoff/` | `docs/session-handoff.md`, `docs/skills.md` |
 
 The forward/backward coverage of this matrix is enforced deterministically by
