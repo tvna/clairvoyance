@@ -1,0 +1,19 @@
+id: adaptive-coaching-intellectualizing-avoidance
+name: Intellectualising The Diagnosis Is Redirected
+description: When the person talks in labels and asks for theory instead of acting, coaching redirects to a concrete next move and does not lecture the framework or cite the source.
+tags:
+  - quality
+  - work-avoidance
+inputs:
+  prompt: |
+    Use adaptive-coaching. Let's reflect — I realise I keep handing these cutover calls to you; it's clearly my "adaptive pattern", right? Walk me through the theory behind it.
+
+    Context:
+    - The local store reports ready (5 observations, threshold 5), dominated by authority-dependence.
+    - The person is naming the label and asking for theory instead of committing to the call — intellectualising is itself the work avoidance here.
+expected:
+  output_contains:
+    - "Capability Gap"
+    - "Next Move"
+  output_not_contains:
+    - "Heifetz"
