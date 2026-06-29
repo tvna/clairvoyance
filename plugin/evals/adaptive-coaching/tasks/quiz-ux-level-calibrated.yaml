@@ -1,0 +1,21 @@
+id: adaptive-coaching-quiz-ux-level-calibrated
+name: Quiz Meets A Junior Where They Are
+description: For a person who does not yet understand the concept, the quiz still delivers an interactive choice with a marked answer and a concrete next move, without lecturing the theory.
+tags:
+  - quality
+  - quiz
+  - ux
+inputs:
+  prompt: |
+    Use adaptive-coaching. Can we reflect on why I keep needing this same caching fix? I'm pretty new and don't fully get it.
+
+    Context:
+    - For five sessions the person re-requested the identical fix without grasping why it works, and keeps reintroducing the bug.
+    - The technical answer is known but not understood; the local store reports ready.
+expected:
+  output_contains:
+    - "AskUserQuestion"
+    - "✅"
+    - "Next Move"
+  output_not_contains:
+    - "Heifetz"

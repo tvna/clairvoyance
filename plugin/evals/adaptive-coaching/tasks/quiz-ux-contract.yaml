@@ -1,0 +1,20 @@
+id: adaptive-coaching-quiz-ux-contract
+name: Quiz UX Is Well-Formed
+description: A delivered quiz is interactive (AskUserQuestion), marks the correct answer, and ends with an actionable next move — the UX a prosthesis quiz must have to land.
+tags:
+  - quality
+  - quiz
+  - ux
+inputs:
+  prompt: |
+    Use adaptive-coaching. Let's do a retrospective — I keep putting off cutting scope and I want to see my own pattern.
+
+    Context:
+    - For five sessions the person avoided the same hard scope-cut, each time because it means dropping a feature they are attached to.
+    - The local store reports ready (5 observations, threshold 5), dominated by loss-aversion.
+expected:
+  output_contains:
+    - "AskUserQuestion"
+    - "Quiz"
+    - "✅"
+    - "Next Move"
