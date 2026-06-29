@@ -20,20 +20,17 @@ The most common failure is mislabeling an adaptive challenge as technical. Name 
 
 ## Data sufficiency gate
 
-1. Record each adaptive observation as anonymous coded metadata in the local store, never prompt text or code:
-   `bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" record --category <category> [--signal <coded-label>]` (Codex substitutes `${PLUGIN_ROOT}`). Categories: `avoidance`, `mislabeled-technical`, `loss-aversion`, `values-conflict`, `no-experiment`, `authority-dependence`, `other`. The store uses the `sqlite3` CLI (`choco install sqlite`).
-2. Do not coach on a single instance. Query `... adaptive-store.sh status` and coach only when it reports `ready` (enough accumulated observations). The SessionStart hook also surfaces readiness.
-3. The store persists on a local Windows workstation (`%LOCALAPPDATA%\clairvoyance`) and tolerates volatility: ephemeral or remote sessions simply do not persist, and an unavailable store means hold coaching, not fail.
+Coaching is fair only once a pattern is established, not on a single instance. Record each adaptive observation as anonymous signal, and coach only when the local store reports `ready`; an unavailable store means hold coaching, not fail. The exact record/status commands, categories, and storage details are in [the store reference](references/store.md).
 
 ## Steps
 
 1. Split the blocker into its technical parts and its adaptive part.
 2. If the work is purely technical, return the fix and stop; this is not coaching.
-3. Record the adaptive observation as anonymous metadata in the local store.
+3. Record the adaptive observation as anonymous signal (see [the store reference](references/store.md)).
 4. If the store is not `ready`, hold coaching. Acknowledge the pattern and note that more signal is needed before correction is fair.
 5. When `ready`, name the adaptive gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth.
 6. Coach with a prosthesis-building quiz: portable question handoff — AskUserQuestion when available, otherwise `AskUserQuestion:` text — with 2-3 choices and the correct answer marked.
-7. Record the quiz outcome on the same category (`... adaptive-store.sh record --category <category> --outcome correct|incorrect`; `--category` is required on both backends) and give the concrete corrective next move.
+7. Record the quiz outcome, then give the concrete corrective next move.
 8. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
 
 ## Prosthesis effect via quiz
