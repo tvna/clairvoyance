@@ -1,6 +1,6 @@
 ---
 name: human-harness
-description: Presses a human to confirm a high-blast-radius or compliance-violating instruction before the agent acts, catching human error early. Use when an instruction is irreversible, wide-impact, or breaks a governed rule or safety gate.
+description: Prevents human error before a major incident by pausing a risky instruction to confirm intent. Use when an instruction is high-blast-radius, irreversible, or breaks a governed rule or safety gate.
 ---
 
 # Human Harness
