@@ -16,8 +16,8 @@ The human harness stops a risky instruction and presses the human to confirm int
 3. Research the repository to settle your own questions first; ask the human only what evidence cannot.
 4. Confirm intent one focused question at a time; recommend the safest answer or a safer reversible path, and wait for the reply before the next.
 5. Run a premortem: assume it ran and was regretted, then name the failure and its earliest warning signal.
-6. For a compliance conflict, surface it; proceed only on the human's explicit, recorded override, never silently complying or refusing.
-7. Stay non-shaming; the human keeps authority to proceed after acknowledging the risk.
+6. For a compliance conflict, judge whether the rule is overridable. A human-owned risk decision may proceed on an explicit, recorded override; a mandatory safety gate or trusted-instruction floor (exposing a secret, a security control) is not waivable by acknowledgment - route it to a safe alternative or refuse. Never silently do either.
+7. Stay non-shaming; for an overridable risk the human keeps authority to proceed after acknowledging it.
 8. Use portable question handoff: AskUserQuestion when available, else `AskUserQuestion:` text with the same choices.
 9. Write in the project owner's language unless a repository rule requires another for outward-facing artifacts.
 
@@ -27,10 +27,10 @@ Use these headings:
 
 - **Stop:** what the agent is holding back from doing, and why.
 - **Blast Radius:** scope, affected surfaces, reversibility, and cost.
-- **Compliance:** the rule or gate at stake, or "None - blast radius only".
+- **Compliance:** the rule or gate at stake and whether it is overridable, or "None - blast radius only".
 - **Premortem:** the regret scenario and its earliest warning signal.
 - **Safer Path:** the recommended reversible alternative.
 - **Confirm:** the single focused question (portable handoff) and recommended answer.
 - **Next Move:** what happens per answer - safeguarded proceed, or the safer path.
 
-Pattern: **Stop** -> **Blast Radius** -> **Premortem** -> **Confirm** -> **Next Move**. Add Compliance and Safer Path when relevant. Ask the smallest question that confirms intent without shaming.
+Pattern: **Stop** -> **Blast Radius** -> **Premortem** -> **Confirm** -> **Next Move**. Add Compliance and Safer Path when relevant.
