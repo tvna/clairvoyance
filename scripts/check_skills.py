@@ -22,6 +22,7 @@ Best-practice sources:
 
 from __future__ import annotations
 
+import io
 import pathlib
 import re
 import sys
@@ -34,7 +35,10 @@ NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 KEY_RE = re.compile(r"^([\w-]+):\s*(.*)$")
 LINK_RE = re.compile(r"\]\(([^)]+)\)")
 BLOCK_SCALAR_RE = re.compile(r"^[|>][+-]?$")
-XML_TAG_RE = re.compile(r"<[^>]+>")
+# An XML/HTML tag: '<' (optionally '/') immediately followed by a tag name, up
+# to the next '>'. Anchored on a leading letter so spaced comparisons in prose
+# ("a < b and c > d") are not misread as tags.
+XML_TAG_RE = re.compile(r"</?[A-Za-z][^<>]*>")
 # A when-to-use trigger: the docs require the description to say *when* to use the
 # skill, and the repo convention spells it "Use when/on/to ...". Match that
 # discovery clause so a description that only says *what* it does is flagged.
@@ -77,15 +81,26 @@ def split_frontmatter(text: str) -> tuple[dict[str, str] | None, str]:
     return data, text[end + 4 :]
 
 
-def _scan_links(body: str, rel: pathlib.PurePath, base: pathlib.Path) -> list[tuple[str, str]]:
-    """Return link violations for one markdown text: bad slashes, upward
-    traversal, and unresolved relative targets (external/anchor links skipped)."""
-    errors: list[tuple[str, str]] = []
-    for raw in LINK_RE.findall(body):
-        # Drop any markdown title, #fragment, or ?query before resolving.
+def _link_targets(text: str) -> list[tuple[str, str]]:
+    """Return (raw, target) for each resolvable relative link in a markdown text.
+
+    Strips any markdown title, ``#fragment``, or ``?query`` from the target and
+    skips empty (anchor-only) and external (http/https/mailto) links, so callers
+    only see local targets worth resolving."""
+    pairs: list[tuple[str, str]] = []
+    for raw in LINK_RE.findall(text):
         target = raw.strip().split(" ", 1)[0].split("#", 1)[0].split("?", 1)[0]
         if not target or target.startswith(("http://", "https://", "mailto:")):
             continue
+        pairs.append((raw, target))
+    return pairs
+
+
+def _scan_links(text: str, rel: pathlib.PurePath, base: pathlib.Path) -> list[tuple[str, str]]:
+    """Return link violations for one markdown text: bad slashes, upward
+    traversal, and unresolved relative targets (external/anchor links skipped)."""
+    errors: list[tuple[str, str]] = []
+    for raw, target in _link_targets(text):
         if "\\" in target:
             errors.append(("error", f"{rel}: link '{raw}' must use forward slashes, not backslashes"))
             continue
@@ -100,7 +115,7 @@ def _scan_links(body: str, rel: pathlib.PurePath, base: pathlib.Path) -> list[tu
 def check_skill(skill_md: pathlib.Path) -> list[tuple[str, str]]:
     """Return a list of (level, message) violations for one SKILL.md."""
     rel = skill_md.relative_to(skill_md.parents[2])
-    text = skill_md.read_text()
+    text = skill_md.read_text(encoding="utf-8")
     frontmatter, body = split_frontmatter(text)
     if frontmatter is None:
         return [("error", f"{rel}: missing YAML frontmatter")]
@@ -156,13 +171,14 @@ def check_references(skill_md: pathlib.Path) -> list[tuple[str, str]]:
         if ref == skill_md:
             continue
         rel = ref.relative_to(rel_root)
-        text = ref.read_text()
+        text = ref.read_text(encoding="utf-8")
         if len(text.splitlines()) > MAX_REFERENCE_LINES and not TOC_RE.search(text):
             errors.append(("error", f"{rel}: reference over {MAX_REFERENCE_LINES} lines needs a table of contents"))
-        for raw in LINK_RE.findall(text):
-            target = raw.strip().split(" ", 1)[0].split("#", 1)[0].split("?", 1)[0]
-            if not target or target.startswith(("http://", "https://", "mailto:")):
-                continue
+        # References get the same slash/traversal/resolution checks as SKILL.md,
+        # plus a one-level-deep rule: a reference must not link to another
+        # markdown file (that would nest progressive disclosure two deep).
+        errors.extend(_scan_links(text, rel, ref.parent))
+        for raw, target in _link_targets(text):
             if target.endswith(".md"):
                 errors.append(("error", f"{rel}: reference link '{raw}' must stay one level deep from SKILL.md"))
     return errors
@@ -232,6 +248,12 @@ def main(skills_dir: pathlib.Path | None = None) -> int:
 
 
 if __name__ == "__main__":
+    # Emit UTF-8 regardless of the runner's locale: skills and their messages
+    # carry non-ASCII (em dashes), and the summary uses ✅/❌ glyphs, so a C/POSIX
+    # locale would otherwise raise UnicodeEncodeError on output.
+    for _stream in (sys.stdout, sys.stderr):
+        if isinstance(_stream, io.TextIOWrapper):
+            _stream.reconfigure(encoding="utf-8")
     if "--summary" in sys.argv[1:]:
         write_summary()
         sys.exit(0)

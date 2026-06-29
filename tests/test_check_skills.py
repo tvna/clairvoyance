@@ -179,6 +179,12 @@ def test_description_with_xml_tag_is_flagged(tmp_path):
     assert any("must not contain XML tags" in m for _, m in _errors(tmp_path))
 
 
+def test_description_with_spaced_comparison_is_not_flagged(tmp_path):
+    # A prose comparison ("a < b and c > d") is not an XML tag and must pass.
+    _skill(tmp_path, "ok", description="Routes when a < b and c > d. Use when ordering matters.")
+    assert _errors(tmp_path) == []
+
+
 def test_description_without_when_trigger_is_flagged(tmp_path):
     _skill(tmp_path, "ok", description="Produces an evidence-backed verdict for changed code.")
     assert any("when to use the skill" in m for _, m in _errors(tmp_path))
@@ -212,6 +218,13 @@ def test_reference_external_and_anchor_links_are_allowed(tmp_path):
     _skill(tmp_path, "ok", body="See [r](references/a.md).\n")
     _ref(tmp_path, "ok", "a.md", "# A\n\nSee [x](https://example.com) and [y](#sec).\n")
     assert _errors(tmp_path) == []
+
+
+def test_reference_broken_link_is_flagged(tmp_path):
+    # References get the same resolution checks as SKILL.md.
+    _skill(tmp_path, "ok", body="See [r](references/a.md).\n")
+    _ref(tmp_path, "ok", "a.md", "# A\n\n![img](missing.png)\n")
+    assert any("broken link" in m for _, m in _errors(tmp_path))
 
 
 def test_long_reference_without_toc_is_flagged(tmp_path):
