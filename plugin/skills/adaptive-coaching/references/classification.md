@@ -2,10 +2,9 @@
 
 Diagnose which kind of work a recurring gap is. The split shapes *what the quiz
 reinforces*, not whether to coach. The frame is Ronald Heifetz's: misdiagnosing
-the kind of work is, in his words, the most common source of leadership failure
-(Heifetz & Linsky, *Leadership on the Line*, 2002), so this classification is the
-load-bearing step — get it wrong and a well-built quiz still aims at the wrong
-target.
+the kind of work is, in his words, the most common source of leadership failure,
+so this classification is the load-bearing step — get it wrong and a well-built
+quiz still aims at the wrong target.
 
 ## Contents
 
@@ -20,8 +19,7 @@ target.
 
 Heifetz defines adaptive work as the learning a person has to do when the values
 they hold collide, or when a gap opens between the values they stand for and the
-reality they face — learning no one can do on their behalf (Heifetz, *Leadership
-Without Easy Answers*, 1994).
+reality they face — learning no one can do on their behalf.
 
 The operational test: **is the obstacle a missing fact, or a gap between what the
 person values and what they actually do?** A fact can be supplied. A values–reality
@@ -32,18 +30,16 @@ Heifetz & Linsky draw the line this way. **Technical problems** are the ones
 people already have the know-how and procedures to handle, so an authority can
 supply the answer. **Adaptive challenges** resist authoritative expertise and
 standard operating procedures — they cannot be solved from on high, because they
-demand experiments, fresh discoveries, and adjustments from many places at once
-(Heifetz & Linsky, *Leadership on the Line*, 2002).
+demand experiments, fresh discoveries, and adjustments from many places at once.
 
 ## Three kinds of work, not two
 
 It is a spectrum, not a binary. Heifetz first drew it through a doctor–patient
-analogy with **three situational types**, keyed to *who must do the work*
-(*Leadership Without Easy Answers*, 1994), and the same three axes — who defines
-the problem, who supplies the solution, where the work has to be done — recur in
-*The Practice of Adaptive Leadership* (Heifetz, Grashow & Linsky, 2009). Most
-real challenges are **Type II or III**, not the clean Type I a quick glance
-suggests; forcing a binary is itself a common mislabel.
+analogy with **three situational types**, keyed to *who must do the work*; the
+same three axes — who defines the problem, who supplies the solution, where the
+work has to be done — recur across his later work. Most real challenges are
+**Type II or III**, not the clean Type I a quick glance suggests; forcing a
+binary is itself a common mislabel.
 
 | Type | Problem definition | Solution & implementation | Primary locus of the work |
 | ---- | ------------------ | ------------------------- | ------------------------- |
@@ -92,10 +88,10 @@ answer.
 
 ### Expanded diagnostic table
 
-A fuller side-by-side for harder calls. This is a practitioner synthesis
-(Mathews, *Leading Sapiens*, 2025) built on Heifetz's primary distinction — use
-it to read the dominant signal, not as a checklist where every row must agree
-(mixed challenges will straddle the two columns).
+A fuller side-by-side for harder calls. This is a practitioner synthesis built on
+Heifetz's distinction, not Heifetz's own table — use it to read the dominant
+signal, not as a checklist where every row must agree (mixed challenges will
+straddle the two columns).
 
 | Dimension | Technical problem | Adaptive challenge |
 | --------- | ----------------- | ------------------ |
@@ -114,8 +110,8 @@ it to read the dominant signal, not as a checklist where every row must agree
 ## Work avoidance — the loudest adaptive signal
 
 Because adaptive work is uncomfortable, people reliably divert it rather than do
-it (Heifetz, *Leadership Without Easy Answers*, 1994). Recurring avoidance is
-strong evidence the gap is adaptive, not technical. Common forms:
+it. Recurring avoidance is strong evidence the gap is adaptive, not technical.
+Common forms:
 
 - **Displacement onto a technical fix** — "we just need a better tool/process"
   for what is really a judgement call (the classic mislabel).
@@ -135,13 +131,10 @@ a technical concern that is solvable; the recurring stall is the adaptive call
 being handed off" — because separating the two is what lets the quiz aim at the
 part that actually requires the person's learning.
 
-## Sources (Heifetz primary works)
+## Sources
 
-- Ronald A. Heifetz, *Leadership Without Easy Answers*, Harvard University Press,
-  1994 — definition of adaptive work, work avoidance, giving the work back.
-- Ronald A. Heifetz & Marty Linsky, *Leadership on the Line*, Harvard Business
-  School Press, 2002 — mislabeling adaptive challenges as technical as the most
-  common leadership failure.
-- Ronald A. Heifetz, Alexander Grashow & Marty Linsky, *The Practice of Adaptive
-  Leadership*, Harvard Business School Press, 2009 — the three-kinds-of-work
-  table (problem definition / solution / locus of work).
+Heifetz's primary works, for anyone verifying the framing:
+
+- Heifetz, *Leadership Without Easy Answers* (1994)
+- Heifetz & Linsky, *Leadership on the Line* (2002)
+- Heifetz, Grashow & Linsky, *The Practice of Adaptive Leadership* (2009)

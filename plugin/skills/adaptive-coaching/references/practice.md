@@ -4,9 +4,7 @@ Once the gap is classified (the classification reference) and the store is ready
 the reflection itself is an adaptive-leadership intervention — not just a quiz
 delivery. Heifetz's practice maps directly onto how this skill coaches.
 Each move below names the principle, the concrete coaching behaviour, and the
-skill mechanism that already carries it. (Sources: Heifetz, *Leadership Without
-Easy Answers*, 1994; Heifetz & Linsky, *Leadership on the Line*, 2002; Heifetz,
-Grashow & Linsky, *The Practice of Adaptive Leadership*, 2009.)
+skill mechanism that already carries it.
 
 This reference is for **delivering** the reflection. It does not change *what* the
 quiz reinforces — that is the classification's job — but *how* the intervention is
@@ -76,12 +74,5 @@ change against their own purpose is what makes the discomfort tolerable.
 - **Acute moment that needs a decision now:** that is `decision-coaching`'s job;
   `adaptive-coaching` works across sessions, on the person's own reflection.
 
-## Sources (Heifetz primary works)
-
-- Ronald A. Heifetz, *Leadership Without Easy Answers*, Harvard University Press,
-  1994 — balcony, holding environment, work avoidance, giving the work back.
-- Ronald A. Heifetz & Marty Linsky, *Leadership on the Line*, Harvard Business
-  School Press, 2002 — productive zone of disequilibrium, regulating distress.
-- Ronald A. Heifetz, Alexander Grashow & Marty Linsky, *The Practice of Adaptive
-  Leadership*, Harvard Business School Press, 2009 — authority vs leadership,
-  orchestrating attention, anchoring in purpose.
+The framework here is Heifetz's adaptive-leadership model; sources are listed once
+in the classification reference.
