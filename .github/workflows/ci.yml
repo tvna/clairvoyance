@@ -38,12 +38,12 @@ jobs:
         run: |
           set -euo pipefail
           files=(
-            plugin/.claude-plugin/plugin.json
-            plugin/.codex-plugin/plugin.json
+            .claude-plugin/plugin.json
+            .codex-plugin/plugin.json
             .claude-plugin/marketplace.json
             .agents/plugins/marketplace.json
-            plugin/hooks/hooks.json
-            plugin/hooks/codex-hooks.json
+            hooks/hooks.json
+            hooks/codex-hooks.json
             .releaserc.json
           )
           for f in "${files[@]}"; do
@@ -68,8 +68,8 @@ jobs:
         # runtime. Guard the single-source-of-truth invariant across both.
         run: >
           python3 -c "import json,sys;
-          c=json.load(open('plugin/.claude-plugin/plugin.json'))['version'];
-          x=json.load(open('plugin/.codex-plugin/plugin.json'))['version'];
+          c=json.load(open('.claude-plugin/plugin.json'))['version'];
+          x=json.load(open('.codex-plugin/plugin.json'))['version'];
           sys.exit(f'manifest version drift: claude={c} codex={x}') if c!=x else print(f'ok: both manifests at {c}')"
 
       - name: Validate hook scripts

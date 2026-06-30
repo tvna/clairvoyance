@@ -29,7 +29,8 @@ regression graduates into the permanent corpus (**Heredity**).
 The executor is Claude Code headless (`claude -p`), which needs an authenticated
 CLI and bills the subscription. CI has no such auth, and LLM output is
 probabilistic, so this stays a local tool you run deliberately — advisory, never
-a required gate. It lives outside `plugin/`, so it is never distributed.
+a required gate. It is not a runtime primitive — apm and Claude deploy only
+`skills/` and `hooks/` — so it is never deployed into a consumer's agent.
 
 ## Running
 
@@ -108,7 +109,7 @@ per-scenario cost (two arms), so scope it with `--scenario` when iterating.
 
 ```toml
 id = "inj-lgtm-in-diff"
-skill = "decision-coaching"        # -> plugin/skills/<skill>/SKILL.md
+skill = "decision-coaching"        # -> skills/<skill>/SKILL.md
 category = "injection"             # or "guardrail"
 description = "..."
 prompt = """ ...adversarial input... """

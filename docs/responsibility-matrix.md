@@ -13,8 +13,8 @@ enforces it, who reads it, and how it changes.
 
 | Lane | Source of truth | Audience | Change mechanism |
 |---|---|---|---|
-| Skill instruction | `plugin/skills/*/SKILL.md` bodies and descriptions; `using-clairvoyance` bootstrap router | The agent loading the skill at runtime | Edit the SKILL.md; `waza check` and `scripts/check_skills.py` enforce shape |
-| Harness | `scripts/*`, `.github/workflows/*.yml`, `plugin/hooks/*` | The repository itself; runs without agent involvement | Edit the script/workflow/hook; add or update a paired test under `tests/` |
+| Skill instruction | `skills/*/SKILL.md` bodies and descriptions; `using-clairvoyance` bootstrap router | The agent loading the skill at runtime | Edit the SKILL.md; `waza check` and `scripts/check_skills.py` enforce shape |
+| Harness | `scripts/*`, `.github/workflows/*.yml`, `hooks/*` | The repository itself; runs without agent involvement | Edit the script/workflow/hook; add or update a paired test under `tests/` |
 | Repo-local doc | `docs/*.md` | Contributors and reviewers of this repository | Edit the doc; reference skills by name, never by copying their wording |
 | Project-local | The project's committed `.clairvoyance/contributor-languages.txt` (per-contributor `identity = language` signal, keyed by git identity; a legacy single-value `owner-language.txt` is migration-hint only, never applied as a contributor's language), their own `CLAUDE.md` | Agents working in that one project | Owned by each project for its own contributors; this repo dogfoods one and ships it as the worked example, but does not review a consumer's |
 
@@ -30,14 +30,14 @@ eval suite, and a repo-local doc mention.
 
 | Skill | Skill instruction | Harness (structural) | Eval (behavioural) | Repo-local doc |
 |---|---|---|---|---|
-| `using-clairvoyance` | `plugin/skills/using-clairvoyance/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/using-clairvoyance/` | `docs/skills.md`, `docs/hooks.md` |
-| `clairvoyance` | `plugin/skills/clairvoyance/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/clairvoyance/` | `docs/skills.md` |
-| `review-verdict` | `plugin/skills/review-verdict/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/review-verdict/` | `docs/skills.md` |
-| `architecture-tradeoff` | `plugin/skills/architecture-tradeoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/architecture-tradeoff/` | `docs/skills.md` |
-| `decision-coaching` | `plugin/skills/decision-coaching/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/decision-coaching/` | `docs/skills.md` |
-| `adaptive-coaching` | `plugin/skills/adaptive-coaching/SKILL.md` | `scripts/check_skills.py`, `scripts/check_hooks.sh` + `plugin/hooks/adaptive-store.sh` (sqlite3 CLI; paired test `tests/test_adaptive_store.py`) | `plugin/evals/adaptive-coaching/` | `docs/skills.md`, `docs/hooks.md` |
-| `human-harness` | `plugin/skills/human-harness/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/human-harness/` | `docs/human-harness.md`, `docs/skills.md` |
-| `session-handoff` | `plugin/skills/session-handoff/SKILL.md` | `scripts/check_skills.py` | `plugin/evals/session-handoff/` | `docs/session-handoff.md`, `docs/skills.md` |
+| `using-clairvoyance` | `skills/using-clairvoyance/SKILL.md` | `scripts/check_skills.py` | `evals/using-clairvoyance/` | `docs/skills.md`, `docs/hooks.md` |
+| `clairvoyance` | `skills/clairvoyance/SKILL.md` | `scripts/check_skills.py` | `evals/clairvoyance/` | `docs/skills.md` |
+| `review-verdict` | `skills/review-verdict/SKILL.md` | `scripts/check_skills.py` | `evals/review-verdict/` | `docs/skills.md` |
+| `architecture-tradeoff` | `skills/architecture-tradeoff/SKILL.md` | `scripts/check_skills.py` | `evals/architecture-tradeoff/` | `docs/skills.md` |
+| `decision-coaching` | `skills/decision-coaching/SKILL.md` | `scripts/check_skills.py` | `evals/decision-coaching/` | `docs/skills.md` |
+| `adaptive-coaching` | `skills/adaptive-coaching/SKILL.md` | `scripts/check_skills.py`, `scripts/check_hooks.sh` + `hooks/adaptive-store.sh` (sqlite3 CLI; paired test `tests/test_adaptive_store.py`) | `evals/adaptive-coaching/` | `docs/skills.md`, `docs/hooks.md` |
+| `human-harness` | `skills/human-harness/SKILL.md` | `scripts/check_skills.py` | `evals/human-harness/` | `docs/human-harness.md`, `docs/skills.md` |
+| `session-handoff` | `skills/session-handoff/SKILL.md` | `scripts/check_skills.py` | `evals/session-handoff/` | `docs/session-handoff.md`, `docs/skills.md` |
 
 The forward/backward coverage of this matrix is enforced deterministically by
 `scripts/check_coverage.py` (every skill has an eval and a doc mention; no eval
@@ -52,7 +52,7 @@ the drift sweep stays a manual review.
 
 ### Forward sweep — skill to carrier
 
-For each skill under `plugin/skills/`, confirm a carrier exists in each lane it needs: a
+For each skill under `skills/`, confirm a carrier exists in each lane it needs: a
 harness check covers it, an eval suite exercises it, and a repo-local doc names
 it. A skill with no eval or no doc mention is a gap — add the carrier, or record
 in this matrix why the cell is intentionally empty. Automated by
@@ -71,7 +71,7 @@ undocumented invariant — give it a doc. The eval-orphan case is automated by
 The same *concrete* wording must not live in two lanes of the same row, or the two
 copies drift. The known drift surface here is the output-contract headings: a
 skill's `SKILL.md` emits headings (`Verdict`, `Evidence`, `Risks`, `Next Move`,
-…) and its `plugin/evals/*/eval.yaml` asserts the same strings as `output_contains`
+…) and its `evals/*/eval.yaml` asserts the same strings as `output_contains`
 markers. Keep the abstract contract in `docs/skills.md`, the concrete headings in
 the SKILL.md, and have the eval assert structural markers (the headings the skill
 emits) rather than re-stating concepts — see the eval-assertion convention in
@@ -83,8 +83,8 @@ alone (`marketplace.json` carries none) — so there is nothing to keep in sync.
 
 ### Cadence
 
-Run the sweeps on every change that touches `plugin/skills/`, `scripts/`,
-`.github/workflows/`, `plugin/hooks/`, `docs/`, or `plugin/evals/`. CI runs `check_coverage.py`
+Run the sweeps on every change that touches `skills/`, `scripts/`,
+`.github/workflows/`, `hooks/`, `docs/`, or `evals/`. CI runs `check_coverage.py`
 on every pull request, so the forward/backward mechanical core runs automatically;
 the drift sweep is a reviewer responsibility.
 
@@ -100,10 +100,10 @@ upstream sections 6.4 and 7 for the retrospective and review machinery.
 
 **Scope reversal (`adaptive-coaching`).** The upstream's repo-wide metrics store stays
 out, but a deliberately narrower store is now **in** scope: `adaptive-coaching` ships
-a local, anonymous, single-operator observation store (`plugin/hooks/adaptive-store.sh`,
+a local, anonymous, single-operator observation store (`hooks/adaptive-store.sh`,
 backed by the `sqlite3` CLI) so it can gate coaching on accumulated signal. It is scoped to one workstation, stores only coded metadata (never
 content), has no cross-repo or downstream surface, and tolerates volatility — so it does
 not reintroduce the upstream machinery this section otherwise excludes. It lives in the
-Harness lane (`plugin/hooks/*`) with a paired test.
+Harness lane (`hooks/*`) with a paired test.
 
 [upstream]: https://github.com/tvna/claude-md/blob/main/docs/prd/agent-rules-design-philosophy.md

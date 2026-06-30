@@ -34,7 +34,7 @@ Clairvoyance は Claude Code プラグインです。意思決定を人間に差
 ## インストール
 
 Clairvoyance は1つのプラグインツリーをランタイムごとのマニフェスト
-（`plugin/.claude-plugin/` と `plugin/.codex-plugin/`）と共に配布するため、エージェントが
+（`.claude-plugin/` と `.codex-plugin/`）と共に配布するため、エージェントが
 使う経路を問わず同じスキルがインストールされます。
 
 ### Claude Code
@@ -56,7 +56,7 @@ codex plugin add clairvoyance
 ```
 
 リポジトリ・マーケットプレイスは [.agents/plugins/marketplace.json](.agents/plugins/marketplace.json)
-にあり、Codex は `plugin/.codex-plugin/plugin.json` マニフェストを読み込みます。
+にあり、Codex は `.codex-plugin/plugin.json` マニフェストを読み込みます。
 
 ### apm（対応する任意のエージェント）
 
@@ -80,16 +80,18 @@ dependencies:
 
 プラグインは `SessionStart` フックを登録し、セッション開始・clear・compaction の
 タイミングで `using-clairvoyance` ブートストラップスキル（とプロジェクトオーナーの言語）
-を注入します。Claude Code は `plugin/hooks/hooks.json` を、Codex は
-`plugin/hooks/codex-hooks.json` を読み込みます。両者は同じ `hooks/run-hook.cmd`
+を注入します。Claude Code は `hooks/hooks.json` を、Codex は
+`hooks/codex-hooks.json` を読み込みます。両者は同じ `hooks/run-hook.cmd`
 ラッパーを経由し、各ランタイムが差し込むプラグインルート変数だけが異なります。
 [docs/hooks.md](docs/hooks.md) を参照してください。
 
 ## リポジトリ構成
 
-マーケットプレイスは `plugin/`（`source: "./plugin"`）を指すため、**ユーザーの
-インストールキャッシュにコピーされるのは `plugin/` だけ**で、それ以外はリポジトリに
-留まり配布されることはありません。完全なツリーは
+プラグインは**リポジトリのルート**（`source: "./"`）に置かれます。これは apm が
+要求するレイアウトで、apm はパッケージのルート直下の `skills/` からスキルを、
+`hooks/` からフックを検出して展開します。コンシューマーのエージェントに展開される
+ランタイムプリミティブはスキルとフックだけで、テスト・ツール・CI・ドキュメント・
+eval スイートは開発用にリポジトリへ残り、展開されることはありません。完全なツリーは
 [docs/repository-layout.md](docs/repository-layout.md) を参照してください。
 
 ## 開発

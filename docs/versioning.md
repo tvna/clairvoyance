@@ -18,8 +18,8 @@ to hand-edit: the version is written into the runtime manifests automatically, a
 a CI parity check keeps the two manifests from drifting:
 
 - The release computes the next version from commit history and creates the tag.
-- Both runtime manifests — `plugin/.claude-plugin/plugin.json` and
-  `plugin/.codex-plugin/plugin.json` — have `$.version` written **automatically**
+- Both runtime manifests — `.claude-plugin/plugin.json` and
+  `.codex-plugin/plugin.json` — have `$.version` written **automatically**
   at release time (`scripts/apply_version.mjs`) so the manifest each runtime reads
   at the installed ref agrees with the tag. CI fails if the two ever drift
   (`.github/workflows/ci.yml`).
@@ -30,7 +30,7 @@ a CI parity check keeps the two manifests from drifting:
   `plugin.json` the unambiguous manifest, and CI fails if a `version` is ever
   re-added (`.github/workflows/ci.yml`).
 
-Each eval suite (`plugin/evals/*/eval.yaml`) carries its own `version` that
+Each eval suite (`evals/*/eval.yaml`) carries its own `version` that
 identifies that **evaluation specification**. It is independent of the package
 version — bumping a release does not touch it, and changing an eval spec does not
 require a release.

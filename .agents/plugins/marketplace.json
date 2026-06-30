@@ -6,7 +6,7 @@
       "description": "A force multiplier for agent-to-human handoffs, turning work into evidence-backed decisions humans can trust.",
       "source": {
         "source": "local",
-        "path": "./plugin"
+        "path": "./"
       },
       "policy": {
         "installation": "AVAILABLE",
