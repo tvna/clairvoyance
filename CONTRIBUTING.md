@@ -141,16 +141,23 @@ This requires a one-time, repo-admin-only setup:
 3. **Generate a private key** — on the App's page, "Generate a private key"
    downloads a `.pem` file once; store it securely (e.g. a password manager),
    it cannot be re-downloaded.
-4. **Register the two secrets** — repo Settings → Secrets and variables →
-   Actions:
+4. **Create the Environment** — repo Settings → Environments → New
+   environment, name it `sync-bot` (must match `environment.name` in
+   `sync-agent-instructions.yml`). Optionally add protection rules (e.g.
+   required reviewers) — the workflow only deploys to this Environment
+   weekly/on dispatch, so a wait timer is unnecessary.
+5. **Register the two secrets on that Environment** — on the `sync-bot`
+   Environment's page → Environment secrets → Add secret:
    - `SYNC_BOT_APP_ID`: the App ID shown on the App's settings page.
    - `SYNC_BOT_APP_PRIVATE_KEY`: the full contents of the downloaded `.pem`
      file.
-5. **Rotate** — regenerate the private key from the App's settings page and
+   Environment secrets are visible only to jobs that declare
+   `environment: name: sync-bot`, unlike repo-wide Actions secrets.
+6. **Rotate** — regenerate the private key from the App's settings page and
    update `SYNC_BOT_APP_PRIVATE_KEY` if the key is ever suspected leaked;
    GitHub keeps the old key valid for a short overlap window so this can be
    done without a workflow outage.
-6. **Verify the handoff** — run the workflow manually
+7. **Verify the handoff** — run the workflow manually
    (`workflow_dispatch`) and confirm the opened PR's commit shows a green
    "Verified" badge on GitHub.
 

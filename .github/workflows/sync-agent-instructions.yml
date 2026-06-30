@@ -28,6 +28,13 @@ jobs:
     # access to check out the repository.
     permissions:
       contents: read
+    # Scopes SYNC_BOT_APP_ID / SYNC_BOT_APP_PRIVATE_KEY to this job via a
+    # GitHub Environment rather than plain repo secrets, so they can carry
+    # their own protection rules (e.g. required reviewers) independent of
+    # other workflows in this repo. See CONTRIBUTING.md -> "Signed-commit bot
+    # App" for how the Environment and secrets are created.
+    environment:
+      name: sync-bot
     steps:
       # Recommended: restrict egress to api.github.com and raw.githubusercontent.com.
       - name: Harden runner
