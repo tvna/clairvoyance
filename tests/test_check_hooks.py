@@ -120,13 +120,25 @@ def test_session_start_operator_env_overrides_mapping(tmp_path):
     assert "English" not in context
 
 
-def test_session_start_reads_legacy_owner_language_file(tmp_path):
-    """The legacy single-value owner-language file is still honored."""
+def test_session_start_does_not_apply_legacy_owner_file_to_other_contributors(tmp_path):
+    """A legacy single-value owner-language file must NOT be served as the active
+    contributor's language — that is the owner-fixation this design removes. It is
+    surfaced only as a migration hint, and the contributor is still asked."""
     lang_dir = tmp_path / ".clairvoyance"
     lang_dir.mkdir()
     (lang_dir / "owner-language.txt").write_text("Japanese\n")
-    context = _context(_run_session_start(tmp_path))
-    assert "Japanese" in context
+    context = _context(_run_session_start(tmp_path, _git_identity_env(email="alice@example.com")))
+    assert "not recorded" in context
+    assert "is set to 'Japanese'" not in context
+    assert "native language is 'Japanese'" not in context
+    assert "migrate it into the mapping" in context  # migration hint is surfaced
+
+
+def test_session_start_legacy_owner_env_is_deprecated_session_alias(tmp_path):
+    """CLAIRVOYANCE_OWNER_LANGUAGE stays as a per-session env alias (it is set in
+    the contributor's own environment, not committed to the repo)."""
+    context = _context(_run_session_start(tmp_path, {"CLAIRVOYANCE_OWNER_LANGUAGE": "Spanish"}))
+    assert "native language is 'Spanish'" in context
 
 
 def test_session_start_prompts_for_language_when_unmapped(tmp_path):
