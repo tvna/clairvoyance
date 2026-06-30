@@ -31,4 +31,4 @@ Read [the handoff template](references/handoff-template.md) for exact section or
 
 One prompt with headings **Context**, **Background**, **Files to read**, **Implementation**, **Verification**, **PR creation**, **Acceptance criteria**.
 
-Do not use fenced code blocks; use 4-space-indented blocks for commands so the prompt pastes into a chat without breaking. Write in the project owner's language unless a repository rule requires another for outward-facing artifacts.
+Do not use fenced code blocks; use 4-space-indented blocks for commands so the prompt pastes into a chat without breaking. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another for outward-facing artifacts.

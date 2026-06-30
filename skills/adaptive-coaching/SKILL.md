@@ -26,7 +26,7 @@ Deliver the quiz **only** when the person asks to reflect or do a retrospective,
 3. Name the capability gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth (see [coaching practice](references/practice.md) for pacing and framing).
 4. Deliver a prosthesis-building quiz: AskUserQuestion (or `AskUserQuestion:` text) with 2-3 choices and the correct answer marked (see [how to build the quiz](references/quiz.md)).
 5. Record the quiz outcome, then give the concrete corrective next move.
-6. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
+6. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another language for outward-facing artifacts.
 
 ## Output
 

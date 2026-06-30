@@ -18,7 +18,7 @@ Review verdicts turn changed code into an evidence-backed readiness call.
 5. Recommend merge, fix first, investigate, defer, or close.
 6. State residual risk, missing proof, rollback, and the next move.
 7. If only the human can answer a blocking readiness question, use portable question handoff: AskUserQuestion when available, otherwise `AskUserQuestion:` text with the same 1-3 choices; otherwise list missing proof as risk.
-8. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
+8. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another language for outward-facing artifacts.
 
 ## Output
 
