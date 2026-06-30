@@ -38,6 +38,12 @@ def _run_session_start(tmp_path, env_overrides=None):
     # Redirect the store to a tmp dir (the hook records a session on each run) and
     # feed empty stdin so the hook never blocks reading a SessionStart payload.
     env = {**os.environ, "CLAUDE_PROJECT_DIR": str(tmp_path), "CLAIRVOYANCE_DATA_DIR": str(tmp_path / "store")}
+    # Strip any ambient language overrides from the inherited environment: the
+    # hook gives these precedence, so a developer/CI host that exports one would
+    # otherwise mask the mapping, legacy-file, and unmapped-prompt behaviours
+    # under test. A test that needs one sets it explicitly via env_overrides.
+    env.pop("CLAIRVOYANCE_OPERATOR_LANGUAGE", None)
+    env.pop("CLAIRVOYANCE_OWNER_LANGUAGE", None)
     # Default to a no-match identity so a test that does not set one is not
     # accidentally resolved by the host's real git config.
     env.update(_git_identity_env(email="nobody@example.invalid", name="Nobody"))
