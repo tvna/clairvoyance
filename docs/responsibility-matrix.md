@@ -16,7 +16,7 @@ enforces it, who reads it, and how it changes.
 | Skill instruction | `plugin/skills/*/SKILL.md` bodies and descriptions; `using-clairvoyance` bootstrap router | The agent loading the skill at runtime | Edit the SKILL.md; `waza check` and `scripts/check_skills.py` enforce shape |
 | Harness | `scripts/*`, `.github/workflows/*.yml`, `plugin/hooks/*` | The repository itself; runs without agent involvement | Edit the script/workflow/hook; add or update a paired test under `tests/` |
 | Repo-local doc | `docs/*.md` | Contributors and reviewers of this repository | Edit the doc; reference skills by name, never by copying their wording |
-| Project-local | The contributor's `.clairvoyance/operator-language.txt` (git-ignored, per-contributor; legacy `owner-language.txt` still read), their own `CLAUDE.md` | Agents working in that one project | Owned entirely by the consumer; this repository neither ships nor reviews it |
+| Project-local | The project's committed `.clairvoyance/contributor-languages.txt` (per-contributor `identity = language` signal, keyed by git identity; legacy single-value `owner-language.txt` still read), their own `CLAUDE.md` | Agents working in that one project | Owned by each project for its own contributors; this repo dogfoods one and ships it as the worked example, but does not review a consumer's |
 
 `AGENTS.md` is **imported**, not authored here: it is synced and SHA-verified from
 the upstream by `.github/workflows/sync-agent-instructions.yml`. It is therefore

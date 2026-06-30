@@ -156,24 +156,36 @@ clash in a single shared file while reusing one hook implementation.
 Operator-facing handoffs are written in the **active contributor's** native
 language — the person driving the current session, not a fixed repository owner.
 This is what keeps a multi-contributor project from forcing one person's language
-on everyone: the language is resolved per-contributor and the local file is
-git-ignored, so it is never committed and shared.
+on everyone: the language is resolved per-contributor, keyed by the session's git
+identity.
+
+The per-contributor mapping lives in a **committed** file,
+`<project>/.clairvoyance/contributor-languages.txt`, with one
+`identity = language` line per contributor (keyed by git email, then git name;
+`#` comments and blank lines ignored, keys matched case-insensitively). It is
+committed on purpose, for two reasons:
+
+- It is the repository's **signal** of which native languages its contributors
+  use — useful information, not something to hide in `.gitignore`.
+- It is the only per-contributor source that **survives a volatile/ephemeral
+  checkout** (Claude web, CI), where local-only state is wiped on every run. A
+  git-ignored per-contributor file would simply vanish there.
 
 The language is resolved in this order (first match wins):
 
-1. `CLAIRVOYANCE_OPERATOR_LANGUAGE` environment variable (the per-contributor
-   authoritative source — each contributor sets it in their own environment).
-2. `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable (legacy alias, kept for
-   backward compatibility).
-3. The first non-blank line of `<project>/.clairvoyance/operator-language.txt`
-   (git-ignored, per-contributor).
+1. `CLAIRVOYANCE_OPERATOR_LANGUAGE` environment variable — a per-session
+   override; also survives a volatile environment via its environment config.
+2. The committed mapping, looked up by this session's git `user.email`, then
+   `user.name`.
+3. `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable (legacy alias).
 4. The first non-blank line of `<project>/.clairvoyance/owner-language.txt`
-   (legacy fallback for projects set up before this reframe).
+   (legacy single-value fallback for setups created before this reframe).
 
-If none is set, the injected context instructs the agent to ask the human in the
-session once (via `AskUserQuestion`) for **their own** native language, then
-record it for that contributor — set `CLAIRVOYANCE_OPERATOR_LANGUAGE` or write
-`.clairvoyance/operator-language.txt`.
+If none matches, the injected context instructs the agent to ask the human in
+the session once (via `AskUserQuestion`) for **their own** native language, then
+record it — add an `identity = language` line to the committed mapping (so the
+signal persists across volatile checkouts), or set
+`CLAIRVOYANCE_OPERATOR_LANGUAGE` for the session.
 
 ## Cross-platform entry point
 

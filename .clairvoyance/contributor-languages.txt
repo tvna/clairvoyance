@@ -1,0 +1,22 @@
+# Contributor native languages — a COMMITTED signal of which native languages
+# this repository's contributors use. The SessionStart hook
+# (plugin/hooks/session-start.sh) reads it to write operator-facing Clairvoyance
+# handoffs in the native language of whoever is driving the current session.
+#
+# This file is committed on purpose: it is the only per-contributor source that
+# survives a volatile/ephemeral checkout (Claude web, CI), and it records the
+# repository's contributor-language signal rather than fixing one owner's
+# language on everyone.
+#
+# Format: one `identity = language` line per contributor, keyed by git email
+# (preferred) or git name. Keys match case-insensitively; `#` comments and blank
+# lines are ignored. A contributor can also override per session with the
+# CLAIRVOYANCE_OPERATOR_LANGUAGE environment variable.
+#
+# Example:
+#   alice@example.com = English
+#   31282861+tvna@users.noreply.github.com = Japanese
+
+31282861+tvna@users.noreply.github.com = Japanese
+tsubasa.nagano@icloud.com = Japanese
+Tsubasa Nagano = Japanese

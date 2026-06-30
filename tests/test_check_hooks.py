@@ -17,11 +17,30 @@ def test_check_hooks_script_passes():
     assert "hooks ok" in result.stdout
 
 
+def _git_identity_env(email=None, name=None):
+    """Inject a deterministic git identity via git's env-config mechanism, so
+    `git config user.email/.name` returns these values regardless of any repo or
+    global config the test host happens to carry."""
+    pairs = []
+    if email is not None:
+        pairs.append(("user.email", email))
+    if name is not None:
+        pairs.append(("user.name", name))
+    env = {"GIT_CONFIG_COUNT": str(len(pairs))}
+    for i, (key, value) in enumerate(pairs):
+        env[f"GIT_CONFIG_KEY_{i}"] = key
+        env[f"GIT_CONFIG_VALUE_{i}"] = value
+    return env
+
+
 def _run_session_start(tmp_path, env_overrides=None):
     """Run the SessionStart hook against an isolated project + store."""
     # Redirect the store to a tmp dir (the hook records a session on each run) and
     # feed empty stdin so the hook never blocks reading a SessionStart payload.
     env = {**os.environ, "CLAUDE_PROJECT_DIR": str(tmp_path), "CLAIRVOYANCE_DATA_DIR": str(tmp_path / "store")}
+    # Default to a no-match identity so a test that does not set one is not
+    # accidentally resolved by the host's real git config.
+    env.update(_git_identity_env(email="nobody@example.invalid", name="Nobody"))
     if env_overrides:
         env.update(env_overrides)
     return subprocess.run(
@@ -33,48 +52,80 @@ def _run_session_start(tmp_path, env_overrides=None):
     )
 
 
-def test_session_start_escapes_control_characters(tmp_path):
-    """A control char in the contributor-language file must still yield valid JSON."""
+def _write_mapping(tmp_path, body):
     lang_dir = tmp_path / ".clairvoyance"
-    lang_dir.mkdir()
+    lang_dir.mkdir(exist_ok=True)
+    (lang_dir / "contributor-languages.txt").write_text(body)
+
+
+def _context(result):
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+
+
+def test_session_start_escapes_control_characters(tmp_path):
+    """A control char in a mapping value must still yield valid JSON."""
     # Form feed (0x0c) is a control char a hand-rolled escaper would miss.
-    (lang_dir / "operator-language.txt").write_text("Japanese\x0c\n")
-    result = _run_session_start(tmp_path)
+    _write_mapping(tmp_path, "alice@example.com = Japanese\x0c\n")
+    result = _run_session_start(tmp_path, _git_identity_env(email="alice@example.com"))
     assert result.returncode == 0, result.stderr
     json.loads(result.stdout)  # raises if the hook emitted invalid JSON
 
 
-def test_session_start_uses_contributor_language_file(tmp_path):
-    """The per-contributor operator-language file drives the injected language."""
-    lang_dir = tmp_path / ".clairvoyance"
-    lang_dir.mkdir()
-    (lang_dir / "operator-language.txt").write_text("Korean\n")
-    result = _run_session_start(tmp_path)
-    assert result.returncode == 0, result.stderr
-    payload = json.loads(result.stdout)
-    context = payload["hookSpecificOutput"]["additionalContext"]
+def test_session_start_resolves_language_by_git_email(tmp_path):
+    """The committed mapping is looked up by the session's git email."""
+    _write_mapping(tmp_path, "# contributors\nalice@example.com = English\nbob@example.com = Korean\n")
+    context = _context(_run_session_start(tmp_path, _git_identity_env(email="bob@example.com")))
     assert "Korean" in context
     assert "active contributor" in context
 
 
-def test_session_start_reads_legacy_owner_language_file(tmp_path):
-    """The legacy owner-language file is still honored for backward compatibility."""
-    lang_dir = tmp_path / ".clairvoyance"
-    lang_dir.mkdir()
-    (lang_dir / "owner-language.txt").write_text("Japanese\n")
-    result = _run_session_start(tmp_path)
-    assert result.returncode == 0, result.stderr
-    payload = json.loads(result.stdout)
-    assert "Japanese" in payload["hookSpecificOutput"]["additionalContext"]
+def test_session_start_email_match_is_case_insensitive(tmp_path):
+    """Email keys match case-insensitively."""
+    _write_mapping(tmp_path, "Alice@Example.com = English\n")
+    context = _context(_run_session_start(tmp_path, _git_identity_env(email="alice@example.com")))
+    assert "English" in context
 
 
-def test_session_start_operator_env_overrides_legacy_file(tmp_path):
-    """CLAIRVOYANCE_OPERATOR_LANGUAGE wins over a committed legacy file."""
-    lang_dir = tmp_path / ".clairvoyance"
-    lang_dir.mkdir()
-    (lang_dir / "owner-language.txt").write_text("Japanese\n")
-    result = _run_session_start(tmp_path, {"CLAIRVOYANCE_OPERATOR_LANGUAGE": "Spanish"})
-    assert result.returncode == 0, result.stderr
-    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+def test_session_start_falls_back_to_git_name(tmp_path):
+    """When the email does not match, the mapping is looked up by git name."""
+    _write_mapping(tmp_path, "Carol = French\n")
+    env = _git_identity_env(email="unmapped@example.com", name="Carol")
+    context = _context(_run_session_start(tmp_path, env))
+    assert "French" in context
+
+
+def test_session_start_distinct_contributors_get_distinct_languages(tmp_path):
+    """The core multi-contributor fix: each contributor resolves to their own
+    language from the same committed mapping."""
+    _write_mapping(tmp_path, "alice@example.com = English\nbob@example.com = Japanese\n")
+    alice = _context(_run_session_start(tmp_path, _git_identity_env(email="alice@example.com")))
+    bob = _context(_run_session_start(tmp_path, _git_identity_env(email="bob@example.com")))
+    assert "English" in alice and "Japanese" not in alice
+    assert "Japanese" in bob and "English" not in bob
+
+
+def test_session_start_operator_env_overrides_mapping(tmp_path):
+    """CLAIRVOYANCE_OPERATOR_LANGUAGE wins over the committed mapping."""
+    _write_mapping(tmp_path, "alice@example.com = English\n")
+    env = {**_git_identity_env(email="alice@example.com"), "CLAIRVOYANCE_OPERATOR_LANGUAGE": "Spanish"}
+    context = _context(_run_session_start(tmp_path, env))
     assert "Spanish" in context
-    assert "Japanese" not in context
+    assert "English" not in context
+
+
+def test_session_start_reads_legacy_owner_language_file(tmp_path):
+    """The legacy single-value owner-language file is still honored."""
+    lang_dir = tmp_path / ".clairvoyance"
+    lang_dir.mkdir()
+    (lang_dir / "owner-language.txt").write_text("Japanese\n")
+    context = _context(_run_session_start(tmp_path))
+    assert "Japanese" in context
+
+
+def test_session_start_prompts_for_language_when_unmapped(tmp_path):
+    """With no match anywhere, the hook asks for the contributor's own language
+    and references their identity for recording."""
+    context = _context(_run_session_start(tmp_path, _git_identity_env(email="newcomer@example.com")))
+    assert "not recorded" in context
+    assert "newcomer@example.com" in context
