@@ -123,9 +123,7 @@ def judge_only_scenarios(scenarios: list[dict]) -> list[dict]:
     lift. Callers must require ``--judge`` when any are present.
     """
     return [
-        s
-        for s in scenarios
-        if s.get("judge_rubric") and not s.get("must_contain") and not s.get("must_not_contain")
+        s for s in scenarios if s.get("judge_rubric") and not s.get("must_contain") and not s.get("must_not_contain")
     ]
 
 
