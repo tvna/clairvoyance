@@ -639,13 +639,14 @@ def test_publish_files_pr_no_drift_is_up_to_date() -> None:
     assert result == "up-to-date"
 
 
-def test_publish_files_pr_drift_recreates_branch_and_creates_pr() -> None:
+def test_publish_files_pr_drift_no_open_pr_recreates_branch_and_creates_pr() -> None:
     responses = {
         "https://api.github.com/repos/o/r/contents/CLAUDE.md?ref=main": (404, ""),
+        "https://api.github.com/repos/o/r/pulls?head=o:chore&state=open&per_page=1": (200, json.dumps([])),
         "https://api.github.com/repos/o/r/git/refs/heads/chore": (404, ""),
+        "https://api.github.com/repos/o/r/git/ref/heads/chore": (404, ""),
         "https://api.github.com/repos/o/r/git/ref/heads/main": (200, json.dumps({"object": {"sha": "basesha"}})),
         "https://api.github.com/repos/o/r/git/refs": (201, ""),
-        "https://api.github.com/repos/o/r/pulls?head=o:chore&state=open&per_page=1": (200, json.dumps([])),
         "https://api.github.com/repos/o/r/pulls": (201, json.dumps({"number": 3})),
     }
     fake, calls = _fake_apply_call(responses)
@@ -668,25 +669,24 @@ def test_publish_files_pr_drift_recreates_branch_and_creates_pr() -> None:
         graphql_call=fake_graphql,
     )
     assert result == "created:3"
-    # delete-then-create ordering: the branch DELETE must precede the GET ref/heads/main
-    methods_urls = calls
-    delete_index = methods_urls.index(("DELETE", "https://api.github.com/repos/o/r/git/refs/heads/chore"))
-    create_index = methods_urls.index(("POST", "https://api.github.com/repos/o/r/git/refs"))
-    assert delete_index < create_index
+    assert ("DELETE", "https://api.github.com/repos/o/r/git/refs/heads/chore") in calls
 
 
-def test_publish_files_pr_drift_reuses_existing_open_pr() -> None:
+def test_publish_files_pr_drift_with_open_pr_appends_without_deleting() -> None:
+    # An open PR already targets the branch: deleting it would risk closing
+    # that PR and losing its review history, so the commit must append onto
+    # the existing tip instead (Refs the codex review on PR #33).
     responses = {
         "https://api.github.com/repos/o/r/contents/CLAUDE.md?ref=main": (404, ""),
-        "https://api.github.com/repos/o/r/git/refs/heads/chore": (404, ""),
-        "https://api.github.com/repos/o/r/git/ref/heads/main": (200, json.dumps({"object": {"sha": "basesha"}})),
-        "https://api.github.com/repos/o/r/git/refs": (201, ""),
         "https://api.github.com/repos/o/r/pulls?head=o:chore&state=open&per_page=1": (200, json.dumps([{"number": 4}])),
+        "https://api.github.com/repos/o/r/git/ref/heads/chore": (200, json.dumps({"object": {"sha": "branchtip"}})),
+        "https://api.github.com/repos/o/r/contents/CLAUDE.md?ref=chore": (404, ""),
         "https://api.github.com/repos/o/r/pulls/4": (200, ""),
     }
-    fake, _ = _fake_apply_call(responses)
+    fake, calls = _fake_apply_call(responses)
 
     def fake_graphql(*, query, variables, token):
+        assert variables["input"]["expectedHeadOid"] == "branchtip"
         return 200, {"data": {"createCommitOnBranch": {"commit": {"oid": "newsha"}}}}
 
     result = spp.publish_files_pr(
@@ -703,6 +703,43 @@ def test_publish_files_pr_drift_reuses_existing_open_pr() -> None:
         graphql_call=fake_graphql,
     )
     assert result == "updated:4"
+    assert ("DELETE", "https://api.github.com/repos/o/r/git/refs/heads/chore") not in calls
+
+
+def test_publish_files_pr_drift_with_open_pr_branch_already_current_skips_commit() -> None:
+    import base64
+
+    encoded = base64.b64encode(b"new").decode("ascii")
+    responses = {
+        "https://api.github.com/repos/o/r/contents/CLAUDE.md?ref=main": (404, ""),
+        "https://api.github.com/repos/o/r/pulls?head=o:chore&state=open&per_page=1": (200, json.dumps([{"number": 5}])),
+        "https://api.github.com/repos/o/r/git/ref/heads/chore": (200, json.dumps({"object": {"sha": "branchtip"}})),
+        "https://api.github.com/repos/o/r/contents/CLAUDE.md?ref=chore": (
+            200,
+            json.dumps({"encoding": "base64", "content": encoded}),
+        ),
+        "https://api.github.com/repos/o/r/pulls/5": (200, ""),
+    }
+    fake, calls = _fake_apply_call(responses)
+
+    def fake_graphql(*, query, variables, token):
+        raise AssertionError("no commit should be created when the branch already matches the desired content")
+
+    result = spp.publish_files_pr(
+        repo="o/r",
+        additions=[("CLAUDE.md", b"new")],
+        base="main",
+        branch="chore",
+        title="t",
+        body="b",
+        commit_subject="s",
+        commit_body="",
+        token="tok",
+        apply_call=fake,
+        graphql_call=fake_graphql,
+    )
+    assert result == "updated:5"
+    assert ("DELETE", "https://api.github.com/repos/o/r/git/refs/heads/chore") not in calls
 
 
 # ---------------------------------------------------------------------------

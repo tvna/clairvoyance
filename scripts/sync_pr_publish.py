@@ -9,12 +9,15 @@ script instead creates the commit server-side via the GraphQL
 ``createCommitOnBranch`` mutation (signed/Verified, authored by the GitHub App
 identity behind the token), and upserts a PR for it.
 
-The fixed sync branch is deleted and recreated off the base branch whenever
-the desired file contents drift from base, rather than appended to: a reused
-branch can accumulate an unsigned ancestor from a stale local-push run, which
+The fixed sync branch is deleted and recreated off the base branch only when
+there is drift and no open PR currently targets it: a reused branch can
+otherwise accumulate an unsigned ancestor from a stale local-push run, which
 permanently violates ``required_signatures`` even after later commits are
 signed. Delete+create is not a force-push, so a ``non_fast_forward`` ruleset on
-the branch is still honored.
+the branch is still honored. When an open PR already exists, the branch is
+left alone (deleting it risks closing that PR and losing its review history)
+and the new commit is appended onto its tip instead -- safe once this script
+owns the branch, since every commit it makes is already signed.
 
 Scoped to this one workflow's needs (small, fixed file set; no deletions; no
 multi-commit batching) rather than a general-purpose PR-publishing library.
@@ -379,36 +382,58 @@ def publish_files_pr(
     apply_call: Callable[..., tuple[int, str]] = apply_call,
     graphql_call: Callable[..., tuple[int, dict[str, Any]]] = graphql_call,
 ) -> str:
-    """Publish *additions* to a fresh *branch* and upsert a PR into *base*.
+    """Publish *additions* to *branch* and upsert a PR into *base*.
 
     Returns ``"up-to-date"`` when *base* already carries every addition's
     bytes, or ``"<verb>:<pr_number>"`` (*verb* is ``created`` or ``updated``,
-    matching the PR-upsert outcome) otherwise. *branch* is unconditionally
-    deleted and recreated off *base* with a single signed commit when there is
-    drift -- see the module docstring for why a reused branch is unsafe here.
+    matching the PR-upsert outcome) otherwise.
+
+    *branch* is deleted and recreated off *base* with a single signed commit
+    only when there is drift AND no open PR currently targets it -- see the
+    module docstring for why a stale branch is unsafe to reuse as-is. When an
+    open PR already exists, the branch is left alone and the new commit is
+    appended onto its current tip instead, so the PR (and its review
+    history/comments) survives across runs. Once this script owns the branch,
+    every commit on it is already signed, so an append can never reintroduce
+    the unsigned-ancestor problem the recreate path guards against.
     """
     if not additions:
         return "up-to-date"
     if not _ref_drifts(repo=repo, ref=base, additions=additions, token=token, apply_call=apply_call):
         return "up-to-date"
 
-    _delete_branch(repo=repo, branch=branch, token=token, apply_call=apply_call)
-    base_sha = _get_ref_sha(repo=repo, ref=f"heads/{base}", token=token, apply_call=apply_call)
-    _create_branch_ref(repo=repo, branch=branch, sha=base_sha, token=token, apply_call=apply_call)
+    has_open_pr = bool(_list_open_prs(repo=repo, head=branch, token=token, apply_call=apply_call))
+    if not has_open_pr:
+        _delete_branch(repo=repo, branch=branch, token=token, apply_call=apply_call)
 
     api_additions = [
         {"path": path, "contents": base64.b64encode(content).decode("ascii")} for path, content in additions
     ]
-    _create_commit_on_branch(
-        repo=repo,
-        branch=branch,
-        expected_head_oid=base_sha,
-        headline=commit_subject,
-        body=commit_body,
-        additions=api_additions,
-        token=token,
-        graphql_call=graphql_call,
-    )
+    head_oid = _get_branch_head_oid(repo=repo, branch=branch, token=token, apply_call=apply_call)
+    if head_oid is None:
+        head_oid = _get_ref_sha(repo=repo, ref=f"heads/{base}", token=token, apply_call=apply_call)
+        _create_branch_ref(repo=repo, branch=branch, sha=head_oid, token=token, apply_call=apply_call)
+        _create_commit_on_branch(
+            repo=repo,
+            branch=branch,
+            expected_head_oid=head_oid,
+            headline=commit_subject,
+            body=commit_body,
+            additions=api_additions,
+            token=token,
+            graphql_call=graphql_call,
+        )
+    elif _ref_drifts(repo=repo, ref=branch, additions=additions, token=token, apply_call=apply_call):
+        _create_commit_on_branch(
+            repo=repo,
+            branch=branch,
+            expected_head_oid=head_oid,
+            headline=commit_subject,
+            body=commit_body,
+            additions=api_additions,
+            token=token,
+            graphql_call=graphql_call,
+        )
 
     verb, number = _upsert_pr(
         repo=repo, head=branch, base=base, title=title, body=body, token=token, apply_call=apply_call
