@@ -183,16 +183,21 @@ different contributor:
    environment via its environment config.
 2. The committed mapping, looked up by this session's git `user.email`, then
    `user.name`.
-3. `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable — a **deprecated** legacy
-   alias, ranked **below** the mapping so a mapped contributor's own language
-   always wins over a lingering owner variable from an old single-owner setup.
 
-A legacy single-value `<project>/.clairvoyance/owner-language.txt` is **not** used
-as a value source. It holds one person's (the owner's) language, so serving it to
+If neither resolves, the language is treated as **not recorded** and the hook
+drives the portable question handoff (below). No legacy owner source is consulted
+as a value.
+
+The legacy `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable and a legacy
+single-value `<project>/.clairvoyance/owner-language.txt` are **not** used as
+value sources. Each holds one person's (the owner's) language, so serving it to
 any other contributor is exactly the owner-fixation this design removes — the very
-bug where every contributor was handed the owner's language. When the file is
-present it is surfaced only as a one-time **migration hint**: move its value into
-the committed mapping under the owner's own identity, then delete it.
+bug where every contributor was handed the owner's language, and it would silently
+shadow the "if missing, ask" contract. When either is present it is surfaced only
+as a one-time **migration hint** in the unrecorded path: move its value into the
+committed mapping under the owner's own identity (or have each contributor set
+`CLAIRVOYANCE_OPERATOR_LANGUAGE`, which already covers the legitimate explicit
+per-session override), then delete the legacy source.
 
 If nothing matches, the injected context instructs the agent **not** to default to
 any owner's or other person's language, and to ask the human in the session once

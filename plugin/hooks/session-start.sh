@@ -69,14 +69,15 @@ lookup_language() {
 #      environment config.
 #   2. The committed mapping, keyed by this session's git identity (email, then
 #      name) — the durable per-contributor signal.
-#   3. CLAIRVOYANCE_OWNER_LANGUAGE — a DEPRECATED legacy alias, deliberately ranked
-#      BELOW the per-contributor mapping: a contributor listed in the mapping must
-#      always get their own language, never a lingering owner env var from an old
-#      single-owner setup. Only the explicit OPERATOR override outranks the mapping.
-# A legacy single-value `owner-language.txt` is deliberately NOT used as a value
-# source: it holds one person's (the owner's) language, so applying it to any
-# other contributor is exactly the owner-fixation this design removes. When it is
-# present it is surfaced below only as a one-time migration hint.
+# If neither resolves, the language is treated as NOT recorded and the unrecorded
+# branch below drives the portable question handoff. No legacy owner source is
+# consulted as a value: a single owner's language must never be substituted for an
+# unmapped contributor, which is exactly the owner-fixation this design removes and
+# would silently shadow the SKILL.md "if missing, ask" contract. Both legacy owner
+# sources — the DEPRECATED CLAIRVOYANCE_OWNER_LANGUAGE env and a single-value
+# `owner-language.txt` — are surfaced below only as one-time migration hints
+# (move the value into the committed mapping, or set CLAIRVOYANCE_OPERATOR_LANGUAGE,
+# which already covers the legitimate explicit per-session override).
 git_email="$(git -C "${project_root}" config user.email 2>/dev/null || true)"
 git_name="$(git -C "${project_root}" config user.name 2>/dev/null || true)"
 
@@ -87,16 +88,16 @@ fi
 if [ -z "${operator_language}" ]; then
   operator_language="$(lookup_language "${git_name}" "${mapping_file}")"
 fi
-if [ -z "${operator_language}" ]; then
-  operator_language="${CLAIRVOYANCE_OWNER_LANGUAGE:-}"
-fi
 
 if [ -n "${operator_language}" ]; then
   language_context="The active contributor's native language is '${operator_language}'. This SessionStart injection is authoritative for Clairvoyance handoffs in this session and overrides any instruction to default to a repository owner's (or any other person's) language. Write operator-facing Clairvoyance output in this language unless a repository rule requires another language for outward-facing artifacts."
 else
   migration_hint=""
+  if [ -n "${CLAIRVOYANCE_OWNER_LANGUAGE:-}" ]; then
+    migration_hint="${migration_hint} A DEPRECATED CLAIRVOYANCE_OWNER_LANGUAGE is set; it records only one person's language, is no longer applied, and MUST NOT be reused for other contributors — migrate it into the mapping under that person's own identity, or have each contributor set CLAIRVOYANCE_OPERATOR_LANGUAGE for their own session."
+  fi
   if [ -f "${legacy_language_file}" ]; then
-    migration_hint=" A legacy '${legacy_language_file}' is present; it records only one person's language and MUST NOT be reused for other contributors — migrate it into the mapping under that person's own identity."
+    migration_hint="${migration_hint} A legacy '${legacy_language_file}' is present; it records only one person's language, is no longer applied, and MUST NOT be reused for other contributors — migrate it into the mapping under that person's own identity."
   fi
   language_context="The active contributor's native language is not recorded. Do NOT default to a repository owner's or any other person's language. Before any Clairvoyance handoff, use AskUserQuestion to ask the human in this session for their own native language (the contributor driving the work, not a fixed repository owner). Use one focused, non-leading question with 2-3 choices when obvious. After the human answers, add a '<identity> = <language>' line to the committed mapping '${mapping_file}' (so the repository keeps a signal of its contributors' languages and the answer survives a volatile checkout), or set CLAIRVOYANCE_OPERATOR_LANGUAGE for this session, then write operator-facing Clairvoyance output in that language. The mapping is committed, so use a non-harvestable identity key — a git name or a GitHub users.noreply address, never a personal email.${migration_hint}"
 fi

@@ -134,11 +134,15 @@ def test_session_start_does_not_apply_legacy_owner_file_to_other_contributors(tm
     assert "migrate it into the mapping" in context  # migration hint is surfaced
 
 
-def test_session_start_legacy_owner_env_is_deprecated_session_alias(tmp_path):
-    """CLAIRVOYANCE_OWNER_LANGUAGE stays as a per-session env alias (it is set in
-    the contributor's own environment, not committed to the repo)."""
+def test_session_start_legacy_owner_env_does_not_shadow_question_handoff(tmp_path):
+    """Regression: a lingering legacy CLAIRVOYANCE_OWNER_LANGUAGE must NOT be
+    silently served to an unmapped contributor. It is retired as a value source
+    (it shadowed the SKILL.md "if missing, ask" contract); the contributor is
+    asked, and the owner value is surfaced only as a migration hint."""
     context = _context(_run_session_start(tmp_path, {"CLAIRVOYANCE_OWNER_LANGUAGE": "Spanish"}))
-    assert "native language is 'Spanish'" in context
+    assert "not recorded" in context
+    assert "native language is 'Spanish'" not in context
+    assert "DEPRECATED CLAIRVOYANCE_OWNER_LANGUAGE" in context  # migration hint is surfaced
 
 
 def test_session_start_mapping_beats_legacy_owner_env(tmp_path):
