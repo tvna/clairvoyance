@@ -11,7 +11,7 @@ description: Routes an agent-to-human handoff. Use when starting a session or af
 
 Before handoff, select one plugin-qualified Clairvoyance skill.
 
-SessionStart owner language is authoritative; if missing, use portable question handoff.
+SessionStart contributor language (the active contributor's, not a fixed owner's) is authoritative; if missing, use portable question handoff.
 
 Portable question handoff: AskUserQuestion if available; else print `AskUserQuestion:` plus the same question and 1-3 choices.
 

@@ -5,7 +5,12 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 plugin_root="$(cd "${script_dir}/.." && pwd)"
 skill_path="${plugin_root}/skills/using-clairvoyance/SKILL.md"
 project_root="${CLAUDE_PROJECT_DIR:-${CLAUDE_WORKSPACE_DIR:-${PWD:-}}}"
-language_file="${project_root}/.clairvoyance/owner-language.txt"
+# Per-contributor, git-ignored. The language tracks whoever is driving THIS
+# session, not a fixed repository owner, so a multi-contributor project never
+# forces one person's language on everyone. The legacy owner-scoped file is
+# still read as a fallback for projects set up before this reframe.
+language_file="${project_root}/.clairvoyance/operator-language.txt"
+legacy_language_file="${project_root}/.clairvoyance/owner-language.txt"
 
 if [ ! -f "${skill_path}" ]; then
   exit 0
@@ -32,16 +37,26 @@ escape_json() {
 }
 
 skill_content="$(cat "${skill_path}")"
-owner_language="${CLAIRVOYANCE_OWNER_LANGUAGE:-}"
+# Resolve the active contributor's language, first match wins. The env var is
+# the per-contributor authoritative source (each contributor sets it in their
+# own environment); CLAIRVOYANCE_OWNER_LANGUAGE stays as a legacy alias.
+operator_language="${CLAIRVOYANCE_OPERATOR_LANGUAGE:-${CLAIRVOYANCE_OWNER_LANGUAGE:-}}"
 
-if [ -z "${owner_language}" ] && [ -f "${language_file}" ]; then
-  owner_language="$(sed -n '/[^[:space:]]/{s/^[[:space:]]*//;s/[[:space:]]*$//;p;q;}' "${language_file}")"
+read_language_file() {
+  sed -n '/[^[:space:]]/{s/^[[:space:]]*//;s/[[:space:]]*$//;p;q;}' "$1"
+}
+
+if [ -z "${operator_language}" ] && [ -f "${language_file}" ]; then
+  operator_language="$(read_language_file "${language_file}")"
+fi
+if [ -z "${operator_language}" ] && [ -f "${legacy_language_file}" ]; then
+  operator_language="$(read_language_file "${legacy_language_file}")"
 fi
 
-if [ -n "${owner_language}" ]; then
-  language_context="Owner native language metadata is set to '${owner_language}'. This SessionStart injection is authoritative for Clairvoyance handoffs. Write operator-facing Clairvoyance output in this language unless a repository rule requires another language for outward-facing artifacts."
+if [ -n "${operator_language}" ]; then
+  language_context="The active contributor's native language is set to '${operator_language}'. This SessionStart injection is authoritative for Clairvoyance handoffs in this session. Write operator-facing Clairvoyance output in this language unless a repository rule requires another language for outward-facing artifacts."
 else
-  language_context="Owner native language metadata is missing. Before any Clairvoyance handoff, use AskUserQuestion to ask the human for the primary project owner's native language. Use one focused, non-leading question with 2-3 choices when obvious. After the human answers, set up '${language_file}' with the language code or language name, then write operator-facing Clairvoyance output in that language."
+  language_context="The active contributor's native language is not set. Before any Clairvoyance handoff, use AskUserQuestion to ask the human in this session for their own native language (the contributor driving the work, not a fixed repository owner). Use one focused, non-leading question with 2-3 choices when obvious. After the human answers, record it for this contributor — set the CLAIRVOYANCE_OPERATOR_LANGUAGE environment variable, or write '${language_file}' (git-ignored, per-contributor) with the language code or language name — then write operator-facing Clairvoyance output in that language."
 fi
 
 # Count this session toward the adaptive-coaching grace period. The hook pushes

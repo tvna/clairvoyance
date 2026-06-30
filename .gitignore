@@ -10,3 +10,8 @@ htmlcov/
 .ruff_cache/
 .mypy_cache/
 battle/*.jsonl
+
+# Per-contributor Clairvoyance state (the active contributor's native language).
+# Never commit — it must stay local to each contributor so a multi-contributor
+# project never forces one person's language on everyone.
+.clairvoyance/

@@ -7,8 +7,8 @@ and `compact`). It runs `plugin/hooks/session-start.sh`, which:
 
 1. Reads `plugin/skills/using-clairvoyance/SKILL.md` and injects it as
    `additionalContext` so the agent has the bootstrap router from the first turn.
-2. Resolves the project owner's language and injects it as authoritative for
-   Clairvoyance handoffs.
+2. Resolves the active contributor's language and injects it as authoritative for
+   Clairvoyance handoffs in this session.
 3. Counts this session toward the adaptive-coaching grace period
    (`record-session`). The hook pushes **no** coaching: the reflection quiz fires
    only when the human asks to reflect (handled by `adaptive-coaching` reading the
@@ -151,15 +151,29 @@ Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` and Codex substitutes
 `${PLUGIN_ROOT}`. Keeping a separate manifest per runtime avoids that variable
 clash in a single shared file while reusing one hook implementation.
 
-### Owner language
+### Contributor language
 
-The owner's language is resolved in this order:
+Operator-facing handoffs are written in the **active contributor's** native
+language — the person driving the current session, not a fixed repository owner.
+This is what keeps a multi-contributor project from forcing one person's language
+on everyone: the language is resolved per-contributor and the local file is
+git-ignored, so it is never committed and shared.
 
-1. `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable.
-2. The first non-blank line of `<project>/.clairvoyance/owner-language.txt`.
+The language is resolved in this order (first match wins):
 
-If neither is set, the injected context instructs the agent to ask the human once
-(via `AskUserQuestion`) and then write `.clairvoyance/owner-language.txt`.
+1. `CLAIRVOYANCE_OPERATOR_LANGUAGE` environment variable (the per-contributor
+   authoritative source — each contributor sets it in their own environment).
+2. `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable (legacy alias, kept for
+   backward compatibility).
+3. The first non-blank line of `<project>/.clairvoyance/operator-language.txt`
+   (git-ignored, per-contributor).
+4. The first non-blank line of `<project>/.clairvoyance/owner-language.txt`
+   (legacy fallback for projects set up before this reframe).
+
+If none is set, the injected context instructs the agent to ask the human in the
+session once (via `AskUserQuestion`) for **their own** native language, then
+record it for that contributor — set `CLAIRVOYANCE_OPERATOR_LANGUAGE` or write
+`.clairvoyance/operator-language.txt`.
 
 ## Cross-platform entry point
 
