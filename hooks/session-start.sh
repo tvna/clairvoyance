@@ -5,18 +5,22 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 plugin_root="$(cd "${script_dir}/.." && pwd)"
 skill_path="${plugin_root}/skills/using-clairvoyance/SKILL.md"
 project_root="${CLAUDE_PROJECT_DIR:-${CLAUDE_WORKSPACE_DIR:-${PWD:-}}}"
-# A COMMITTED, per-contributor mapping of identity -> native language. The
-# language tracks whoever is driving THIS session, not a fixed repository owner,
-# so a multi-contributor project never forces one person's language on everyone.
-# It is committed on purpose: it is the repository's signal of which native
-# languages its contributors use, and it is the only per-contributor source that
-# survives a volatile/ephemeral checkout (Claude web, CI) where local-only state
-# is lost. Format: one `identity = language` line per contributor, keyed by git
-# email (or name); `#` comments and blank lines are ignored. A legacy
-# single-value owner file is detected only to surface a migration hint — never
-# applied as a contributor's language (see the resolution block below).
-mapping_file="${project_root}/.clairvoyance/contributor-languages.txt"
-legacy_language_file="${project_root}/.clairvoyance/owner-language.txt"
+# The operator's native language is fixed by ONE source: the
+# CLAIRVOYANCE_OPERATOR_LANGUAGE environment variable (resolved below). There is
+# deliberately no git-identity lookup and no committed per-contributor mapping.
+#
+# Why: the previous design also keyed a COMMITTED mapping by the session's git
+# identity (user.email / user.name). On a volatile host — notably Claude web —
+# the git identity is rewritten to a platform-specific value, so that lookup
+# matched the wrong row or no row at all and the resolved language flipped
+# between runs. Fixing the language to one explicit environment variable removes
+# that instability; the deliberate trade-off is that the repository no longer
+# carries a visible per-contributor language signal.
+#
+# Two legacy on-disk sources are detected ONLY to surface a one-time migration
+# hint — never applied as a value (see the resolution block below).
+legacy_mapping_file="${project_root}/.clairvoyance/contributor-languages.txt"
+legacy_owner_file="${project_root}/.clairvoyance/owner-language.txt"
 
 if [ ! -f "${skill_path}" ]; then
   exit 0
@@ -44,62 +48,31 @@ escape_json() {
 
 skill_content="$(cat "${skill_path}")"
 
-# Look up a language for one identity key in the committed mapping. Prints the
-# language (and exits 0) on the first matching `key = language` line; prints
-# nothing otherwise. Matching on the key is case-insensitive.
-lookup_language() {
-  local key="$1" file="$2"
-  [ -n "${key}" ] && [ -f "${file}" ] || return 0
-  awk -v key="${key}" '
-    /^[[:space:]]*#/ { next }
-    index($0, "=") == 0 { next }
-    {
-      k = substr($0, 1, index($0, "=") - 1)
-      v = substr($0, index($0, "=") + 1)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", k)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
-      if (tolower(k) == tolower(key) && v != "") { print v; exit }
-    }
-  ' "${file}"
-}
-
-# Resolve the active contributor's language, first match wins:
-#   1. CLAIRVOYANCE_OPERATOR_LANGUAGE — an explicit per-session env override, set
-#      in the contributor's own environment; survives volatile checkouts via the
-#      environment config.
-#   2. The committed mapping, keyed by this session's git identity (email, then
-#      name) — the durable per-contributor signal.
-# If neither resolves, the language is treated as NOT recorded and the unrecorded
-# branch below drives the portable question handoff. No legacy owner source is
-# consulted as a value: a single owner's language must never be substituted for an
-# unmapped contributor, which is exactly the owner-fixation this design removes and
-# would silently shadow the SKILL.md "if missing, ask" contract. Both legacy owner
-# sources — the DEPRECATED CLAIRVOYANCE_OWNER_LANGUAGE env and a single-value
-# `owner-language.txt` — are surfaced below only as one-time migration hints
-# (move the value into the committed mapping, or set CLAIRVOYANCE_OPERATOR_LANGUAGE,
-# which already covers the legitimate explicit per-session override).
-git_email="$(git -C "${project_root}" config user.email 2>/dev/null || true)"
-git_name="$(git -C "${project_root}" config user.name 2>/dev/null || true)"
-
+# Resolve the operator's native language from a single fixed source: the
+# CLAIRVOYANCE_OPERATOR_LANGUAGE environment variable, set in the operator's own
+# environment configuration. No git identity is read and no committed mapping is
+# consulted, so the result is stable on volatile hosts (Claude web, CI) where the
+# git identity is rewritten.
+#
+# If the variable is unset, the language is treated as NOT recorded and the
+# unrecorded branch below drives the portable question handoff. The two legacy
+# on-disk/owner sources — a DEPRECATED CLAIRVOYANCE_OWNER_LANGUAGE env and the
+# now-removed committed files (contributor-languages.txt, owner-language.txt) —
+# are surfaced there only as one-time migration hints (move the value into
+# CLAIRVOYANCE_OPERATOR_LANGUAGE), never applied as a value.
 operator_language="${CLAIRVOYANCE_OPERATOR_LANGUAGE:-}"
-if [ -z "${operator_language}" ]; then
-  operator_language="$(lookup_language "${git_email}" "${mapping_file}")"
-fi
-if [ -z "${operator_language}" ]; then
-  operator_language="$(lookup_language "${git_name}" "${mapping_file}")"
-fi
 
 if [ -n "${operator_language}" ]; then
-  language_context="The active contributor's native language is '${operator_language}'. This SessionStart injection is authoritative for Clairvoyance handoffs in this session and overrides any instruction to default to a repository owner's (or any other person's) language. Write operator-facing Clairvoyance output in this language unless a repository rule requires another language for outward-facing artifacts."
+  language_context="The operator's native language is '${operator_language}'. This SessionStart injection is authoritative for Clairvoyance handoffs in this session and overrides any instruction to default to a repository owner's (or any other person's) language. Write operator-facing Clairvoyance output in this language unless a repository rule requires another language for outward-facing artifacts."
 else
   migration_hint=""
   if [ -n "${CLAIRVOYANCE_OWNER_LANGUAGE:-}" ]; then
-    migration_hint="${migration_hint} A DEPRECATED CLAIRVOYANCE_OWNER_LANGUAGE is set; it records only one person's language, is no longer applied, and MUST NOT be reused for other contributors — migrate it into the mapping under that person's own identity, or have each contributor set CLAIRVOYANCE_OPERATOR_LANGUAGE for their own session."
+    migration_hint="${migration_hint} A DEPRECATED CLAIRVOYANCE_OWNER_LANGUAGE is set; it is no longer applied — rename it to CLAIRVOYANCE_OPERATOR_LANGUAGE in your environment configuration."
   fi
-  if [ -f "${legacy_language_file}" ]; then
-    migration_hint="${migration_hint} A legacy '${legacy_language_file}' is present; it records only one person's language, is no longer applied, and MUST NOT be reused for other contributors — migrate it into the mapping under that person's own identity."
+  if [ -f "${legacy_mapping_file}" ] || [ -f "${legacy_owner_file}" ]; then
+    migration_hint="${migration_hint} A legacy committed language file (.clairvoyance/contributor-languages.txt or owner-language.txt) is present; it is no longer applied — move the value into the CLAIRVOYANCE_OPERATOR_LANGUAGE environment variable and delete the file."
   fi
-  language_context="The active contributor's native language is not recorded. Do NOT default to a repository owner's or any other person's language. Before any Clairvoyance handoff, use AskUserQuestion to ask the human in this session for their own native language (the contributor driving the work, not a fixed repository owner). Use one focused, non-leading question with 2-3 choices when obvious. After the human answers, add a '<identity> = <language>' line to the committed mapping '${mapping_file}' (so the repository keeps a signal of its contributors' languages and the answer survives a volatile checkout), or set CLAIRVOYANCE_OPERATOR_LANGUAGE for this session, then write operator-facing Clairvoyance output in that language. The mapping is committed, so use a non-harvestable identity key — a git name or a GitHub users.noreply address, never a personal email.${migration_hint}"
+  language_context="The operator's native language is not recorded. Do NOT default to a repository owner's or any other person's language. Before any Clairvoyance handoff, use AskUserQuestion to ask the human in this session for their own native language. Use one focused, non-leading question with 2-3 choices when obvious, and write operator-facing Clairvoyance output in the answered language for this session. To make the choice durable, the operator must set CLAIRVOYANCE_OPERATOR_LANGUAGE in the environment's configuration. On Claude web and any volatile/ephemeral checkout this is an OPERATOR task that cannot be automated from inside the session, because local files do not survive the checkout — setting the environment variable is the only thing that persists.${migration_hint}"
 fi
 
 # Count this session toward the adaptive-coaching grace period. The hook pushes

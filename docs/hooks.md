@@ -7,8 +7,9 @@ and `compact`). It runs `hooks/session-start.sh`, which:
 
 1. Reads `skills/using-clairvoyance/SKILL.md` and injects it as
    `additionalContext` so the agent has the bootstrap router from the first turn.
-2. Resolves the active contributor's language and injects it as authoritative for
-   Clairvoyance handoffs in this session.
+2. Resolves the operator's configured language (the `CLAIRVOYANCE_OPERATOR_LANGUAGE`
+   environment variable) and injects it as authoritative for Clairvoyance
+   handoffs in this session.
 3. Counts this session toward the adaptive-coaching grace period
    (`record-session`). The hook pushes **no** coaching: the reflection quiz fires
    only when the human asks to reflect (handled by `adaptive-coaching` reading the
@@ -151,69 +152,54 @@ Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` and Codex substitutes
 `${PLUGIN_ROOT}`. Keeping a separate manifest per runtime avoids that variable
 clash in a single shared file while reusing one hook implementation.
 
-### Contributor language
+### Operator language
 
-Operator-facing handoffs are written in the **active contributor's** native
-language — the person driving the current session, not a fixed repository owner.
-This is what keeps a multi-contributor project from forcing one person's language
-on everyone: the language is resolved per-contributor, keyed by the session's git
-identity.
+Operator-facing handoffs are written in the operator's native language. That
+language is fixed by **one** source: the `CLAIRVOYANCE_OPERATOR_LANGUAGE`
+environment variable, set in the operator's own environment configuration. There
+is **no** git-identity lookup and **no** committed per-contributor mapping.
 
-The per-contributor mapping lives in a **committed** file,
-`<project>/.clairvoyance/contributor-languages.txt`, with one
-`identity = language` line per contributor (keyed by git email, then git name;
-`#` comments and blank lines ignored, keys matched case-insensitively). Because
-the file is committed, use a **non-harvestable** key — a git name or a GitHub
-`users.noreply.github.com` address — never a personal email, which would become a
-public scraping target. It is committed on purpose, for two reasons:
+**Why env-var-only (the fix).** The previous design also keyed a *committed*
+`<project>/.clairvoyance/contributor-languages.txt` mapping by the session's git
+identity (`user.email`, then `user.name`). On a volatile host — notably Claude
+web — the git identity is rewritten to a platform-specific value, so that lookup
+matched the wrong row or no row at all and the resolved language flipped between
+runs. Fixing the language to one explicit environment variable removes that
+instability. The deliberate trade-off is that the repository no longer carries a
+visible per-contributor language signal — that visibility is intentionally
+dropped in favour of stable behaviour.
 
-- It is the repository's **signal** of which native languages its contributors
-  use — useful information, not something to hide in `.gitignore`.
-- It is the only per-contributor source that **survives a volatile/ephemeral
-  checkout** (Claude web, CI), where local-only state is wiped on every run. A
-  git-ignored per-contributor file would simply vanish there.
+If `CLAIRVOYANCE_OPERATOR_LANGUAGE` is unset, the language is treated as **not
+recorded** and the hook drives the portable question handoff: the agent asks the
+human once (via `AskUserQuestion`) for their own native language and writes that
+session's handoffs in it.
 
-The language is resolved in this order (first match wins). A contributor listed
-in the committed mapping always gets their own language — only an explicit
-per-session override can outrank it — so the owner's language is never served to a
-different contributor:
+**Operator responsibility on Claude web.** Making the choice durable means
+setting `CLAIRVOYANCE_OPERATOR_LANGUAGE` in the environment's configuration. On
+Claude web and any volatile/ephemeral checkout this is an **operator task that
+cannot be automated** from inside the session, because local files do not survive
+the checkout — setting the environment variable is the only thing that persists.
+The unrecorded-path injection states this explicitly so the agent does not try to
+persist the answer by writing a file that will be wiped.
 
-1. `CLAIRVOYANCE_OPERATOR_LANGUAGE` environment variable — an explicit per-session
-   override, set in the contributor's own environment; also survives a volatile
-   environment via its environment config.
-2. The committed mapping, looked up by this session's git `user.email`, then
-   `user.name`.
+Two legacy sources are detected only to surface a one-time **migration hint** in
+the unrecorded path, never applied as a value:
 
-If neither resolves, the language is treated as **not recorded** and the hook
-drives the portable question handoff (below). No legacy owner source is consulted
-as a value.
-
-The legacy `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable and a legacy
-single-value `<project>/.clairvoyance/owner-language.txt` are **not** used as
-value sources. Each holds one person's (the owner's) language, so serving it to
-any other contributor is exactly the owner-fixation this design removes — the very
-bug where every contributor was handed the owner's language, and it would silently
-shadow the "if missing, ask" contract. When either is present it is surfaced only
-as a one-time **migration hint** in the unrecorded path: move its value into the
-committed mapping under the owner's own identity (or have each contributor set
-`CLAIRVOYANCE_OPERATOR_LANGUAGE`, which already covers the legitimate explicit
-per-session override), then delete the legacy source.
-
-If nothing matches, the injected context instructs the agent **not** to default to
-any owner's or other person's language, and to ask the human in the session once
-(via `AskUserQuestion`) for **their own** native language, then record it — add an
-`identity = language` line to the committed mapping (so the signal persists across
-volatile checkouts), or set `CLAIRVOYANCE_OPERATOR_LANGUAGE` for the session.
+- the `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable — rename it to
+  `CLAIRVOYANCE_OPERATOR_LANGUAGE`;
+- a leftover committed `<project>/.clairvoyance/contributor-languages.txt` or
+  `owner-language.txt` — move the value into `CLAIRVOYANCE_OPERATOR_LANGUAGE` and
+  delete the file.
 
 > **Note — upstream `AGENTS.md` framing.** `AGENTS.md` is synced read-only from
 > the upstream and still phrases the rule as "the primary project owner's native
 > language". Per its own clause, a SessionStart language injection is authoritative
-> and overrides that default, so once this hook injects a contributor's language
+> and overrides that default, so once this hook injects the operator's language
 > the wording no longer bites. The gap is the unrecorded case: with no injected
 > language, an agent following `AGENTS.md` could still reach for the *owner's*
 > language — which is why the unrecorded-path injection explicitly forbids that and
-> asks the contributor instead. Fully retiring the "owner" wording requires an
-> upstream change in `tvna/claude-md`.
+> asks the human in the session instead. Fully retiring the "owner" wording
+> requires an upstream change in `tvna/claude-md`.
 
 ## Cross-platform entry point
 
