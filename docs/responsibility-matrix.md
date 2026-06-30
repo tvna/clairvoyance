@@ -16,7 +16,7 @@ enforces it, who reads it, and how it changes.
 | Skill instruction | `skills/*/SKILL.md` bodies and descriptions; `using-clairvoyance` bootstrap router | The agent loading the skill at runtime | Edit the SKILL.md; `waza check` and `scripts/check_skills.py` enforce shape |
 | Harness | `scripts/*`, `.github/workflows/*.yml`, `hooks/*` | The repository itself; runs without agent involvement | Edit the script/workflow/hook; add or update a paired test under `tests/` |
 | Repo-local doc | `docs/*.md` | Contributors and reviewers of this repository | Edit the doc; reference skills by name, never by copying their wording |
-| Project-local | The project's committed `.clairvoyance/contributor-languages.txt` (per-contributor `identity = language` signal, keyed by git identity; a legacy single-value `owner-language.txt` is migration-hint only, never applied as a contributor's language), their own `CLAUDE.md` | Agents working in that one project | Owned by each project for its own contributors; this repo dogfoods one and ships it as the worked example, but does not review a consumer's |
+| Project-local | The operator's `CLAIRVOYANCE_OPERATOR_LANGUAGE` environment variable (the single fixed source for operator language; legacy committed files and `CLAIRVOYANCE_OWNER_LANGUAGE` are migration-hint only, never applied), their own `CLAUDE.md` | Agents working in that one project | Owned by each project's operator via environment configuration; on Claude web / volatile checkouts this is an operator task because local files do not survive |
 
 `AGENTS.md` and `CLAUDE.md` are **imported**, not authored here: they are synced
 verbatim from the upstream by `.github/workflows/sync-agent-instructions.yml`,

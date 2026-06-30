@@ -18,9 +18,10 @@ def test_check_hooks_script_passes():
 
 
 def _git_identity_env(email=None, name=None):
-    """Inject a deterministic git identity via git's env-config mechanism, so
-    `git config user.email/.name` returns these values regardless of any repo or
-    global config the test host happens to carry."""
+    """Inject a deterministic git identity via git's env-config mechanism. The
+    language resolution no longer reads the git identity at all; this helper
+    exists only so a regression test can PROVE that — by setting an identity that
+    would have matched a legacy mapping and asserting it is ignored."""
     pairs = []
     if email is not None:
         pairs.append(("user.email", email))
@@ -39,14 +40,12 @@ def _run_session_start(tmp_path, env_overrides=None):
     # feed empty stdin so the hook never blocks reading a SessionStart payload.
     env = {**os.environ, "CLAUDE_PROJECT_DIR": str(tmp_path), "CLAIRVOYANCE_DATA_DIR": str(tmp_path / "store")}
     # Strip any ambient language overrides from the inherited environment: the
-    # hook gives these precedence, so a developer/CI host that exports one would
-    # otherwise mask the mapping, legacy-file, and unmapped-prompt behaviours
-    # under test. A test that needs one sets it explicitly via env_overrides.
+    # hook gives CLAIRVOYANCE_OPERATOR_LANGUAGE precedence, so a developer/CI host
+    # that exports one (or a lingering legacy CLAIRVOYANCE_OWNER_LANGUAGE) would
+    # otherwise mask the unrecorded-path behaviour under test. A test that needs
+    # one sets it explicitly via env_overrides.
     env.pop("CLAIRVOYANCE_OPERATOR_LANGUAGE", None)
     env.pop("CLAIRVOYANCE_OWNER_LANGUAGE", None)
-    # Default to a no-match identity so a test that does not set one is not
-    # accidentally resolved by the host's real git config.
-    env.update(_git_identity_env(email="nobody@example.invalid", name="Nobody"))
     if env_overrides:
         env.update(env_overrides)
     return subprocess.run(
@@ -58,7 +57,7 @@ def _run_session_start(tmp_path, env_overrides=None):
     )
 
 
-def _write_mapping(tmp_path, body):
+def _write_legacy_mapping(tmp_path, body):
     lang_dir = tmp_path / ".clairvoyance"
     lang_dir.mkdir(exist_ok=True)
     (lang_dir / "contributor-languages.txt").write_text(body)
@@ -69,99 +68,57 @@ def _context(result):
     return json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
 
 
+def test_session_start_resolves_language_from_env(tmp_path):
+    """The operator language is fixed by CLAIRVOYANCE_OPERATOR_LANGUAGE."""
+    context = _context(_run_session_start(tmp_path, {"CLAIRVOYANCE_OPERATOR_LANGUAGE": "Japanese"}))
+    assert "native language is 'Japanese'" in context
+    assert "authoritative" in context
+
+
 def test_session_start_escapes_control_characters(tmp_path):
-    """A control char in a mapping value must still yield valid JSON."""
+    """A control char in the env value must still yield valid JSON."""
     # Form feed (0x0c) is a control char a hand-rolled escaper would miss.
-    _write_mapping(tmp_path, "alice@example.com = Japanese\x0c\n")
-    result = _run_session_start(tmp_path, _git_identity_env(email="alice@example.com"))
+    result = _run_session_start(tmp_path, {"CLAIRVOYANCE_OPERATOR_LANGUAGE": "Japanese\x0c"})
     assert result.returncode == 0, result.stderr
     json.loads(result.stdout)  # raises if the hook emitted invalid JSON
 
 
-def test_session_start_resolves_language_by_git_email(tmp_path):
-    """The committed mapping is looked up by the session's git email."""
-    _write_mapping(tmp_path, "# contributors\nalice@example.com = English\nbob@example.com = Korean\n")
-    context = _context(_run_session_start(tmp_path, _git_identity_env(email="bob@example.com")))
-    assert "Korean" in context
-    assert "active contributor" in context
-
-
-def test_session_start_email_match_is_case_insensitive(tmp_path):
-    """Email keys match case-insensitively."""
-    _write_mapping(tmp_path, "Alice@Example.com = English\n")
-    context = _context(_run_session_start(tmp_path, _git_identity_env(email="alice@example.com")))
-    assert "English" in context
-
-
-def test_session_start_falls_back_to_git_name(tmp_path):
-    """When the email does not match, the mapping is looked up by git name."""
-    _write_mapping(tmp_path, "Carol = French\n")
-    env = _git_identity_env(email="unmapped@example.com", name="Carol")
+def test_session_start_ignores_git_identity_and_legacy_mapping(tmp_path):
+    """The core fix: the unstable path is gone. Even with a git identity that
+    exactly matches a leftover committed mapping, the language is NOT resolved
+    from it — git identity is never read and the mapping is never applied."""
+    _write_legacy_mapping(tmp_path, "bob@example.com = Korean\n")
+    env = {**_git_identity_env(email="bob@example.com"), "CLAUDE_PROJECT_DIR": str(tmp_path)}
     context = _context(_run_session_start(tmp_path, env))
-    assert "French" in context
-
-
-def test_session_start_distinct_contributors_get_distinct_languages(tmp_path):
-    """The core multi-contributor fix: each contributor resolves to their own
-    language from the same committed mapping."""
-    _write_mapping(tmp_path, "alice@example.com = English\nbob@example.com = Japanese\n")
-    alice = _context(_run_session_start(tmp_path, _git_identity_env(email="alice@example.com")))
-    bob = _context(_run_session_start(tmp_path, _git_identity_env(email="bob@example.com")))
-    assert "English" in alice and "Japanese" not in alice
-    assert "Japanese" in bob and "English" not in bob
-
-
-def test_session_start_operator_env_overrides_mapping(tmp_path):
-    """CLAIRVOYANCE_OPERATOR_LANGUAGE wins over the committed mapping."""
-    _write_mapping(tmp_path, "alice@example.com = English\n")
-    env = {**_git_identity_env(email="alice@example.com"), "CLAIRVOYANCE_OPERATOR_LANGUAGE": "Spanish"}
-    context = _context(_run_session_start(tmp_path, env))
-    assert "Spanish" in context
-    assert "English" not in context
-
-
-def test_session_start_does_not_apply_legacy_owner_file_to_other_contributors(tmp_path):
-    """A legacy single-value owner-language file must NOT be served as the active
-    contributor's language — that is the owner-fixation this design removes. It is
-    surfaced only as a migration hint, and the contributor is still asked."""
-    lang_dir = tmp_path / ".clairvoyance"
-    lang_dir.mkdir()
-    (lang_dir / "owner-language.txt").write_text("Japanese\n")
-    context = _context(_run_session_start(tmp_path, _git_identity_env(email="alice@example.com")))
+    assert "Korean" not in context
     assert "not recorded" in context
-    assert "is set to 'Japanese'" not in context
-    assert "native language is 'Japanese'" not in context
-    assert "migrate it into the mapping" in context  # migration hint is surfaced
 
 
-def test_session_start_legacy_owner_env_does_not_shadow_question_handoff(tmp_path):
-    """Regression: a lingering legacy CLAIRVOYANCE_OWNER_LANGUAGE must NOT be
-    silently served to an unmapped contributor. It is retired as a value source
-    (it shadowed the SKILL.md "if missing, ask" contract); the contributor is
-    asked, and the owner value is surfaced only as a migration hint."""
+def test_session_start_prompts_and_flags_operator_task_when_unset(tmp_path):
+    """With the env var unset, the hook asks for the operator's own language and
+    states that persisting it is an operator task that cannot be automated on a
+    volatile checkout (Claude web)."""
+    context = _context(_run_session_start(tmp_path))
+    assert "not recorded" in context
+    assert "CLAIRVOYANCE_OPERATOR_LANGUAGE" in context
+    assert "OPERATOR task that cannot be automated" in context
+    assert "Claude web" in context
+
+
+def test_session_start_legacy_owner_env_is_migration_hint_only(tmp_path):
+    """A lingering legacy CLAIRVOYANCE_OWNER_LANGUAGE is never applied as a value;
+    it is surfaced only as a rename-to-the-env-var migration hint."""
     context = _context(_run_session_start(tmp_path, {"CLAIRVOYANCE_OWNER_LANGUAGE": "Spanish"}))
     assert "not recorded" in context
     assert "native language is 'Spanish'" not in context
-    assert "DEPRECATED CLAIRVOYANCE_OWNER_LANGUAGE" in context  # migration hint is surfaced
+    assert "DEPRECATED CLAIRVOYANCE_OWNER_LANGUAGE" in context
 
 
-def test_session_start_mapping_beats_legacy_owner_env(tmp_path):
-    """The legacy owner env alias is ranked BELOW the per-contributor mapping: a
-    mapped contributor gets their own language even when a lingering
-    CLAIRVOYANCE_OWNER_LANGUAGE from an old single-owner setup is exported."""
-    _write_mapping(tmp_path, "bob@example.com = Korean\n")
-    env = {**_git_identity_env(email="bob@example.com"), "CLAIRVOYANCE_OWNER_LANGUAGE": "Japanese"}
-    context = _context(_run_session_start(tmp_path, env))
-    assert "native language is 'Korean'" in context
-    assert "Japanese" not in context
-
-
-def test_session_start_prompts_for_language_when_unmapped(tmp_path):
-    """With no match anywhere, the hook asks for the contributor's own language
-    and points at the committed mapping with a privacy-safe identity caution —
-    without echoing any real (possibly personal) identity into the message."""
-    context = _context(_run_session_start(tmp_path, _git_identity_env(email="newcomer@example.com")))
+def test_session_start_legacy_committed_file_is_migration_hint_only(tmp_path):
+    """A leftover committed language file is no longer applied; it only triggers a
+    migration hint to move the value into the environment variable."""
+    _write_legacy_mapping(tmp_path, "Tsubasa Nagano = Japanese\n")
+    context = _context(_run_session_start(tmp_path))
     assert "not recorded" in context
-    assert "contributor-languages.txt" in context
-    assert "never a personal email" in context
-    assert "newcomer@example.com" not in context
+    assert "native language is 'Japanese'" not in context
+    assert "legacy committed language file" in context
