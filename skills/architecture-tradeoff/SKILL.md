@@ -20,7 +20,7 @@ Architecture trade-offs turn system context into a decision a human can inspect.
 7. Recommend the option that preserves important invariants with the smallest sufficient change.
 8. State what proof would change the recommendation.
 9. If only the human can answer a blocking architecture choice, use portable question handoff: AskUserQuestion when available, otherwise `AskUserQuestion:` text with the same 1-3 choices; otherwise list it as a risk or unknown.
-10. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
+10. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another language for outward-facing artifacts.
 
 ## Output
 

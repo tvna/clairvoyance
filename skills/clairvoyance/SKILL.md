@@ -19,7 +19,7 @@ Clairvoyance turns a blocker or owner decision into an evidence-backed handoff a
 6. Recommend one option and explain why.
 7. State risks, reversibility, missing proof, and the next move.
 8. If only the human can unblock the decision, use portable question handoff: AskUserQuestion when available, otherwise `AskUserQuestion:` text with the same 1-3 choices.
-9. Write in the project owner's language unless a repository rule requires another language for outward-facing artifacts.
+9. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another language for outward-facing artifacts.
 
 ## References
 
