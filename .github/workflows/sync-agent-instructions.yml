@@ -6,8 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}
@@ -24,6 +23,18 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The PR-publishing step mints its own short-lived GitHub App token (write
+    # scope), so the job's default GITHUB_TOKEN never needs more than read
+    # access to check out the repository.
+    permissions:
+      contents: read
+    # Scopes SYNC_BOT_APP_ID / SYNC_BOT_APP_PRIVATE_KEY to this job via a
+    # GitHub Environment rather than plain repo secrets, so they can carry
+    # their own protection rules (e.g. required reviewers) independent of
+    # other workflows in this repo. See CONTRIBUTING.md -> "Signed-commit bot
+    # App" for how the Environment and secrets are created.
+    environment:
+      name: sync-bot
     steps:
       # Recommended: restrict egress to api.github.com and raw.githubusercontent.com.
       - name: Harden runner
@@ -65,15 +76,44 @@ jobs:
           cp "${tmp}/CLAUDE.md" CLAUDE.md
           rm -rf "$tmp"
 
-      - name: Open a pull request on change
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
         with:
-          branch: chore/sync-claude-md
-          title: "chore: sync agent instructions from tvna/claude-md"
-          commit-message: "chore: sync agent instructions (${{ steps.fetch.outputs.short_sha }})"
-          body: |
-            Syncs AGENTS.md and CLAUDE.md from ${{ env.MASTER_REPO }}
-            at commit ${{ steps.fetch.outputs.sha }} (latest on the default branch).
+          enable-cache: true
 
-            Review and merge behind the code-owner gate. Do not auto-merge.
-          labels: instructions-sync
+      # A `git push` from the runner's default GITHUB_TOKEN produces an
+      # unsigned commit, which this repository's required_signatures
+      # branch-protection rule rejects at merge time (the original failure
+      # this workflow hit). Mint a short-lived GitHub App installation token
+      # instead; scripts/sync_pr_publish.py uses it to create the commit
+      # server-side via the GraphQL createCommitOnBranch mutation, which
+      # GitHub signs and shows as Verified. See the App setup steps in
+      # CONTRIBUTING.md for how SYNC_BOT_APP_ID / SYNC_BOT_APP_PRIVATE_KEY
+      # are issued.
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
+        with:
+          app-id: ${{ secrets.SYNC_BOT_APP_ID }}
+          private-key: ${{ secrets.SYNC_BOT_APP_PRIVATE_KEY }}
+
+      - name: Publish a signed pull request on change
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/pr-body.md <<EOF
+          Syncs AGENTS.md and CLAUDE.md from ${MASTER_REPO}
+          at commit ${{ steps.fetch.outputs.sha }} (latest on the default branch).
+
+          Review and merge behind the code-owner gate. Do not auto-merge.
+          EOF
+          uv run --frozen python3 scripts/sync_pr_publish.py \
+            --base "${GITHUB_REF_NAME}" \
+            --branch chore/sync-claude-md \
+            --title "chore: sync agent instructions from ${MASTER_REPO}" \
+            --body-file /tmp/pr-body.md \
+            --commit-subject "chore: sync agent instructions (${{ steps.fetch.outputs.short_sha }})" \
+            --add AGENTS.md \
+            --add CLAUDE.md

@@ -74,8 +74,10 @@ ignore = [
 # The test suite drives the validators through subprocess and asserts on the
 # result; these S/B families are intrinsic to a pytest suite, not defects.
 #   S101        -- assert is the pytest assertion primitive.
+#   S106        -- fake tokens ("tok") passed to injected test doubles, not
+#                  real credentials.
 #   S404/S603/S607 -- tests invoke bash/python via subprocess by design.
-"tests/*" = ["S101", "S404", "S603", "S607"]
+"tests/*" = ["S101", "S106", "S404", "S603", "S607"]
 # The battle harness shells out to the `claude` CLI by design (a local,
 # advisory tool); the subprocess S-rules and its self-test asserts are intended.
 "battle/*" = ["S101", "S404", "S603", "S607"]
