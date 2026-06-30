@@ -36,8 +36,9 @@ version — bumping a release does not touch it, and changing an eval spec does 
 require a release.
 
 External versions remain out of scope and intentionally separate: the APM
-instruction version in `AGENTS.md`, the `INSTRUCTIONS_TAG` in the sync workflow,
-and SHA-pinned GitHub Action versions.
+instruction version in `AGENTS.md`, the upstream release the sync workflow
+tracks (the latest published release of `tvna/claude-md`, resolved at run time
+rather than pinned), and SHA-pinned GitHub Action versions.
 
 ## Automated releases (semantic-release)
 

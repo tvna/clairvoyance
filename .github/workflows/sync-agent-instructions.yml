@@ -15,8 +15,10 @@ concurrency:
 
 env:
   MASTER_REPO: tvna/claude-md
-  # Pin a specific release tag. Bump deliberately in a reviewed PR.
-  INSTRUCTIONS_TAG: v1.0.0
+  # No pinned tag: always track the upstream's latest published release.
+  # The supply-chain risk of pulling an unreviewed upstream bump is an
+  # accepted project decision; assets are still SHA-verified against the
+  # release's own SHA256SUMS manifest before anything is committed.
 
 jobs:
   sync:
@@ -35,12 +37,21 @@ jobs:
           persist-credentials: false
 
       - name: Fetch and verify release assets
+        id: fetch
         env:
           MASTER_REPO: ${{ env.MASTER_REPO }}
-          INSTRUCTIONS_TAG: ${{ env.INSTRUCTIONS_TAG }}
         run: |
           set -euo pipefail
-          base="https://github.com/${MASTER_REPO}/releases/download/${INSTRUCTIONS_TAG}"
+          # Resolve the latest published (non-draft, non-prerelease) release tag
+          # once, then download every asset by that exact tag so the manifest and
+          # the payloads come from a single, consistent release.
+          tag="$(curl -fsSL "https://api.github.com/repos/${MASTER_REPO}/releases/latest" | jq -r '.tag_name')"
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            echo "could not resolve latest release tag for ${MASTER_REPO}" >&2
+            exit 1
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          base="https://github.com/${MASTER_REPO}/releases/download/${tag}"
           tmp="$(mktemp -d)"
           for f in AGENTS.md CLAUDE.md SHA256SUMS; do
             curl -fsSL "${base}/${f}" -o "${tmp}/${f}"
@@ -59,10 +70,10 @@ jobs:
         with:
           branch: chore/sync-claude-md
           title: "chore: sync agent instructions from tvna/claude-md"
-          commit-message: "chore: sync agent instructions (${{ env.INSTRUCTIONS_TAG }})"
+          commit-message: "chore: sync agent instructions (${{ steps.fetch.outputs.tag }})"
           body: |
             Syncs AGENTS.md and CLAUDE.md from ${{ env.MASTER_REPO }}
-            release ${{ env.INSTRUCTIONS_TAG }}, verified against SHA256SUMS.
+            latest release ${{ steps.fetch.outputs.tag }}, verified against SHA256SUMS.
 
             Review and merge behind the code-owner gate. Do not auto-merge.
           labels: instructions-sync
