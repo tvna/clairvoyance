@@ -173,21 +173,42 @@ public scraping target. It is committed on purpose, for two reasons:
   checkout** (Claude web, CI), where local-only state is wiped on every run. A
   git-ignored per-contributor file would simply vanish there.
 
-The language is resolved in this order (first match wins):
+The language is resolved in this order (first match wins). A contributor listed
+in the committed mapping always gets their own language — only an explicit
+per-session override can outrank it — so the owner's language is never served to a
+different contributor:
 
-1. `CLAIRVOYANCE_OPERATOR_LANGUAGE` environment variable — a per-session
-   override; also survives a volatile environment via its environment config.
+1. `CLAIRVOYANCE_OPERATOR_LANGUAGE` environment variable — an explicit per-session
+   override, set in the contributor's own environment; also survives a volatile
+   environment via its environment config.
 2. The committed mapping, looked up by this session's git `user.email`, then
    `user.name`.
-3. `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable (legacy alias).
-4. The first non-blank line of `<project>/.clairvoyance/owner-language.txt`
-   (legacy single-value fallback for setups created before this reframe).
+3. `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable — a **deprecated** legacy
+   alias, ranked **below** the mapping so a mapped contributor's own language
+   always wins over a lingering owner variable from an old single-owner setup.
 
-If none matches, the injected context instructs the agent to ask the human in
-the session once (via `AskUserQuestion`) for **their own** native language, then
-record it — add an `identity = language` line to the committed mapping (so the
-signal persists across volatile checkouts), or set
-`CLAIRVOYANCE_OPERATOR_LANGUAGE` for the session.
+A legacy single-value `<project>/.clairvoyance/owner-language.txt` is **not** used
+as a value source. It holds one person's (the owner's) language, so serving it to
+any other contributor is exactly the owner-fixation this design removes — the very
+bug where every contributor was handed the owner's language. When the file is
+present it is surfaced only as a one-time **migration hint**: move its value into
+the committed mapping under the owner's own identity, then delete it.
+
+If nothing matches, the injected context instructs the agent **not** to default to
+any owner's or other person's language, and to ask the human in the session once
+(via `AskUserQuestion`) for **their own** native language, then record it — add an
+`identity = language` line to the committed mapping (so the signal persists across
+volatile checkouts), or set `CLAIRVOYANCE_OPERATOR_LANGUAGE` for the session.
+
+> **Note — upstream `AGENTS.md` framing.** `AGENTS.md` is synced read-only from
+> the upstream and still phrases the rule as "the primary project owner's native
+> language". Per its own clause, a SessionStart language injection is authoritative
+> and overrides that default, so once this hook injects a contributor's language
+> the wording no longer bites. The gap is the unrecorded case: with no injected
+> language, an agent following `AGENTS.md` could still reach for the *owner's*
+> language — which is why the unrecorded-path injection explicitly forbids that and
+> asks the contributor instead. Fully retiring the "owner" wording requires an
+> upstream change in `tvna/claude-md`.
 
 ## Cross-platform entry point
 
