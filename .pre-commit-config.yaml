@@ -6,8 +6,8 @@
 #
 # Scope follows the repo's real artifacts (YAML, JSON, Markdown, bash) plus the
 # project's own validators, rather than a generic kitchen sink. AGENTS.md and
-# CLAUDE.md are generated and SHA-verified by the sync workflow, so they stay
-# untouched.
+# CLAUDE.md are generated upstream and synced verbatim by the sync workflow, so
+# they stay untouched.
 exclude: ^(AGENTS|CLAUDE)\.md$
 
 repos:

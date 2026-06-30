@@ -15,17 +15,17 @@ concurrency:
 
 env:
   MASTER_REPO: tvna/claude-md
-  # No pinned tag: always track the upstream's latest published release.
-  # The supply-chain risk of pulling an unreviewed upstream bump is an
-  # accepted project decision; assets are still SHA-verified against the
-  # release's own SHA256SUMS manifest before anything is committed.
+  # Upstream delivers the compiled instruction files as raw blobs on its default
+  # branch -- there is no GitHub Release and no version tag (one is planned, not
+  # yet present). The sync tracks the latest commit on that branch. Pulling an
+  # unreviewed upstream change is an accepted project trade-off.
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      # Recommended: restrict egress to the GitHub download hosts.
+      # Recommended: restrict egress to api.github.com and raw.githubusercontent.com.
       - name: Harden runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
         with:
@@ -36,30 +36,30 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Fetch and verify release assets
+      - name: Fetch upstream instruction files
         id: fetch
         env:
           MASTER_REPO: ${{ env.MASTER_REPO }}
         run: |
           set -euo pipefail
-          # Resolve the latest published (non-draft, non-prerelease) release tag
-          # once, then download every asset by that exact tag so the manifest and
-          # the payloads come from a single, consistent release.
-          tag="$(curl -fsSL "https://api.github.com/repos/${MASTER_REPO}/releases/latest" | jq -r '.tag_name')"
-          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
-            echo "could not resolve latest release tag for ${MASTER_REPO}" >&2
+          # Resolve the default branch head once, then fetch every file pinned to
+          # that exact commit, so all files come from one consistent upstream
+          # revision even if the branch advances mid-run. Branch delivery ships no
+          # SHA256SUMS manifest; the commit pin is the consistency guarantee.
+          branch="$(curl -fsSL "https://api.github.com/repos/${MASTER_REPO}" | jq -r '.default_branch')"
+          sha="$(curl -fsSL "https://api.github.com/repos/${MASTER_REPO}/commits/${branch}" | jq -r '.sha')"
+          if [ -z "$sha" ] || [ "$sha" = "null" ]; then
+            echo "could not resolve ${MASTER_REPO}@${branch} head commit" >&2
             exit 1
           fi
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          base="https://github.com/${MASTER_REPO}/releases/download/${tag}"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${sha:0:12}" >> "$GITHUB_OUTPUT"
+          base="https://raw.githubusercontent.com/${MASTER_REPO}/${sha}"
           tmp="$(mktemp -d)"
-          for f in AGENTS.md CLAUDE.md SHA256SUMS; do
+          for f in AGENTS.md CLAUDE.md; do
             curl -fsSL "${base}/${f}" -o "${tmp}/${f}"
           done
-          # Verify every payload file against the release manifest. A mismatch
-          # exits non-zero and the job fails before anything is committed.
-          ( cd "$tmp" && sha256sum -c SHA256SUMS )
-          # Land the verified files as committed real files (no symlink).
+          # Land the fetched files as committed real files (no symlink).
           # No-delta layout: write to the repository root.
           cp "${tmp}/AGENTS.md" AGENTS.md
           cp "${tmp}/CLAUDE.md" CLAUDE.md
@@ -70,10 +70,10 @@ jobs:
         with:
           branch: chore/sync-claude-md
           title: "chore: sync agent instructions from tvna/claude-md"
-          commit-message: "chore: sync agent instructions (${{ steps.fetch.outputs.tag }})"
+          commit-message: "chore: sync agent instructions (${{ steps.fetch.outputs.short_sha }})"
           body: |
             Syncs AGENTS.md and CLAUDE.md from ${{ env.MASTER_REPO }}
-            latest release ${{ steps.fetch.outputs.tag }}, verified against SHA256SUMS.
+            at commit ${{ steps.fetch.outputs.sha }} (latest on the default branch).
 
             Review and merge behind the code-owner gate. Do not auto-merge.
           labels: instructions-sync
