@@ -1,6 +1,6 @@
 """Behavioural tests for the adaptive-coaching observation store.
 
-The store ships in ``plugin/hooks/`` (consumer-facing, outside the ``scripts/``
+The store ships in ``hooks/`` (consumer-facing, outside the ``scripts/``
 coverage scope), so it is exercised the same way ``check_hooks.sh`` exercises
 the bash hooks: through its real CLI via subprocess, with the data directory
 redirected to a tmp path so nothing touches the developer's workstation.
@@ -22,7 +22,7 @@ import subprocess
 import pytest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-STORE_SH = REPO_ROOT / "plugin" / "hooks" / "adaptive-store.sh"
+STORE_SH = REPO_ROOT / "hooks" / "adaptive-store.sh"
 
 
 def _resolve_bash():

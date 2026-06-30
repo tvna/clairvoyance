@@ -61,7 +61,7 @@ or an unbounded question. When only a human can unblock a decision, the skill us
 Skill maturity is measured along two lanes — deterministic and probabilistic.
 
 **Deterministic.** Each skill keeps `SKILL.md` concise (the repo holds a 500-token
-budget, checked by `waza check`), carries an eval suite under `plugin/evals/`, and
+budget, checked by `waza check`), carries an eval suite under `evals/`, and
 passes the best-practice checks in `scripts/check_skills.py`: frontmatter; name
 rules; the description (single-line, third person, no XML tags, a when-to-use
 trigger); body length; link resolution, forward slashes, and no upward traversal;

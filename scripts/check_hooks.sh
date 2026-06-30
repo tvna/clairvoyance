@@ -8,19 +8,19 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 # `bash -n` only parses the POSIX half of run-hook.cmd; the cmd.exe batch block
 # lives inside the heredoc and is verified manually / on Windows. Assert the
 # polyglot structure is at least intact so a broken heredoc fails loud here.
-grep -q "^CMDBLOCK$" "${root}/plugin/hooks/run-hook.cmd"
-bash -n "${root}/plugin/hooks/run-hook.cmd"
-bash -n "${root}/plugin/hooks/session-start.sh"
+grep -q "^CMDBLOCK$" "${root}/hooks/run-hook.cmd"
+bash -n "${root}/hooks/run-hook.cmd"
+bash -n "${root}/hooks/session-start.sh"
 # Redirect the store's data dir to a throwaway path: the hook records a session
 # on each run, so this keeps the check from touching the real workstation store.
 hooks_tmp="$(mktemp -d)"
 trap 'rm -rf "${hooks_tmp}"' EXIT
-CLAIRVOYANCE_DATA_DIR="${hooks_tmp}" bash "${root}/plugin/hooks/session-start.sh" </dev/null | python3 -m json.tool > /dev/null
+CLAIRVOYANCE_DATA_DIR="${hooks_tmp}" bash "${root}/hooks/session-start.sh" </dev/null | python3 -m json.tool > /dev/null
 
 # The adaptive-coaching store ships alongside the hooks and is invoked by both
 # session-start.sh and the skill. Syntax-check it (no side effects, no DB
 # writes) so a broken store fails loud here, the same as the bash hooks.
-bash -n "${root}/plugin/hooks/adaptive-store.sh"
+bash -n "${root}/hooks/adaptive-store.sh"
 
 # Both runtimes drive session-start.sh through the same run-hook.cmd wrapper; the
 # only difference is the plugin-root variable each substitutes into its hooks
@@ -29,7 +29,7 @@ bash -n "${root}/plugin/hooks/adaptive-store.sh"
 # does NOT carry Claude's variable — Codex never expands ${CLAUDE_PLUGIN_ROOT},
 # so it would silently break the hook. The `${PLUGIN_ROOT}` match is anchored on
 # the leading `${` so it cannot be satisfied by `${CLAUDE_PLUGIN_ROOT}`.
-codex_hooks="${root}/plugin/hooks/codex-hooks.json"
+codex_hooks="${root}/hooks/codex-hooks.json"
 python3 -m json.tool "${codex_hooks}" > /dev/null
 # shellcheck disable=SC2016  # the literal ${PLUGIN_ROOT} is matched, not expanded.
 grep -qF '${PLUGIN_ROOT}/hooks/run-hook.cmd' "${codex_hooks}"

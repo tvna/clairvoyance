@@ -28,37 +28,37 @@ repos:
         entry: shellcheck
         language: system
         # run-hook.cmd is a cmd/bash polyglot; shellcheck only lints pure bash.
-        files: ^(plugin/hooks/session-start\.sh|scripts/.*\.sh)$
+        files: ^(hooks/session-start\.sh|scripts/.*\.sh)$
 
       - id: hook-scripts
         name: hook scripts emit valid JSON
         entry: bash scripts/check_hooks.sh
         language: system
         pass_filenames: false
-        files: ^plugin/hooks/
+        files: ^hooks/
 
       - id: check-skills
         name: skill best-practice checks
         entry: python3 scripts/check_skills.py
         language: system
         pass_filenames: false
-        files: ^plugin/skills/
+        files: ^skills/
 
       - id: check-coverage
         name: skill coverage (eval + doc, no orphan evals)
         entry: python3 scripts/check_coverage.py
         language: system
         pass_filenames: false
-        files: ^(plugin/skills/|plugin/evals/|docs/)
+        files: ^(skills/|evals/|docs/)
 
       - id: waza-check
         name: waza check (skill validation)
-        # waza detects the skills/ + evals/ workspace from the plugin root.
-        entry: bash -c 'cd plugin && exec waza check --no-update-check'
+        # waza detects the skills/ + evals/ workspace from the repo root.
+        entry: bash -c 'exec waza check --no-update-check'
         language: system
         pass_filenames: false
         require_serial: true
-        files: ^plugin/(skills|evals)/
+        files: ^(skills|evals)/
 
       - id: ruff-check
         name: ruff (lint)

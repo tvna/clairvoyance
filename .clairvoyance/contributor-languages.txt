@@ -1,6 +1,6 @@
 # Contributor native languages — a COMMITTED signal of which native languages
 # this repository's contributors use. The SessionStart hook
-# (plugin/hooks/session-start.sh) reads it to write operator-facing Clairvoyance
+# (hooks/session-start.sh) reads it to write operator-facing Clairvoyance
 # handoffs in the native language of whoever is driving the current session.
 #
 # This file is committed on purpose: it is the only per-contributor source that

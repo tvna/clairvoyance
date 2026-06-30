@@ -25,7 +25,7 @@ rubric this checklist assumes.
 
 Copy the checklist for the skill you are reviewing into the PR (or your review
 notes) and check off each item against that skill's `SKILL.md`, its `references/`,
-and its `plugin/evals/<skill>/eval.yaml`. An unchecked item is a maturity gap:
+and its `evals/<skill>/eval.yaml`. An unchecked item is a maturity gap:
 fix it, or record in the PR why it does not apply. The deterministic gate is the
 floor; this checklist is what separates a *passing* skill from a *mature* one.
 
@@ -55,7 +55,7 @@ know what is already automated:
 - [ ] The `name` reads as an activity (gerund or action phrase) and is distinct
       from sibling skills — no overlap that would make routing ambiguous.
 - [ ] `name` and `description` together let Claude pick this skill over the other
-      skills in `plugin/skills/` for its intended trigger, and *not* pick it for a
+      skills in `skills/` for its intended trigger, and *not* pick it for a
       neighbouring skill's trigger.
 
 ### Conciseness — every token earns its place
@@ -95,7 +95,7 @@ know what is already automated:
 
 ### Behavioural evidence — the eval suite
 
-- [ ] `plugin/evals/<skill>/eval.yaml` exercises the skill's real trigger and
+- [ ] `evals/<skill>/eval.yaml` exercises the skill's real trigger and
       asserts the structural markers it reliably emits (its output-contract
       headings), plus `output_not_contains` guardrails — see
       [evaluations.md](evaluations.md).

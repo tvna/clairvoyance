@@ -92,10 +92,9 @@ uv run mypy                # type-check scripts/ and tests/
 
 ## Running evaluations
 
-Run from the `plugin/` workspace root (where `skills/` and `evals/` are siblings):
+Run from the repository root (where `skills/` and `evals/` are siblings):
 
 ```bash
-cd plugin
 waza run                       # all suites
 waza run evals/<skill>/eval.yaml
 ```

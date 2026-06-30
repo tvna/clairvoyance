@@ -23,7 +23,7 @@ A handoff is self-contained — the next session should not need the prior
 conversation. It carries Context (issue, existing branch, closes), Background, the
 files to read in order, the precise minimum-sufficient Implementation, Verification
 commands and expected results, PR guidance, and deterministic Acceptance criteria.
-See [`plugin/skills/session-handoff/references/handoff-template.md`](../skills/session-handoff/references/handoff-template.md)
+See [`skills/session-handoff/references/handoff-template.md`](../skills/session-handoff/references/handoff-template.md)
 for the template and a worked example.
 
 Handoffs avoid fenced code blocks (they use 4-space-indented command blocks) so the

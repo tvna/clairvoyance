@@ -3,11 +3,11 @@
 `human-harness` pauses a high-blast-radius, irreversible, or compliance-violating
 instruction and makes the human confirm intent before the agent executes, so a
 human error is caught before it lands. See the skill at
-[`plugin/skills/human-harness/SKILL.md`](../plugin/skills/human-harness/SKILL.md),
+[`skills/human-harness/SKILL.md`](../skills/human-harness/SKILL.md),
 the worked example at
-[`plugin/skills/human-harness/references/example.md`](../plugin/skills/human-harness/references/example.md),
+[`skills/human-harness/references/example.md`](../skills/human-harness/references/example.md),
 and the compliance judgment at
-[`plugin/skills/human-harness/references/compliance.md`](../plugin/skills/human-harness/references/compliance.md).
+[`skills/human-harness/references/compliance.md`](../skills/human-harness/references/compliance.md).
 
 ## It is one layer, not the whole defense
 

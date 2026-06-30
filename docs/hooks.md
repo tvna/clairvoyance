@@ -2,10 +2,10 @@
 
 ## SessionStart injection
 
-`plugin/hooks/hooks.json` registers one `SessionStart` hook (matching `startup`, `clear`,
-and `compact`). It runs `plugin/hooks/session-start.sh`, which:
+`hooks/hooks.json` registers one `SessionStart` hook (matching `startup`, `clear`,
+and `compact`). It runs `hooks/session-start.sh`, which:
 
-1. Reads `plugin/skills/using-clairvoyance/SKILL.md` and injects it as
+1. Reads `skills/using-clairvoyance/SKILL.md` and injects it as
    `additionalContext` so the agent has the bootstrap router from the first turn.
 2. Resolves the active contributor's language and injects it as authoritative for
    Clairvoyance handoffs in this session.
@@ -19,7 +19,7 @@ If the bootstrap skill file is missing, the hook exits 0 and injects nothing.
 
 ## Adaptive-coaching store
 
-`plugin/hooks/adaptive-store.sh` is the store entry point: a CLI that persists a
+`hooks/adaptive-store.sh` is the store entry point: a CLI that persists a
 small, **anonymous** record of adaptive-challenge observations on the operator's own
 workstation, so `adaptive-coaching` waits until enough signal has accumulated before
 it coaches. By default it stores only coded metadata — an adaptive-challenge
@@ -143,8 +143,8 @@ procedure, so operators can judge the privacy/utility balance:
 
 ### Codex
 
-Codex reads its own `SessionStart` manifest, `plugin/hooks/codex-hooks.json`
-(pointed at by `plugin/.codex-plugin/plugin.json`). It matches the same events
+Codex reads its own `SessionStart` manifest, `hooks/codex-hooks.json`
+(pointed at by `.codex-plugin/plugin.json`). It matches the same events
 (plus Codex's `resume`) and drives the **same** `session-start.sh` through the
 **same** `run-hook.cmd` wrapper. The only difference is the plugin-root variable:
 Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` and Codex substitutes
@@ -217,7 +217,7 @@ volatile checkouts), or set `CLAIRVOYANCE_OPERATOR_LANGUAGE` for the session.
 
 ## Cross-platform entry point
 
-`hooks.json` invokes `plugin/hooks/run-hook.cmd session-start.sh`. `run-hook.cmd` is a
+`hooks.json` invokes `hooks/run-hook.cmd session-start.sh`. `run-hook.cmd` is a
 **polyglot** that runs as both a Windows batch file and a POSIX shell script, so a
 single entry point works on every platform:
 

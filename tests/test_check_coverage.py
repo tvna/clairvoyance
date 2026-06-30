@@ -2,13 +2,13 @@ import check_coverage as cc
 
 
 def _skill(tmp_path, name, body="# Body\n"):
-    d = tmp_path / "plugin" / "skills" / name
+    d = tmp_path / "skills" / name
     d.mkdir(parents=True)
     (d / "SKILL.md").write_text(f"---\nname: {name}\ndescription: x\n---\n\n{body}")
 
 
 def _eval(tmp_path, name):
-    d = tmp_path / "plugin" / "evals" / name
+    d = tmp_path / "evals" / name
     d.mkdir(parents=True)
     (d / "eval.yaml").write_text("name: x\n")
 

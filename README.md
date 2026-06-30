@@ -34,7 +34,7 @@ when to prefer it over the harness's automatic compaction.
 ## Install
 
 Clairvoyance ships one plugin tree with a manifest for each runtime
-(`plugin/.claude-plugin/` and `plugin/.codex-plugin/`), so the same skills install
+(`.claude-plugin/` and `.codex-plugin/`), so the same skills install
 through whichever path your agent uses.
 
 ### Claude Code
@@ -56,7 +56,7 @@ codex plugin add clairvoyance
 ```
 
 The repository marketplace lives at [.agents/plugins/marketplace.json](.agents/plugins/marketplace.json),
-and Codex reads the `plugin/.codex-plugin/plugin.json` manifest.
+and Codex reads the `.codex-plugin/plugin.json` manifest.
 
 ### apm (any supported agent)
 
@@ -80,17 +80,19 @@ dependencies:
 
 The plugin registers a `SessionStart` hook that injects the `using-clairvoyance`
 bootstrap skill (and the project owner's language) at session start, clear, and
-compaction. Claude Code reads `plugin/hooks/hooks.json` and Codex reads
-`plugin/hooks/codex-hooks.json`; both route through the same
+compaction. Claude Code reads `hooks/hooks.json` and Codex reads
+`hooks/codex-hooks.json`; both route through the same
 `hooks/run-hook.cmd` wrapper, differing only in the plugin-root variable each
 runtime substitutes. See [docs/hooks.md](docs/hooks.md).
 
 ## Repository layout
 
-The marketplace points at `plugin/` (`source: "./plugin"`), so **only `plugin/` is
-copied to a user's install cache**; everything else stays in the repository and is
-never distributed. See [docs/repository-layout.md](docs/repository-layout.md) for
-the full tree.
+The plugin lives at the **repository root** (`source: "./"`), the layout apm
+requires — it deploys skills from `skills/` and hooks from `hooks/` at the package
+root. Only those primitives are deployed into a consumer's agent; tests, tooling,
+CI, docs, and eval suites are carried in the repository for development but never
+deployed. See [docs/repository-layout.md](docs/repository-layout.md) for the full
+tree.
 
 ## Development
 

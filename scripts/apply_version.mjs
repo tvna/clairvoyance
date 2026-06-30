@@ -6,8 +6,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 const MANIFESTS = [
-  "plugin/.claude-plugin/plugin.json",
-  "plugin/.codex-plugin/plugin.json",
+  ".claude-plugin/plugin.json",
+  ".codex-plugin/plugin.json",
 ];
 const version = process.argv[2];
 

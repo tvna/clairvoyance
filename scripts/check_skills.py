@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic best-practice checks for skills under ``plugin/skills/``.
+"""Deterministic best-practice checks for skills under ``skills/``.
 
 Validates the mechanical subset of the Agent Skills best practices that needs no
 LLM. For each ``SKILL.md`` it checks frontmatter presence, the ``name`` rules
@@ -29,7 +29,7 @@ import sys
 from typing import IO
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-SKILLS_DIR = REPO_ROOT / "plugin" / "skills"
+SKILLS_DIR = REPO_ROOT / "skills"
 
 NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 KEY_RE = re.compile(r"^([\w-]+):\s*(.*)$")

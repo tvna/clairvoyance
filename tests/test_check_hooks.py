@@ -50,7 +50,7 @@ def _run_session_start(tmp_path, env_overrides=None):
     if env_overrides:
         env.update(env_overrides)
     return subprocess.run(
-        ["bash", str(REPO_ROOT / "plugin/hooks/session-start.sh")],
+        ["bash", str(REPO_ROOT / "hooks/session-start.sh")],
         capture_output=True,
         text=True,
         env=env,
