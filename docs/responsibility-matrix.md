@@ -18,9 +18,10 @@ enforces it, who reads it, and how it changes.
 | Repo-local doc | `docs/*.md` | Contributors and reviewers of this repository | Edit the doc; reference skills by name, never by copying their wording |
 | Project-local | The project's committed `.clairvoyance/contributor-languages.txt` (per-contributor `identity = language` signal, keyed by git identity; a legacy single-value `owner-language.txt` is migration-hint only, never applied as a contributor's language), their own `CLAUDE.md` | Agents working in that one project | Owned by each project for its own contributors; this repo dogfoods one and ships it as the worked example, but does not review a consumer's |
 
-`AGENTS.md` is **imported**, not authored here: it is synced and SHA-verified from
-the upstream by `.github/workflows/sync-agent-instructions.yml`. It is therefore
-outside these lanes — treat it as read-only provenance, not a lane this repo owns.
+`AGENTS.md` and `CLAUDE.md` are **imported**, not authored here: they are synced
+verbatim from the upstream by `.github/workflows/sync-agent-instructions.yml`,
+pinned to the upstream commit it fetched. They are therefore outside these lanes —
+treat them as read-only provenance, not a lane this repo owns.
 
 ## Coverage matrix
 
