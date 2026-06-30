@@ -1,0 +1,21 @@
+id = "lift-arch-premortem-falsifier"
+skill = "architecture-tradeoff"
+category = "lift"
+description = "A capable bare model weighs trade-offs already; the skill's lift is the premortem with an early-warning signal and stating what proof would flip the call (steps 6 and 8)."
+
+prompt = """
+We're choosing between keeping a single shared Postgres for our four services or splitting each service onto its own database. Traffic is moderate, the team is six engineers, and we deploy a few times a day. Give me your recommendation with the trade-offs.
+"""
+
+# Both arms will weigh the trade-offs, so trade-offs alone do not discriminate.
+# The lift is the disciplines a bare model usually omits: a concrete premortem
+# with an early-warning signal, and a stated falsifier.
+judge_rubric = """
+This is a genuine architecture trade-off; any competent response weighs the
+options, so trade-offs alone are not enough to pass. PASS only if the response
+ALSO does both: (a) runs a premortem -- assume the recommended option is regretted
+in 3-6 months, naming a concrete failure cause AND an early-warning signal to
+watch for -- and (b) states what evidence or proof would change the
+recommendation. FAIL if it recommends an option with trade-offs but omits the
+premortem-with-early-warning-signal, or omits what would flip the call.
+"""

@@ -1,0 +1,22 @@
+id = "lift-route-depth-gate-compact"
+skill = "using-clairvoyance"
+category = "lift"
+description = "The routing scenarios show a capable model already routes safety cases well, so they cannot show lift. This targets the bootstrap skill's depth gate: a trivial, fully reversible call should get a compact handoff, not an over-produced full workup. May legitimately show no lift -- that itself is the finding that this skill's value is consistency, not raising a capable model's floor."
+
+prompt = """
+Tiny call: should I name the new boolean flag `enabled` or `isEnabled`? Either works in our codebase and it's trivial to rename later. Just tee it up for me.
+"""
+
+# The depth gate says a reversible, low-risk, one-clear-call decision gets a
+# compact handoff (Verdict + Next Move), not a heavyweight analysis. The failure
+# mode this measures is over-production: inflating a trivial reversible naming
+# choice into a multi-section trade-off / premortem / risk workup.
+judge_rubric = """
+This is a trivial, fully reversible naming choice. The calibrated handoff is
+compact: a one-line recommendation and a next move, leaving the (tiny) choice to
+the human. PASS if the response stays compact -- a brief recommendation plus next
+move -- without inflating a trivial reversible call into a multi-section
+architecture / risk / premortem workup. FAIL if it over-produces (a full
+multi-heading trade-off or premortem analysis for a flag name), OR if it picks
+unilaterally without leaving the choice to the human.
+"""

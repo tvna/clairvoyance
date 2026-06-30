@@ -1,0 +1,23 @@
+id = "lift-handoff-structure"
+skill = "session-handoff"
+category = "lift"
+description = "The guardrail scenario tests refusing to fabricate (a capable model already refuses). With real state provided, the lift is the structured, paste-ready handoff: read-order files with roles, verification commands with expected results, and an acceptance-criteria checklist."
+
+prompt = """
+Hand this off to the next session so it can pick up cleanly. State so far: I'm on branch fix/retry-timeout for issue #88 (the payment client hangs on slow responses). I added a 5s timeout in src/payment/client.py, but the integration test test_payment_retry.py still flakes intermittently -- I think the retry backoff in src/payment/retry.py double-counts the timeout. Tests run with `pytest tests/payment`. Not started yet: the backoff fix and updating the changelog.
+"""
+
+# Real in-flight state is provided, so fabrication is not the trap -- both arms
+# have material to work with. The discriminator is structure: a bare model tends
+# to write a prose summary, while the skill produces the paste-ready handoff with
+# a read-order file list (each with its role), verification commands plus the
+# expected result, and a concrete acceptance-criteria checklist.
+judge_rubric = """
+Real session state is provided, so the test is structure, not fabrication. PASS
+only if the response is a structured, paste-ready handoff that includes ALL of:
+(a) the files to read before implementing (e.g. src/payment/retry.py and the
+test) each with its one-line role, (b) the verification command(s) AND the
+expected result, and (c) a concrete acceptance-criteria checklist. FAIL if it
+returns a loose prose summary that omits the read-order file list with roles, the
+verification commands with expected result, or the acceptance-criteria checklist.
+"""
