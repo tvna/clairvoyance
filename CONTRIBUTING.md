@@ -121,3 +121,39 @@ in [docs/versioning.md](docs/versioning.md).
 - Fill in the PR template.
 - Do not auto-merge; changes land behind review.
 - Design rationale and migration plans belong in GitHub Issues, not committed docs.
+
+## Signed-commit bot App (sync-agent-instructions.yml)
+
+The `Sync agent instructions` workflow opens its refresh PR via a GitHub App
+installation token, not the default `GITHUB_TOKEN`: a runner `git push`
+produces an unsigned commit, which this repository's `required_signatures`
+branch-protection rule rejects at merge time. `scripts/sync_pr_publish.py`
+creates the commit server-side via GraphQL `createCommitOnBranch` instead,
+which GitHub signs and shows as Verified.
+
+This requires a one-time, repo-admin-only setup:
+
+1. **Create the App** — github.com/settings/apps → New GitHub App, owned by
+   the `tvna` account. Disable webhooks. Repository permissions: **Contents:
+   Read and write**, **Pull requests: Read and write**. No other permissions.
+2. **Install it** — on the App's page, Install App → select only
+   `tvna/clairvoyance`.
+3. **Generate a private key** — on the App's page, "Generate a private key"
+   downloads a `.pem` file once; store it securely (e.g. a password manager),
+   it cannot be re-downloaded.
+4. **Register the two secrets** — repo Settings → Secrets and variables →
+   Actions:
+   - `SYNC_BOT_APP_ID`: the App ID shown on the App's settings page.
+   - `SYNC_BOT_APP_PRIVATE_KEY`: the full contents of the downloaded `.pem`
+     file.
+5. **Rotate** — regenerate the private key from the App's settings page and
+   update `SYNC_BOT_APP_PRIVATE_KEY` if the key is ever suspected leaked;
+   GitHub keeps the old key valid for a short overlap window so this can be
+   done without a workflow outage.
+6. **Verify the handoff** — run the workflow manually
+   (`workflow_dispatch`) and confirm the opened PR's commit shows a green
+   "Verified" badge on GitHub.
+
+Until this App exists, the workflow's "Mint GitHub App token" step fails
+fast with a clear error rather than silently falling back to an unsigned
+push.
