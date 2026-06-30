@@ -71,6 +71,39 @@ emitting a literal `clairvoyance:review-verdict` token. Asserting the skill name
 is therefore a false-FAIL trap (same lesson as the `lgtm` substring); routing
 scenarios grade the behavior via the rubric.
 
+## Baseline ablation (`--ablate`)
+
+The adversarial run asks *is the skill safe?*; ablation asks the prior question
+*does the skill help at all?*. A skill can pass every structural check and every
+guardrail and still be worthless if the bare model already handles the input — the
+gates all assume the skill is wanted and only check it is well-built. Ablation is
+the [evaluation-driven-development][edd] baseline that closes that gap.
+
+```bash
+python3 battle/run_battle.py --ablate --trials 3            # all scenarios
+python3 battle/run_battle.py --ablate --scenario guardrails --judge
+```
+
+For each scenario it runs **two arms** on the same prompt — with the `SKILL.md`
+injected, and a **no-skill baseline** (nothing injected) — grades both through the
+identical pipeline (deterministic markers, then the optional `--judge` rubric), and
+reports the **lift**: with-skill passes minus baseline passes. Each cell prints one
+of four tags:
+
+- **`LIFT`** — the skill beats the baseline; it earns its place here.
+- **`REGRESSION`** — the skill scores *below* the baseline; it actively hurts. On a
+  non-`known_gap` scenario this trips `--strict`.
+- **`REDUNDANT`** — the baseline already passes every trial; the bare model needs no
+  skill for this input.
+- **`NO-LIFT`** — neither arm reliably passes; the skill does not close the gap.
+
+A per-skill rollup sums the lift across each skill's cells and flags any skill that
+never lifts on a single tested scenario — the cue to sharpen its evals or question
+whether it documents a gap the model actually has. Ablation roughly **doubles**
+per-scenario cost (two arms), so scope it with `--scenario` when iterating.
+
+[edd]: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+
 ## Scenario format (`*.toml`)
 
 ```toml

@@ -15,6 +15,11 @@ lane; the **deterministic** lane is owned by `scripts/check_skills.py`.
 
 Both lanes draw from the same upstream sources:
 [Agent Skills best practices][skills-bp] and [Claude Code best practices][cc-bp].
+The reasoning behind each probabilistic item — the standard and what a pass/fail
+looks like — is captured in [skill-quality-knowledge.md](skill-quality-knowledge.md),
+a self-contained reference you can inject into a harness that does not already carry
+this knowledge (Codex, the Copilot CLI, a bare API call), so a grader there has the
+rubric this checklist assumes.
 
 ## How to use this checklist
 
