@@ -63,14 +63,16 @@ lookup_language() {
   ' "${file}"
 }
 
-# Resolve the active contributor's language, first match wins. Every source here
-# is contributor-scoped — keyed to whoever drives THIS session — so the owner's
-# language is never served to a different contributor:
-#   1. CLAIRVOYANCE_OPERATOR_LANGUAGE (or the deprecated CLAIRVOYANCE_OWNER_LANGUAGE
-#      alias) — a per-session env override, set in the contributor's own
-#      environment; survives volatile checkouts via the environment config.
+# Resolve the active contributor's language, first match wins:
+#   1. CLAIRVOYANCE_OPERATOR_LANGUAGE — an explicit per-session env override, set
+#      in the contributor's own environment; survives volatile checkouts via the
+#      environment config.
 #   2. The committed mapping, keyed by this session's git identity (email, then
 #      name) — the durable per-contributor signal.
+#   3. CLAIRVOYANCE_OWNER_LANGUAGE — a DEPRECATED legacy alias, deliberately ranked
+#      BELOW the per-contributor mapping: a contributor listed in the mapping must
+#      always get their own language, never a lingering owner env var from an old
+#      single-owner setup. Only the explicit OPERATOR override outranks the mapping.
 # A legacy single-value `owner-language.txt` is deliberately NOT used as a value
 # source: it holds one person's (the owner's) language, so applying it to any
 # other contributor is exactly the owner-fixation this design removes. When it is
@@ -78,12 +80,15 @@ lookup_language() {
 git_email="$(git -C "${project_root}" config user.email 2>/dev/null || true)"
 git_name="$(git -C "${project_root}" config user.name 2>/dev/null || true)"
 
-operator_language="${CLAIRVOYANCE_OPERATOR_LANGUAGE:-${CLAIRVOYANCE_OWNER_LANGUAGE:-}}"
+operator_language="${CLAIRVOYANCE_OPERATOR_LANGUAGE:-}"
 if [ -z "${operator_language}" ]; then
   operator_language="$(lookup_language "${git_email}" "${mapping_file}")"
 fi
 if [ -z "${operator_language}" ]; then
   operator_language="$(lookup_language "${git_name}" "${mapping_file}")"
+fi
+if [ -z "${operator_language}" ]; then
+  operator_language="${CLAIRVOYANCE_OWNER_LANGUAGE:-}"
 fi
 
 if [ -n "${operator_language}" ]; then

@@ -173,16 +173,19 @@ public scraping target. It is committed on purpose, for two reasons:
   checkout** (Claude web, CI), where local-only state is wiped on every run. A
   git-ignored per-contributor file would simply vanish there.
 
-The language is resolved in this order (first match wins). Every source is
-**contributor-scoped** — keyed to whoever drives the current session — so the
-owner's language is never served to a different contributor:
+The language is resolved in this order (first match wins). A contributor listed
+in the committed mapping always gets their own language — only an explicit
+per-session override can outrank it — so the owner's language is never served to a
+different contributor:
 
-1. `CLAIRVOYANCE_OPERATOR_LANGUAGE` environment variable (or the deprecated
-   `CLAIRVOYANCE_OWNER_LANGUAGE` alias) — a per-session override, set in the
-   contributor's own environment; also survives a volatile environment via its
-   environment config.
+1. `CLAIRVOYANCE_OPERATOR_LANGUAGE` environment variable — an explicit per-session
+   override, set in the contributor's own environment; also survives a volatile
+   environment via its environment config.
 2. The committed mapping, looked up by this session's git `user.email`, then
    `user.name`.
+3. `CLAIRVOYANCE_OWNER_LANGUAGE` environment variable — a **deprecated** legacy
+   alias, ranked **below** the mapping so a mapped contributor's own language
+   always wins over a lingering owner variable from an old single-owner setup.
 
 A legacy single-value `<project>/.clairvoyance/owner-language.txt` is **not** used
 as a value source. It holds one person's (the owner's) language, so serving it to

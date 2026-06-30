@@ -141,6 +141,17 @@ def test_session_start_legacy_owner_env_is_deprecated_session_alias(tmp_path):
     assert "native language is 'Spanish'" in context
 
 
+def test_session_start_mapping_beats_legacy_owner_env(tmp_path):
+    """The legacy owner env alias is ranked BELOW the per-contributor mapping: a
+    mapped contributor gets their own language even when a lingering
+    CLAIRVOYANCE_OWNER_LANGUAGE from an old single-owner setup is exported."""
+    _write_mapping(tmp_path, "bob@example.com = Korean\n")
+    env = {**_git_identity_env(email="bob@example.com"), "CLAIRVOYANCE_OWNER_LANGUAGE": "Japanese"}
+    context = _context(_run_session_start(tmp_path, env))
+    assert "native language is 'Korean'" in context
+    assert "Japanese" not in context
+
+
 def test_session_start_prompts_for_language_when_unmapped(tmp_path):
     """With no match anywhere, the hook asks for the contributor's own language
     and points at the committed mapping with a privacy-safe identity caution —
