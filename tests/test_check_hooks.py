@@ -125,7 +125,10 @@ def test_session_start_reads_legacy_owner_language_file(tmp_path):
 
 def test_session_start_prompts_for_language_when_unmapped(tmp_path):
     """With no match anywhere, the hook asks for the contributor's own language
-    and references their identity for recording."""
+    and points at the committed mapping with a privacy-safe identity caution —
+    without echoing any real (possibly personal) identity into the message."""
     context = _context(_run_session_start(tmp_path, _git_identity_env(email="newcomer@example.com")))
     assert "not recorded" in context
-    assert "newcomer@example.com" in context
+    assert "contributor-languages.txt" in context
+    assert "never a personal email" in context
+    assert "newcomer@example.com" not in context

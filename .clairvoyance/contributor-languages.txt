@@ -8,15 +8,18 @@
 # repository's contributor-language signal rather than fixing one owner's
 # language on everyone.
 #
-# Format: one `identity = language` line per contributor, keyed by git email
-# (preferred) or git name. Keys match case-insensitively; `#` comments and blank
-# lines are ignored. A contributor can also override per session with the
-# CLAIRVOYANCE_OPERATOR_LANGUAGE environment variable.
+# Format: one `identity = language` line per contributor, keyed by git email or
+# git name. Keys match case-insensitively; `#` comments and blank lines are
+# ignored. A contributor can also override per session with the
+# CLAIRVOYANCE_OPERATOR_LANGUAGE environment variable instead of adding a line.
+#
+# Privacy: this file is committed, so do NOT put a personal email here — it would
+# be a public scraping target. Use a non-harvestable identity instead: a GitHub
+# `users.noreply.github.com` address, or just your git name.
 #
 # Example:
-#   alice@example.com = English
+#   Alice = English
 #   31282861+tvna@users.noreply.github.com = Japanese
 
 31282861+tvna@users.noreply.github.com = Japanese
-tsubasa.nagano@icloud.com = Japanese
 Tsubasa Nagano = Japanese

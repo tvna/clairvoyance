@@ -162,8 +162,10 @@ identity.
 The per-contributor mapping lives in a **committed** file,
 `<project>/.clairvoyance/contributor-languages.txt`, with one
 `identity = language` line per contributor (keyed by git email, then git name;
-`#` comments and blank lines ignored, keys matched case-insensitively). It is
-committed on purpose, for two reasons:
+`#` comments and blank lines ignored, keys matched case-insensitively). Because
+the file is committed, use a **non-harvestable** key — a git name or a GitHub
+`users.noreply.github.com` address — never a personal email, which would become a
+public scraping target. It is committed on purpose, for two reasons:
 
 - It is the repository's **signal** of which native languages its contributors
   use — useful information, not something to hide in `.gitignore`.
