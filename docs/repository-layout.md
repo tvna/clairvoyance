@@ -19,7 +19,7 @@ a consumer's agent.
 skills/                    one directory per skill (SKILL.md + references/) — deployed by apm/Claude/Codex
 hooks/                     SessionStart hooks (hooks.json + codex-hooks.json) and entry point — deployed as a hook
 evals/                     waza evaluation suites, one per skill (not deployed)
-AGENTS.md                  imported agent instructions (synced; not deployed)
+AGENTS.md CLAUDE.md        imported agent instructions (synced; not deployed)
 scripts/ tests/            validators and their pytest suite (not deployed)
 codecov.yml                Codecov dashboard config (informational; not deployed)
 docs/ .github/             documentation, CI, release automation (not deployed)
