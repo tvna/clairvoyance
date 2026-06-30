@@ -34,13 +34,16 @@ already handles the task; positive lift is the evidence it earns its place, and
 negative lift (it scores below baseline) is a red flag. This is the
 evaluation-driven-development baseline from the Agent Skills best practices.
 
+Most scenarios are judge-only (a rubric, no deterministic markers), so they need
+``--judge`` -- the harness fails fast otherwise rather than silently passing them.
+
 Usage:
   python3 battle/run_battle.py --selftest                 # offline, no claude calls
-  python3 battle/run_battle.py                             # all scenarios, 1 trial
+  python3 battle/run_battle.py --judge                     # all scenarios, 1 trial
   python3 battle/run_battle.py --trials 3 --judge          # pass-rate + LLM judge
-  python3 battle/run_battle.py --scenario injection --model opus
-  python3 battle/run_battle.py --model sonnet --model haiku --out runs.jsonl
-  python3 battle/run_battle.py --ablate --trials 3         # skill-lift over no-skill baseline
+  python3 battle/run_battle.py --scenario injection --judge --model opus
+  python3 battle/run_battle.py --judge --model sonnet --model haiku --out runs.jsonl
+  python3 battle/run_battle.py --ablate --trials 3 --judge # skill-lift over no-skill baseline
 """
 
 from __future__ import annotations
@@ -109,6 +112,35 @@ def grade(result_text: str, scenario: dict) -> tuple[bool, list[str]]:
         if not re.search(pat, result_text):
             reasons.append(f"missing required marker /{pat}/")
     return (not reasons, reasons)
+
+
+def judge_only_scenarios(scenarios: list[dict]) -> list[dict]:
+    """Scenarios graded ONLY by the LLM judge -- no deterministic must_* markers.
+
+    ``grade()`` has nothing to check for these, so it returns ``True`` for any
+    output. Without ``--judge`` they would silently pass -- and in ablation that
+    mislabels every cell ``REDUNDANT`` (both arms "pass") instead of measuring
+    lift. Callers must require ``--judge`` when any are present.
+    """
+    return [
+        s
+        for s in scenarios
+        if s.get("judge_rubric") and not s.get("must_contain") and not s.get("must_not_contain")
+    ]
+
+
+def require_judge_or_fail(scenarios: list[dict], args: argparse.Namespace) -> str:
+    """Error message if judge-only scenarios are run without ``--judge``; else ""."""
+    if args.judge:
+        return ""
+    judge_only = judge_only_scenarios(scenarios)
+    if not judge_only:
+        return ""
+    ids = ", ".join(s.get("id", s["_path"].stem) for s in judge_only)
+    return (
+        "these scenarios are judge-only (no must_* markers) and would silently pass "
+        f"without --judge: {ids}\nre-run with --judge so the rubric is actually graded."
+    )
 
 
 def _claude(prompt: str, model: str, extra: list[str], max_budget: float) -> dict:
@@ -207,6 +239,9 @@ def run(args: argparse.Namespace) -> int:
     if not scenarios:
         print(f"no scenarios matched filter {args.scenario!r}", file=sys.stderr)
         return 2
+    if err := require_judge_or_fail(scenarios, args):
+        print(err, file=sys.stderr)
+        return 2
     models = args.model or ["sonnet"]
 
     total_cost = 0.0
@@ -277,6 +312,9 @@ def run_ablation(args: argparse.Namespace) -> int:
     scenarios = load_scenarios(SCENARIOS_DIR, args.scenario)
     if not scenarios:
         print(f"no scenarios matched filter {args.scenario!r}", file=sys.stderr)
+        return 2
+    if err := require_judge_or_fail(scenarios, args):
+        print(err, file=sys.stderr)
         return 2
     models = args.model or ["sonnet"]
 
@@ -378,6 +416,22 @@ def selftest() -> int:
             pass
         else:  # pragma: no cover
             raise AssertionError(f"positive_int({bad!r}) should reject")
+
+    # Judge-only detection: a rubric with no deterministic markers needs --judge,
+    # else grade() passes any output (and ablation mislabels every cell REDUNDANT).
+    rubric = {"judge_rubric": "r", "_path": pathlib.Path("a"), "id": "a"}
+    deterministic = {"must_contain": ["x"], "_path": pathlib.Path("b"), "id": "b"}
+    both = {"judge_rubric": "r", "must_contain": ["x"], "_path": pathlib.Path("c"), "id": "c"}
+    assert [s["id"] for s in judge_only_scenarios([rubric, deterministic, both])] == ["a"]
+    no_judge = argparse.Namespace(judge=False)
+    assert require_judge_or_fail([rubric], no_judge).startswith("these scenarios are judge-only")
+    assert require_judge_or_fail([deterministic], no_judge) == ""
+    assert require_judge_or_fail([both], no_judge) == ""  # has a deterministic marker too
+    assert require_judge_or_fail([rubric], argparse.Namespace(judge=True)) == ""
+
+    # The real corpus is judge-heavy, so a no-judge run must fail fast, not pass silently.
+    assert require_judge_or_fail(load_scenarios(SCENARIOS_DIR), no_judge)
+
     print("selftest ok")
     return 0
 
