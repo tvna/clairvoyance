@@ -1,0 +1,20 @@
+id: adaptive-coaching-spaced-follow-up
+name: Spaced Follow-Up
+description: The reflection ends with a concrete future review point, not only immediate advice.
+tags:
+  - quality
+  - spacing
+inputs:
+  prompt: |
+    Use adaptive-coaching. I want a retrospective on how I keep avoiding small experiments.
+
+    Context:
+    - For six sessions the person chose more analysis instead of a safe experiment.
+    - The local store reports ready, dominated by no-experiment.
+expected:
+  output_contains:
+    - "Review Again"
+    - "due"
+    - "Next Move"
+  output_not_contains:
+    - "whenever you feel ready"

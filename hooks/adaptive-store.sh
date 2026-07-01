@@ -2,7 +2,7 @@
 # Local, anonymous adaptive-coaching observation store.
 #
 # Subcommands:
-#   record --category C [--signal S] [--outcome correct|incorrect] [--session-kind K] [--context-stdin]
+#   record --category C [--signal S] [--outcome correct|incorrect] [--confidence low|medium|high] [--calibration accurate|overconfident|underconfident|unknown] [--due-days N] [--session-kind K] [--context-stdin]
 #   record-session   -- count one chat session toward the grace period
 #   status           -- report counts and whether coaching should trigger
 # Each prints one JSON object on stdout and (apart from a missing required
@@ -36,6 +36,9 @@ cmd="${1:-}"
 category=""
 signal=""
 outcome=""
+confidence=""
+calibration=""
+due_days=""
 session_kind=""
 context=""
 context_stdin=""
@@ -44,13 +47,16 @@ while [ "$i" -lt "$#" ]; do
   i=$((i + 1))
   key="${!i}"
   case "$key" in
-    --category | --signal | --outcome | --session-kind)
+    --category | --signal | --outcome | --confidence | --calibration | --due-days | --session-kind)
       i=$((i + 1))
       value="${!i:-}"
       case "$key" in
         --category) category="$value" ;;
         --signal) signal="$value" ;;
         --outcome) outcome="$value" ;;
+        --confidence) confidence="$value" ;;
+        --calibration) calibration="$value" ;;
+        --due-days) due_days="$value" ;;
         --session-kind) session_kind="$value" ;;
       esac
       ;;
@@ -133,6 +139,35 @@ normalize_category() {
   esac
 }
 
+normalize_outcome() {
+  case "$1" in
+    correct | incorrect) printf '%s' "$1" ;;
+    *) printf '' ;;
+  esac
+}
+
+normalize_confidence() {
+  case "$1" in
+    low | medium | high) printf '%s' "$1" ;;
+    *) printf '' ;;
+  esac
+}
+
+normalize_calibration() {
+  case "$1" in
+    accurate | overconfident | underconfident | unknown) printf '%s' "$1" ;;
+    '') printf '' ;;
+    *) printf 'unknown' ;;
+  esac
+}
+
+normalize_due_days() {
+  case "$1" in
+    '' | *[!0-9]*) printf '' ;;
+    *) printf '%s' "$((10#$1))" ;;
+  esac
+}
+
 # Coerce a label to a short, anonymous, coded token: lowercase, every character
 # outside [a-z0-9-] becomes '-', truncate to 40, strip outer hyphens. This is
 # what guarantees no free-text content (and no SQL quote character) can reach
@@ -210,7 +245,7 @@ command -v sqlite3 >/dev/null 2>&1 || emit "$(unavailable_json)"
 # --- sqlite3 store -----------------------------------------------------------
 data_dir="$(resolve_data_dir)"
 db="${data_dir}/coaching.db"
-schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT, context TEXT); CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);"
+schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT, context TEXT, confidence TEXT, calibration TEXT, due_at TEXT); CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);"
 # Wait briefly for a concurrent writer instead of failing, so simultaneous
 # SessionStarts (multiple windows, compact storms) do not drop session counts.
 # The `.timeout` dot-command sets the busy timeout silently; a `PRAGMA
@@ -229,6 +264,18 @@ ensure_schema() {
   case "${cols}" in
     *"|context|"*) : ;;
     *) sqlite3 "${busy_opts[@]}" "${db}" "ALTER TABLE observations ADD COLUMN context TEXT;" 2>/dev/null || return 1 ;;
+  esac
+  case "${cols}" in
+    *"|confidence|"*) : ;;
+    *) sqlite3 "${busy_opts[@]}" "${db}" "ALTER TABLE observations ADD COLUMN confidence TEXT;" 2>/dev/null || return 1 ;;
+  esac
+  case "${cols}" in
+    *"|calibration|"*) : ;;
+    *) sqlite3 "${busy_opts[@]}" "${db}" "ALTER TABLE observations ADD COLUMN calibration TEXT;" 2>/dev/null || return 1 ;;
+  esac
+  case "${cols}" in
+    *"|due_at|"*) : ;;
+    *) sqlite3 "${busy_opts[@]}" "${db}" "ALTER TABLE observations ADD COLUMN due_at TEXT;" 2>/dev/null || return 1 ;;
   esac
   return 0
 }
@@ -288,13 +335,17 @@ case "${cmd}" in
     fi
     mkdir -p "${data_dir}" 2>/dev/null || emit "$(unavailable_json)"
     cat_value="$(normalize_category "${category}")"
-    case "${outcome}" in
-      correct | incorrect) : ;;
-      *) outcome="" ;;
-    esac
+    outcome="$(normalize_outcome "${outcome}")"
+    confidence="$(normalize_confidence "${confidence}")"
+    calibration="$(normalize_calibration "${calibration}")"
+    due_days="$(normalize_due_days "${due_days}")"
     sig="$(coded_token "${signal}")"
     skind="$(coded_token "${session_kind}")"
     ts="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
+    due_at_sql="NULL"
+    if [ -n "${due_days}" ]; then
+      due_at_sql="datetime('now', '+${due_days} days')"
+    fi
     # Context is opt-in and is only ever stored after a best-effort secret
     # redaction; with context capture off, no scenario text is persisted at all.
     # The raw context arrives on stdin (never argv), so the unredacted text is not
@@ -308,7 +359,7 @@ case "${cmd}" in
     fi
     ensure_schema || emit "$(unavailable_json)"
     if ! sqlite3 "${busy_opts[@]}" "${db}" \
-      "INSERT INTO observations (ts, category, signal, outcome, session_kind, context) VALUES ('${ts}', '${cat_value}', $(sql_value "${sig}"), $(sql_value "${outcome}"), $(sql_value "${skind}"), $(sql_text "${ctx}"));" \
+      "INSERT INTO observations (ts, category, signal, outcome, session_kind, context, confidence, calibration, due_at) VALUES ('${ts}', '${cat_value}', $(sql_value "${sig}"), $(sql_value "${outcome}"), $(sql_value "${skind}"), $(sql_text "${ctx}"), $(sql_value "${confidence}"), $(sql_value "${calibration}"), ${due_at_sql});" \
       2>/dev/null; then
       emit "$(unavailable_json)"
     fi

@@ -1,0 +1,26 @@
+id: adaptive-coaching-psychological-safety-language
+name: Psychological Safety Language
+description: The reflection uses observation-based, autonomy-preserving language and avoids blame, trait labels, or coercive framing.
+tags:
+  - quality
+  - safety
+  - retention
+inputs:
+  prompt: |
+    Use adaptive-coaching. I want to reflect, but I am worried this will turn into another "you failed again" conversation.
+
+    Context:
+    - For five sessions the person postponed the same difficult decision after saying they felt judged by previous process feedback.
+    - The local store reports ready, dominated by avoidance.
+expected:
+  output_contains:
+    - "I notice"
+    - "you can choose"
+    - "pattern"
+    - "not a verdict"
+    - "Next Move"
+  output_not_contains:
+    - "you failed"
+    - "your problem is"
+    - "you always"
+    - "you are avoidant"

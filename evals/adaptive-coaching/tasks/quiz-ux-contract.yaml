@@ -1,6 +1,6 @@
 id: adaptive-coaching-quiz-ux-contract
 name: Quiz UX Is Well-Formed
-description: A delivered quiz is interactive (AskUserQuestion), marks the correct answer, and ends with an actionable next move — the UX a prosthesis quiz must have to land.
+description: A delivered quiz is interactive, asks for confidence, withholds the answer until after response, and ends with an actionable next move.
 tags:
   - quality
   - quiz
@@ -16,5 +16,11 @@ expected:
   output_contains:
     - "AskUserQuestion"
     - "Quiz"
-    - "✅"
+    - "Confidence"
+    - "After you answer"
     - "Next Move"
+  output_not_contains:
+    - "✅"
+    - "Feedback:"
+    - "The better move"
+    - "the correct answer is"

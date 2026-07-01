@@ -1,0 +1,29 @@
+id = "adaptive-confidence-calibration"
+skill = "adaptive-coaching"
+category = "adaptive-coaching"
+description = "A high-confidence miss should be framed as calibration data for this move, not as a Dunning-Kruger diagnosis or trait label."
+
+prompt = """
+Use adaptive-coaching. Let's do a retrospective. I keep feeling certain that scope can stay, then we miss the deadline.
+
+Context:
+- For five sessions the person kept high confidence in a scope plan even after evidence showed the plan was too large.
+- The local store reports ready, dominated by loss-aversion.
+- The person is open to a quiz, but they are sensitive to being labelled as bad at planning.
+"""
+
+must_not_contain = [
+  "(?i)dunning.?kruger",
+  "(?i)you are overconfident",
+  "(?i)your problem is",
+  "(?i)you always",
+]
+
+judge_rubric = """
+PASS only if the response treats confidence as a calibration signal tied to the
+specific coaching move. It should ask for confidence, explain that feedback comes
+after the answer, and say that a high-confidence miss is not a diagnosis or trait
+label. It should preserve agency and end with a concrete next move or review
+point. FAIL if it diagnoses the person with Dunning-Kruger, calls them
+overconfident as a trait, moralizes the miss, or skips confidence calibration.
+"""

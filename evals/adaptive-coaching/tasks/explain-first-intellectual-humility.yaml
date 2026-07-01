@@ -1,0 +1,21 @@
+id: adaptive-coaching-explain-first-intellectual-humility
+name: Explain First Intellectual Humility
+description: Technical-not-understood reflections ask the person to explain the mechanism before choosing.
+tags:
+  - quality
+  - metacognition
+inputs:
+  prompt: |
+    Use adaptive-coaching. Can we reflect on why I keep needing the same caching fix? I want to understand it instead of copying it.
+
+    Context:
+    - For five sessions the person re-requested the identical caching fix without grasping why it works.
+    - The technical answer is known, but understanding is shallow; the local store reports ready.
+expected:
+  output_contains:
+    - "Explain"
+    - "what you think is happening"
+    - "Confidence"
+    - "Next Move"
+  output_not_contains:
+    - "here is the fix again"

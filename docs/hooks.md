@@ -29,6 +29,8 @@ timestamp — never prompt text, code, or file paths. Opt-in context capture (be
 can additionally store an abstracted, secret-redacted scenario summary.
 
 - **Subcommands.** `record --category <c> [--signal …] [--outcome correct|incorrect]
+  [--confidence low|medium|high]
+  [--calibration accurate|overconfident|underconfident|unknown] [--due-days <n>]
   [--session-kind …] [--context-stdin]` appends one observation (with
   `--context-stdin` the context is read from stdin, never argv, and is stored only
   with context capture on); `record-session` counts one chat session; `status`
@@ -77,6 +79,9 @@ erDiagram
         text outcome "correct, incorrect, or null"
         text session_kind "coded, nullable"
         text context "opt-in; abstracted summary, redacted, nullable"
+        text confidence "low, medium, high, or null"
+        text calibration "accurate, overconfident, underconfident, unknown, or null"
+        text due_at "UTC date/time for next retrieval pass, nullable"
     }
     meta {
         text key PK "always sessions"
@@ -102,8 +107,8 @@ sequenceDiagram
         Note over A: classify from LIVE context, build a concrete quiz
         A-->>P: AskUserQuestion quiz
         P-->>A: choice
-        A->>S: record --category --outcome correct or incorrect
-        A-->>P: feedback plus Next Move
+        A->>S: record --category --outcome correct or incorrect --confidence --calibration --due-days
+        A-->>P: feedback, calibration, Review Again, plus Next Move
     end
 ```
 
@@ -141,6 +146,9 @@ procedure, so operators can judge the privacy/utility balance:
    recency weighting.
 7. **Taxonomy mismatch.** The references' Type I/II/III and `technical-not-understood`
    have no matching store category, so the latter folds to `other`.
+8. **Calibration starts when recorded.** Older rows have no confidence,
+   calibration, or due date, so migration can import them as observed history but
+   cannot backcast the person's confidence state.
 
 ### Codex
 

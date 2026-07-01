@@ -1,6 +1,6 @@
 id: adaptive-coaching-prosthesis-quiz
 name: Prosthesis-Building Quiz
-description: Coaches with an active-recall quiz that marks the correct answer instead of just telling.
+description: Coaches with an active-recall quiz that makes the person retrieve the move before feedback.
 tags:
   - quality
   - quiz
@@ -16,4 +16,10 @@ expected:
     - "Capability Gap"
     - "AskUserQuestion"
     - "Quiz"
+    - "Confidence"
     - "Next Move"
+  output_not_contains:
+    - "✅"
+    - "Feedback:"
+    - "The better move"
+    - "the correct answer is"

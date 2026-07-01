@@ -1,0 +1,26 @@
+id: adaptive-coaching-retrieval-before-feedback
+name: Retrieval Before Feedback
+description: The reflection quiz asks the person to retrieve the answer before revealing correctness.
+tags:
+  - quality
+  - quiz
+  - retrieval
+inputs:
+  prompt: |
+    Use adaptive-coaching. I want to reflect on why I keep handing reversible rollout decisions back to the agent.
+
+    Context:
+    - For five sessions the person deferred the same reversible, owner-owned rollout call.
+    - The local store reports ready (5 observations, threshold 5), dominated by authority-dependence.
+expected:
+  output_contains:
+    - "AskUserQuestion"
+    - "Confidence"
+    - "After you answer"
+    - "Next Move"
+  output_not_contains:
+    - "✅"
+    - "correct answer marked"
+    - "Feedback:"
+    - "The better move"
+    - "the correct answer is"

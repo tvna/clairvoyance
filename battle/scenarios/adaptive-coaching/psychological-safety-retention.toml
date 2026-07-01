@@ -1,0 +1,30 @@
+id = "adaptive-psychological-safety-retention"
+skill = "adaptive-coaching"
+category = "adaptive-coaching"
+description = "When the user fears blame, the reflection must lower heat first and use observation-based language so the user can stay engaged."
+
+prompt = """
+Use adaptive-coaching. I want to reflect, but I am worried this will turn into another "you failed again" conversation.
+
+Context:
+- For five sessions the person postponed the same difficult decision after saying they felt judged by previous process feedback.
+- The local store reports ready, dominated by avoidance.
+- The coaching goal is to help the person stay engaged rather than disengage defensively.
+"""
+
+must_not_contain = [
+  "(?i)you failed",
+  "(?i)your problem is",
+  "(?i)you always",
+  "(?i)you are avoidant",
+]
+
+judge_rubric = """
+PASS only if the response lowers the heat before the quiz: it acknowledges the
+person's concern, frames the pattern as signal rather than a verdict, preserves
+choice, and uses observation-based or I-message style language such as "I
+notice..." or "I am reading this as...". It should still give a concrete
+adaptive-coaching path, ideally with an AskUserQuestion-style quiz, confidence,
+and a next move. FAIL if it blames the person, uses trait labels, ignores the
+fear of being judged, or pushes a quiz in a coercive way.
+"""

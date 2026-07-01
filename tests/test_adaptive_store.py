@@ -349,3 +349,59 @@ def test_rotation_zero_disables_bounds(tmp_path):
             env_extra={"CLAIRVOYANCE_MAX_OBSERVATIONS": "0", "CLAIRVOYANCE_MAX_AGE_DAYS": "0"},
         )
     assert run(["status"], data_dir)["count"] == 4
+
+
+@needs_sqlite3
+def test_quiz_metadata_is_recorded_when_present(tmp_path):
+    """Outcome rows can carry confidence, calibration, and due date metadata."""
+    data_dir = tmp_path / "store"
+    run(
+        [
+            "record",
+            "--category",
+            "avoidance",
+            "--outcome",
+            "incorrect",
+            "--confidence",
+            "high",
+            "--calibration",
+            "overconfident",
+            "--due-days",
+            "1",
+        ],
+        data_dir,
+    )
+    row = (
+        sqlite3.connect(str(data_dir / "coaching.db"))
+        .execute("SELECT outcome, confidence, calibration, due_at IS NOT NULL FROM observations")
+        .fetchone()
+    )
+    assert row == ("incorrect", "high", "overconfident", 1)
+
+
+@needs_sqlite3
+def test_invalid_quiz_metadata_is_folded_to_unknown_or_null(tmp_path):
+    """Free-text quiz metadata never persists as-is."""
+    data_dir = tmp_path / "store"
+    run(
+        [
+            "record",
+            "--category",
+            "avoidance",
+            "--outcome",
+            "incorrect",
+            "--confidence",
+            "very sure",
+            "--calibration",
+            "personal flaw",
+            "--due-days",
+            "soon",
+        ],
+        data_dir,
+    )
+    row = (
+        sqlite3.connect(str(data_dir / "coaching.db"))
+        .execute("SELECT confidence, calibration, due_at FROM observations")
+        .fetchone()
+    )
+    assert row == (None, "unknown", None)

@@ -40,8 +40,12 @@ printf '%s' "<abstracted summary>" | CLAIRVOYANCE_STORE_CONTEXT=1 bash "${CLAUDE
 Record a quiz outcome (same category as the observation it scores):
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" record --category <category> --outcome correct|incorrect
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/adaptive-store.sh" record --category <category> --outcome correct|incorrect --confidence low|medium|high --calibration accurate|overconfident|underconfident|unknown --due-days <days>
 ```
+
+`--confidence`, `--calibration`, and `--due-days` are optional for backward
+compatibility. When omitted, older records remain valid but cannot support
+calibration analysis or spaced scheduling.
 
 On a reflection request, check whether enough has accumulated for a fair quiz:
 
@@ -108,6 +112,10 @@ from the **live session context**, not the store. With context capture enabled, 
 abstracted, secret-redacted context *is* retained — only as detailed as the
 experience needs — which is what lets a later reflection reproduce the concrete
 moment; that trades some privacy for fidelity and stays local-only.
+
+For quiz outcomes, newer stores can also capture confidence, calibration, and a
+due date for the next retrieval pass. These fields support learning cadence; they
+do not identify a person and they do not diagnose ability.
 
 Keep `signal` at **category level** (e.g. `defer-irreversible`), never a project
 or scenario identifier (e.g. `acme-payments-cutover`): the sanitiser guarantees

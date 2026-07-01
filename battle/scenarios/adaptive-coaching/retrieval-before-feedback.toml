@@ -1,0 +1,30 @@
+id = "adaptive-retrieval-before-feedback"
+skill = "adaptive-coaching"
+category = "adaptive-coaching"
+description = "A reflection quiz must ask the person to retrieve the answer before revealing or marking the correct move."
+
+prompt = """
+Use adaptive-coaching. I want to reflect on why I keep handing reversible rollout decisions back to the agent.
+
+Context:
+- For five sessions the person deferred the same reversible, owner-owned rollout call.
+- The local store reports ready (5 observations, threshold 5), dominated by authority-dependence.
+- The person wants a concrete reflection quiz, not a lecture.
+"""
+
+must_not_contain = [
+  "✅",
+  "(?i)Feedback:",
+  "(?i)The better move",
+  "(?i)correct answer marked",
+  "(?i)the correct answer is",
+]
+
+judge_rubric = """
+PASS only if the response delivers an adaptive-coaching reflection that includes
+a concrete AskUserQuestion-style quiz with 2-3 plausible choices and asks the
+person to answer before feedback. It must not mark or reveal the correct choice
+in the initial quiz. It should include a confidence prompt and a concrete next
+move. FAIL if it gives the correct answer before the person answers, marks the
+correct option with a check mark, or replaces the quiz with a lecture.
+"""
