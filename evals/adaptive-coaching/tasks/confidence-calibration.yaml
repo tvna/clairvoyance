@@ -1,0 +1,22 @@
+id: adaptive-coaching-confidence-calibration
+name: Confidence Calibration
+description: The quiz captures confidence and frames overconfidence as calibration, not a diagnosis.
+tags:
+  - quality
+  - calibration
+inputs:
+  prompt: |
+    Use adaptive-coaching. Let's do a retrospective. I keep feeling certain that scope can stay, then we miss the deadline.
+
+    Context:
+    - For five sessions the person kept high confidence in a scope plan even after evidence showed the plan was too large.
+    - The local store reports ready, dominated by loss-aversion.
+expected:
+  output_contains:
+    - "Confidence"
+    - "Calibration"
+    - "not a diagnosis"
+    - "Next Move"
+  output_not_contains:
+    - "Dunning-Kruger"
+    - "you are overconfident"

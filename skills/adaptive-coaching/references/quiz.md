@@ -1,5 +1,17 @@
 # Building the prosthesis quiz
 
+## Contents
+
+- Quiz shape
+- Good vs bad quiz items
+- Explain first when understanding is shallow
+- Confidence calibration
+- Psychological safety and retention
+- Spaced follow-up
+- Meet the person where they are
+
+## Quiz shape
+
 The prosthesis effect: coaching should become an extension the person
 internalises into durable judgement, not a crutch they depend on. Active recall
 through a quiz beats being told — retrieval practice is what makes the corrected
@@ -20,9 +32,13 @@ quiz must make the person do the judgement, never hand it to them.
 Each quiz item gives:
 
 - a concrete scenario drawn from the person's own recurring pattern,
-- 2-3 choices,
-- the marked correct answer (e.g. a ✅), and
-- a one-line why for each choice.
+- 2-3 plausible choices,
+- a confidence prompt (`low`, `medium`, `high`), and
+- an explicit note that feedback comes after the person answers.
+
+Do **not** mark the correct answer in the initial quiz. Marking the answer turns
+the moment into recognition or rereading; the learning target is retrieval. After
+the person answers, give the correct move and a one-line why for each choice.
 
 Keep questions non-leading and non-shaming; the goal is the person's own next
 correct call without the coach present. Keep the feedback on the move and its
@@ -44,11 +60,73 @@ with the ✅ that fixes it:
 - ❌ **Telling, not retrieving:** stating the correct move in prose, or offering a
   one-real-option "quiz" — that is supplying the answer (authority), not giving
   the work back.
-  ✅ **Retrieval:** 2–3 genuine options, the correct one marked, a one-line why
-  for each, so the person makes the call.
+  ✅ **Retrieval:** 2-3 genuine options, no marked answer, a confidence prompt,
+  and feedback after the person answers, so the person makes the call before
+  seeing the correction.
 - ❌ **Generic:** *"What makes a good decision?"* — abstract, not their pattern.
   ✅ **Concrete:** drawn from the person's own recurring signal, so the recall
   transfers to the next real moment.
+
+## Explain first when understanding is shallow
+
+For recurring `technical-not-understood` or shallow-understanding patterns, ask
+the person to explain the mechanism before choosing. This uses the "illusion of
+explanatory depth" safely: the person notices what they cannot yet explain
+without being shamed for it.
+
+Use this shape:
+
+1. "Before choosing, explain in one sentence what you think is happening."
+2. Ask the 2-3 choice retrieval question.
+3. Ask confidence (`low`, `medium`, `high`).
+4. After the answer, give feedback and the smallest missing mechanism.
+
+Never use "you did not understand" as a label. Name the gap as the mechanism that
+is not yet stable.
+
+## Confidence calibration
+
+Ask for confidence so feedback can train calibration, not just correctness.
+
+- `correct + high confidence`: reinforce the move and schedule a longer interval.
+- `correct + low confidence`: name the judgement as stronger than it felt and schedule a medium interval.
+- `incorrect + low/medium confidence`: treat it as a normal learning miss and schedule a short interval.
+- `incorrect + high confidence`: name it as an overconfidence signal for this move only, not a trait or diagnosis, and schedule the shortest interval.
+
+Do not say "you have Dunning-Kruger" or diagnose the person. Say: "That is a
+calibration signal: confidence was higher than the move warranted here."
+
+## Psychological safety and retention
+
+The quiz should feel like a held learning moment, not an accusation. Use a simple
+safety sequence:
+
+1. **Observation:** "I notice the same move showing up across several sessions."
+2. **Meaning:** "That makes this fair to reflect on now; it is not a verdict about you."
+3. **Choice:** "You can take the quiz, or we can keep observing and come back later."
+4. **Retrieval:** Ask the question without marking the answer.
+5. **Repair:** If the response creates defensiveness or shame, lower the heat: acknowledge it, restate the purpose, and offer a smaller next step.
+
+Use I-message style when it helps avoid blame: "I am reading this as a risk that
+the decision leaves your hands" is safer than "you are dodging the decision." Do
+not overuse "I" to center the coach; the point is to make the observation ownable
+by the person.
+
+## Spaced follow-up
+
+End every delivered quiz with **Review Again**. The point is lightweight: a due
+window for the next retrieval pass, not a calendar system.
+
+Default intervals:
+
+- overconfident miss (`incorrect + high confidence`): 1 day
+- any other miss: 2 days
+- correct but low confidence: 3 days
+- correct with medium confidence: 5 days
+- correct with high confidence: 7 days
+
+If the store can record due metadata, record it. If not, still name the review
+point in the response.
 
 ## Meet the person where they are
 
@@ -62,9 +140,9 @@ skim-read or guessed, and no learning happens. So calibrate to the person:
 - **Their lived instance, not an abstraction.** Anchor the scenario in the actual
   situation they were in and already understand, not a generalised reframing.
 - **Scaffold a not-understood concept first.** When the gap is a concept they do
-  not yet grasp (a recurring Type I technical gap), give the one-line *why* before
-  the quiz, then have them retrieve it — don't pose options that assume the
-  understanding.
+  not yet grasp (a recurring Type I technical gap), ask them to explain the
+  mechanism first, then give the smallest missing piece after they answer — don't
+  pose options that assume the understanding.
 
 Calibrate vocabulary and scaffolding, never the difficulty of the call itself —
 the judgement still belongs to the person. Lowering the language barrier is giving

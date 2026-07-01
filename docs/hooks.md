@@ -76,6 +76,9 @@ erDiagram
         text outcome "correct, incorrect, or null"
         text session_kind "coded, nullable"
         text context "opt-in; abstracted summary, redacted, nullable"
+        text confidence "low, medium, high, or null"
+        text calibration "accurate, overconfident, underconfident, unknown, or null"
+        text due_at "UTC date/time for next retrieval pass, nullable"
     }
     meta {
         text key PK "always sessions"
@@ -140,6 +143,9 @@ procedure, so operators can judge the privacy/utility balance:
    recency weighting.
 7. **Taxonomy mismatch.** The references' Type I/II/III and `technical-not-understood`
    have no matching store category, so the latter folds to `other`.
+8. **Calibration starts when recorded.** Older rows have no confidence,
+   calibration, or due date, so migration can import them as observed history but
+   cannot backcast the person's confidence state.
 
 ### Codex
 

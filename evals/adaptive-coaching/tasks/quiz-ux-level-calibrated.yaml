@@ -1,6 +1,6 @@
 id: adaptive-coaching-quiz-ux-level-calibrated
 name: Quiz Meets A Junior Where They Are
-description: For a person who does not yet understand the concept, the quiz still delivers an interactive choice with a marked answer and a concrete next move, without lecturing the theory.
+description: For a person who does not yet understand the concept, the quiz still delivers an explain-first interactive choice with confidence and a concrete next move, without lecturing the theory.
 tags:
   - quality
   - quiz
@@ -15,7 +15,9 @@ inputs:
 expected:
   output_contains:
     - "AskUserQuestion"
-    - "✅"
+    - "Explain"
+    - "Confidence"
     - "Next Move"
   output_not_contains:
     - "Heifetz"
+    - "✅"
