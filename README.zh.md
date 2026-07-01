@@ -1,6 +1,8 @@
 # Clairvoyance
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tvna/clairvoyance)
 [![codecov](https://codecov.io/gh/tvna/clairvoyance/branch/main/graph/badge.svg)](https://codecov.io/gh/tvna/clairvoyance)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [English](./README.md) | [日本語](./README.ja.md) | [简体中文](./README.zh.md) | [한국어](./README.ko.md)
 
