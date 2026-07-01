@@ -60,7 +60,7 @@ from datetime import UTC, datetime
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
-SKILLS_DIR = REPO_ROOT / "plugin" / "skills"
+SKILLS_DIR = REPO_ROOT / "skills"
 SCENARIOS_DIR = HERE / "scenarios"
 
 
