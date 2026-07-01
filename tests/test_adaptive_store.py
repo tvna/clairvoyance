@@ -371,9 +371,11 @@ def test_quiz_metadata_is_recorded_when_present(tmp_path):
         ],
         data_dir,
     )
-    row = sqlite3.connect(str(data_dir / "coaching.db")).execute(
-        "SELECT outcome, confidence, calibration, due_at IS NOT NULL FROM observations"
-    ).fetchone()
+    row = (
+        sqlite3.connect(str(data_dir / "coaching.db"))
+        .execute("SELECT outcome, confidence, calibration, due_at IS NOT NULL FROM observations")
+        .fetchone()
+    )
     assert row == ("incorrect", "high", "overconfident", 1)
 
 
@@ -397,7 +399,9 @@ def test_invalid_quiz_metadata_is_folded_to_unknown_or_null(tmp_path):
         ],
         data_dir,
     )
-    row = sqlite3.connect(str(data_dir / "coaching.db")).execute(
-        "SELECT confidence, calibration, due_at FROM observations"
-    ).fetchone()
+    row = (
+        sqlite3.connect(str(data_dir / "coaching.db"))
+        .execute("SELECT confidence, calibration, due_at FROM observations")
+        .fetchone()
+    )
     assert row == (None, "unknown", None)
