@@ -21,3 +21,6 @@ expected:
     - "Next Move"
   output_not_contains:
     - "✅"
+    - "Feedback:"
+    - "The better move"
+    - "the correct answer is"

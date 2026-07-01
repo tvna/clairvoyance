@@ -28,6 +28,8 @@ timestamp — never prompt text, code, or file paths. Opt-in context capture (be
 can additionally store an abstracted, secret-redacted scenario summary.
 
 - **Subcommands.** `record --category <c> [--signal …] [--outcome correct|incorrect]
+  [--confidence low|medium|high]
+  [--calibration accurate|overconfident|underconfident|unknown] [--due-days <n>]
   [--session-kind …] [--context-stdin]` appends one observation (with
   `--context-stdin` the context is read from stdin, never argv, and is stored only
   with context capture on); `record-session` counts one chat session; `status`
@@ -104,8 +106,8 @@ sequenceDiagram
         Note over A: classify from LIVE context, build a concrete quiz
         A-->>P: AskUserQuestion quiz
         P-->>A: choice
-        A->>S: record --category --outcome correct or incorrect
-        A-->>P: feedback plus Next Move
+        A->>S: record --category --outcome correct or incorrect --confidence --calibration --due-days
+        A-->>P: feedback, calibration, Review Again, plus Next Move
     end
 ```
 

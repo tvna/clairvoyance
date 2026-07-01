@@ -14,6 +14,8 @@ Context:
 
 must_not_contain = [
   "✅",
+  "(?i)Feedback:",
+  "(?i)The better move",
   "(?i)correct answer marked",
   "(?i)the correct answer is",
 ]

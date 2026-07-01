@@ -31,18 +31,21 @@ Deliver the quiz **only** when the person asks to reflect or do a retrospective,
 
 ## Output
 
-A reflection quiz uses these headings:
+The initial reflection output stops after the person has a real retrieval prompt:
 
 - **Classification:** the technical-versus-adaptive split of the recurring gap.
 - **Capability Gap:** the understanding or change the person must make, named without shame.
 - **Evidence:** the accumulated anonymous signal (count versus threshold) that makes the reflection fair now.
 - **Quiz:** AskUserQuestion (or `AskUserQuestion:` fallback) with 2-3 plausible choices and a confidence prompt; no answer is marked before the person answers.
+
+Only after the person answers, continue with:
+
 - **Feedback:** after the answer, identify the better move and explain why.
 - **Calibration:** after the answer, compare confidence to outcome without diagnosing the person.
 - **Review Again:** a lightweight due point for the next retrieval pass.
 - **Next Move:** the concrete corrective the person can adopt.
 
-Pattern: **Classification** -> **Capability Gap** -> **Evidence** -> **Quiz** -> **Feedback** -> **Calibration** -> **Review Again** -> **Next Move**. When the store is not `ready`, emit only **Classification**, **Evidence** (insufficient signal), and **Next Move** (keep observing) — do not quiz.
+Initial pattern: **Classification** -> **Capability Gap** -> **Evidence** -> **Quiz**. Then wait for the person's answer and confidence. Post-answer pattern: **Feedback** -> **Calibration** -> **Review Again** -> **Next Move**. When the store is not `ready`, emit only **Classification**, **Evidence** (insufficient signal), and **Next Move** (keep observing) — do not quiz.
 
 ## Psychological safety contract
 

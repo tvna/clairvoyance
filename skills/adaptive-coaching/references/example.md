@@ -8,7 +8,7 @@ Can we step back and reflect? I keep stalling these releases and I want to see m
 - Each time, the agent had already laid out the same two reversible options with a recommendation.
 - The local store now reports `ready` (5 observations, threshold 5), mostly `authority-dependence` and `avoidance`.
 
-## Output
+## Initial output
 
 **Classification:** *Type III — adaptive.* The deploy tooling is a *Type I technical* concern with a known fix and is not what stalls the cutover. The recurring stall is *adaptive*: a decision only the owner can own is being handed off each session. Recasting it as a tooling problem is the work-avoidance mislabel — dressing an adaptive challenge as a technical one.
 
@@ -22,11 +22,17 @@ Can we step back and reflect? I keep stalling these releases and I want to see m
 - Buy a new deploy tool first.
 - Confidence: low / medium / high.
 
+## Person answers
+
+Pick the recommended option now and set the rollback trigger. Confidence: medium.
+
+## Post-answer output
+
 **Feedback:** The better move is to pick the recommended option now and set the rollback trigger: you own the reversible call and keep the safety net.
 
-**Calibration:** If confidence was high and the answer missed, treat that as a calibration signal for this move, not a diagnosis. If confidence was low and the answer was right, the judgement is stronger than it felt.
+**Calibration:** Correct with medium confidence: the judgement is available, and the next repetition should make it easier to own without the coach present.
 
-**Review Again:** Due in 1-7 days depending on outcome and confidence; use the shortest interval for an overconfident miss.
+**Review Again:** Due in 5 days.
 
 **Next Move:** Owner selects the recommended cutover option and names the rollback trigger this session; record the quiz outcome, confidence, calibration, and review due point so the store can tell whether the deferral habit is fading.
 

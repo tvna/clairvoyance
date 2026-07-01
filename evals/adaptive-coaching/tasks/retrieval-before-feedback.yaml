@@ -21,3 +21,6 @@ expected:
   output_not_contains:
     - "✅"
     - "correct answer marked"
+    - "Feedback:"
+    - "The better move"
+    - "the correct answer is"
