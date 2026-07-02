@@ -22,6 +22,7 @@ evals/                     waza evaluation suites, one per skill (not deployed)
 AGENTS.md CLAUDE.md        imported agent instructions (synced; not deployed)
 scripts/ tests/            validators and their pytest suite (not deployed)
 codecov.yml                Codecov dashboard config (informational; not deployed)
+managed/                   managed-mode coaching server (FastAPI + Celery), its own uv project shipped as a container — never deployed as part of the plugin
 docs/ .github/             documentation, CI, release automation (not deployed)
 ```
 
