@@ -29,6 +29,6 @@ Read [the handoff template](references/handoff-template.md) for exact section or
 
 ## Output
 
-Deliver the handoff as a single attached Markdown file (`handoff.md`) so it copies and pastes in one piece: attach the file when the harness supports attachments; otherwise write it to `handoff.md` in the workspace and give its path. The file holds one prompt with headings **Context**, **Background**, **Files to read**, **Implementation**, **Verification**, **PR creation**, **Acceptance criteria**.
+Deliver the handoff as a single attached Markdown file (`handoff.md`) so it copies and pastes in one piece. Portable delivery, in order of preference: attach the file when the harness supports attachments; otherwise write it to `handoff.md` in the workspace and give its path; if the harness supports neither attachments nor file writing, emit the same Markdown inline as the reply. The file (or inline block) holds one prompt with headings **Context**, **Background**, **Files to read**, **Implementation**, **Verification**, **PR creation**, **Acceptance criteria**.
 
 Because the deliverable is a Markdown file rather than inline chat text, use standard Markdown: fenced code blocks for commands and `inline code` for short snippets. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another for outward-facing artifacts.

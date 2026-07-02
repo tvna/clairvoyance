@@ -28,9 +28,10 @@ See [`skills/session-handoff/references/handoff-template.md`](../skills/session-
 for the template and a worked example.
 
 The handoff is delivered as a single attached Markdown file (`handoff.md`) so it
-copies and pastes in one piece. Because the deliverable is a Markdown file, it uses
-standard Markdown — fenced code blocks for commands and `inline code` for short
-snippets.
+copies and pastes in one piece; if the harness supports neither attachments nor
+file writing, the same Markdown is emitted inline as the reply. Because the
+deliverable is a Markdown file, it uses standard Markdown — fenced code blocks for
+commands and `inline code` for short snippets.
 
 ## Origin
 

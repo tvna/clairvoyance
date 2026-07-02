@@ -2,9 +2,10 @@
 
 Fill every section. Keep it self-contained: the next session should not need this
 conversation. Deliver the finished handoff as an attached Markdown file
-(`handoff.md`) so it copies and pastes in one piece. Because it is a Markdown
-file, use standard Markdown: fenced code blocks for multi-line commands and
-`inline code` for short snippets.
+(`handoff.md`) so it copies and pastes in one piece; if the harness supports
+neither attachments nor file writing, emit the same Markdown inline as the
+reply. Because it is a Markdown file, use standard Markdown: fenced code blocks
+for multi-line commands and `inline code` for short snippets.
 
 ## Sections, in order
 
