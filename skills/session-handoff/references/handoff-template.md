@@ -1,9 +1,10 @@
 # Handoff template
 
 Fill every section. Keep it self-contained: the next session should not need this
-conversation. Do not use fenced code blocks anywhere in the handoff — use
-4-space-indented blocks for multi-line commands and `inline code` for short
-snippets, so the prompt pastes into a chat input without breaking.
+conversation. Deliver the finished handoff as an attached Markdown file
+(`handoff.md`) so it copies and pastes in one piece. Because it is a Markdown
+file, use standard Markdown: fenced code blocks for multi-line commands and
+`inline code` for short snippets.
 
 ## Sections, in order
 
@@ -32,14 +33,18 @@ abstractions beyond what is described.
 ## Verification
 Run after implementing:
 
-    uv run pytest tests/relevant_test.py -v
+```
+uv run pytest tests/relevant_test.py -v
+```
 
 Expected: all tests pass.
 
 ## PR creation
 Read `.github/PULL_REQUEST_TEMPLATE.md` before drafting. Suggested title:
 
-    fix(scope): description (Closes #NNNN)
+```
+fix(scope): description (Closes #NNNN)
+```
 
 ## Acceptance criteria
 - [ ] Criterion 1 (deterministic: command or observable output)
@@ -71,14 +76,18 @@ comparison. Minimum sufficient: change only the test setup, not `app/cache.py`.
 ## Verification
 Run after implementing:
 
-    uv run pytest tests/test_cache.py -v
+```
+uv run pytest tests/test_cache.py -v
+```
 
 Expected: `test_cache_expiry` passes 20 of 20 runs.
 
 ## PR creation
 Read `.github/PULL_REQUEST_TEMPLATE.md`. Suggested title:
 
-    test(cache): stabilise cache expiry test with a frozen clock (Closes #412)
+```
+test(cache): stabilise cache expiry test with a frozen clock (Closes #412)
+```
 
 ## Acceptance criteria
 - [ ] `uv run pytest tests/test_cache.py -v` passes
