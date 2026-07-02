@@ -1,0 +1,183 @@
+"""Admin API: RBAC, org scoping, audit trail."""
+
+from datetime import UTC, datetime
+from typing import Any
+
+from conftest import SeededOrg, admin_override, make_settings
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session, sessionmaker
+from test_collector_api import auth, event_payload
+
+from app.auth.oidc import OIDCVerifier
+from app.auth.rbac import Role
+from app.db.models import AuditLog, Contributor, Organization
+
+
+def seed_events(client: TestClient, seeded_org: SeededOrg) -> None:
+    past = datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
+    assert (
+        client.post(
+            "/v1/events",
+            json=event_payload(event_id="OBS1", occurred_at=past.isoformat()),
+            headers=auth(seeded_org),
+        ).status_code
+        == 201
+    )
+    assert (
+        client.post(
+            "/v1/events",
+            json=event_payload(
+                event_id="QUIZ1",
+                event_type="quiz_attempt",
+                occurred_at=past.isoformat(),
+                quiz={"outcome": "correct", "confidence": "high", "calibration": "overconfident"},
+            ),
+            headers=auth(seeded_org),
+        ).status_code
+        == 201
+    )
+
+
+def test_admin_requires_bearer(client: TestClient) -> None:
+    assert client.get("/v1/admin/contributors").status_code == 401
+
+
+def test_admin_503_when_oidc_unconfigured(client: TestClient) -> None:
+    response = client.get("/v1/admin/contributors", headers={"Authorization": "Bearer whatever"})
+    assert response.status_code == 503
+
+
+def test_admin_401_on_invalid_token_when_oidc_configured(app: FastAPI, client: TestClient) -> None:
+    app.state.oidc_verifier = OIDCVerifier(
+        make_settings(oidc_issuer="https://idp.example.com", oidc_audience="clairvoyance-managed")
+    )
+    response = client.get("/v1/admin/contributors", headers={"Authorization": "Bearer not-a-jwt"})
+    assert response.status_code == 401
+
+
+def test_unknown_organization_forbidden(app: FastAPI, client: TestClient) -> None:
+    admin_override(app, org_key="ghost")
+    assert client.get("/v1/admin/contributors").status_code == 403
+
+
+def test_role_matrix(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    cases: list[tuple[tuple[Role, ...], str, str, int, dict[str, Any] | None]] = [
+        ((Role.COACH,), "GET", "/v1/admin/contributors", 200, None),
+        ((Role.TEAM_MANAGER,), "GET", "/v1/admin/reviews/due", 200, None),
+        ((Role.AUDITOR,), "GET", "/v1/admin/audit-logs", 200, None),
+        ((Role.COACH,), "GET", "/v1/admin/audit-logs", 403, None),
+        ((Role.COACH,), "PUT", "/v1/admin/policies", 403, {"settings": {"collect_enabled": True}}),
+        ((), "GET", "/v1/admin/contributors", 403, None),
+    ]
+    for roles, method, path, expected, body in cases:
+        admin_override(app, roles=roles)
+        response = client.request(method, path, json=body)
+        assert response.status_code == expected, (roles, method, path)
+
+
+def test_list_contributors_pagination(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    seed_events(client, seeded_org)
+    admin_override(app, roles=(Role.COACH,))
+    response = client.get("/v1/admin/contributors", params={"limit": 1, "offset": 0})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["contributors"][0]["external_id"] == "12345678"
+
+
+def test_contributor_summary(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    seed_events(client, seeded_org)
+    admin_override(app, roles=(Role.COACH,))
+    contributor_id = client.get("/v1/admin/contributors").json()["contributors"][0]["id"]
+    response = client.get(f"/v1/admin/contributors/{contributor_id}/summary")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["events_total"] == 2
+    assert body["events_by_category"] == {"avoidance": 2}
+    assert body["quiz"] == {"attempts": 1, "correct": 1, "calibration": {"overconfident": 1}}
+    assert body["last_event_at"] is not None
+
+
+def test_contributor_summary_not_found(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    admin_override(app)
+    assert client.get("/v1/admin/contributors/not-a-uuid/summary").status_code == 404
+    missing = "00000000-0000-0000-0000-000000000000"
+    assert client.get(f"/v1/admin/contributors/{missing}/summary").status_code == 404
+
+
+def test_contributor_of_other_org_hidden(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg, session_factory: sessionmaker[Session]
+) -> None:
+    with session_factory() as session:
+        other = Organization(key="other", name="Other")
+        session.add(other)
+        session.flush()
+        foreign = Contributor(organization_id=other.id, provider="github", external_id="999")
+        session.add(foreign)
+        session.commit()
+        foreign_id = str(foreign.id)
+    admin_override(app)
+    assert client.get(f"/v1/admin/contributors/{foreign_id}/summary").status_code == 404
+
+
+def test_reviews_due_lists_past_due_only(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    seed_events(client, seeded_org)  # QUIZ1 occurred 2026-01-01, so its due point is long past
+    admin_override(app, roles=(Role.COACH,))
+    response = client.get("/v1/admin/reviews/due")
+    assert response.status_code == 200
+    due = response.json()["due"]
+    assert len(due) == 1
+    assert due[0]["category"] == "avoidance"
+    assert due[0]["signal"] == "deferred-risk-call"
+    assert due[0]["last_outcome"] == "correct"
+    assert due[0]["interval_days"] == 2
+
+
+def test_policies_roundtrip_and_audit(app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    initial = client.get("/v1/admin/policies")
+    assert initial.status_code == 200
+    assert initial.json()["settings"]["allow_context_summary"] is False
+
+    updated = client.put(
+        "/v1/admin/policies",
+        json={"settings": {"collect_enabled": True, "allow_context_summary": True, "retention_days": 30}},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["settings"]["retention_days"] == 30
+
+    overwrite = client.put(
+        "/v1/admin/policies",
+        json={"settings": {"collect_enabled": True, "allow_context_summary": False, "retention_days": 90}},
+    )
+    assert overwrite.status_code == 200
+
+    reread = client.get("/v1/admin/policies")
+    assert reread.json()["settings"] == {
+        "collect_enabled": True,
+        "allow_context_summary": False,
+        "retention_days": 90,
+    }
+
+    actions = [row.action for row in db.scalars(select(AuditLog)).all()]
+    assert actions == ["policies.get", "policies.put", "policies.put", "policies.get"]
+    assert all(row.actor == "admin@example.com" for row in db.scalars(select(AuditLog)).all())
+
+
+def test_policy_rejects_out_of_range_retention(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    admin_override(app)
+    response = client.put("/v1/admin/policies", json={"settings": {"retention_days": 0}})
+    assert response.status_code == 422
+
+
+def test_audit_log_listing(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    assert client.get("/v1/admin/contributors").status_code == 200
+    response = client.get("/v1/admin/audit-logs")
+    assert response.status_code == 200
+    logs = response.json()["logs"]
+    actions = {entry["action"] for entry in logs}
+    assert "contributors.list" in actions
+    assert "audit_logs.list" in actions

@@ -1,0 +1,50 @@
+# Coolify deployment: `api` is the only service with a public domain.
+# Postgres and Redis are Coolify database resources on the internal network
+# (not bundled here), so their lifecycle and backups stay managed by Coolify.
+#
+# Migration runs before the api starts. Single api instance today; when api
+# replicas are scaled out (or on Kubernetes), move `alembic upgrade head`
+# to a dedicated one-shot service / Job so replicas do not race the schema.
+services:
+  api:
+    build: .
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000"
+    environment:
+      CLAIRVOYANCE_DATABASE_URL: ${CLAIRVOYANCE_DATABASE_URL}
+      CLAIRVOYANCE_REDIS_URL: ${CLAIRVOYANCE_REDIS_URL}
+      CLAIRVOYANCE_COLLECTOR_TOKEN_PEPPER: ${CLAIRVOYANCE_COLLECTOR_TOKEN_PEPPER}
+      CLAIRVOYANCE_OIDC_ISSUER: ${CLAIRVOYANCE_OIDC_ISSUER}
+      CLAIRVOYANCE_OIDC_AUDIENCE: ${CLAIRVOYANCE_OIDC_AUDIENCE}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build: .
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    environment:
+      CLAIRVOYANCE_DATABASE_URL: ${CLAIRVOYANCE_DATABASE_URL}
+      CLAIRVOYANCE_REDIS_URL: ${CLAIRVOYANCE_REDIS_URL}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  scheduler:
+    build: .
+    command: celery -A app.worker.celery_app beat --loglevel=info
+    environment:
+      CLAIRVOYANCE_DATABASE_URL: ${CLAIRVOYANCE_DATABASE_URL}
+      CLAIRVOYANCE_REDIS_URL: ${CLAIRVOYANCE_REDIS_URL}
+    depends_on:
+      api:
+        condition: service_healthy
