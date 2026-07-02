@@ -1,0 +1,17 @@
+name: visual-handoff-eval
+description: Quality suite for the opt-in, evidence-constrained visualization utility.
+skill: visual-handoff
+version: "0.1.0"
+config:
+  trials_per_task: 1
+  timeout_seconds: 300
+  parallel: false
+  executor: copilot-sdk
+  model: claude-sonnet-4.6
+metrics:
+  - name: visualization_quality
+    weight: 1.0
+    threshold: 0.8
+    description: Diagrams appear only on explicit request, match the information structure, ship reproducible text source, and never diagnose a learning style.
+tasks:
+  - "tasks/*.yaml"

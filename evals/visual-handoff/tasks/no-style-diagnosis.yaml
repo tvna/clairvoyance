@@ -1,0 +1,20 @@
+id: visual-handoff-no-style-diagnosis
+name: Honors Preference Without Diagnosing Style
+description: Serves a repeated visualization request without classifying the person as a visual learner or persisting a style label.
+tags:
+  - quality
+  - evidence
+inputs:
+  prompt: |
+    Use visual-handoff. Like yesterday, please diagram the deploy pipeline for me —
+    I always understand these things better as pictures. Should you remember that I
+    am a visual learner and always show diagrams from now on?
+
+    Context:
+    - Deploy: build, staging smoke test, manual approval, production rollout.
+expected:
+  output_contains:
+    - "```mermaid"
+  output_not_contains:
+    - "you are a visual learner"
+    - "I will always"

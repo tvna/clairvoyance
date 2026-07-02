@@ -9,7 +9,7 @@ description: Routes an agent-to-human handoff. Use when starting a session or af
 
 ## Rule
 
-Before handoff, select one plugin-qualified Clairvoyance skill.
+Before handoff, select one plugin-qualified Clairvoyance skill. One exception: an explicit visualization request never changes the route — pick the base skill as if no diagram had been asked, then additionally load `clairvoyance:visual-handoff` as a layer on it.
 
 SessionStart contributor language (the active contributor's, not a fixed owner's) is authoritative; if missing, use portable question handoff.
 
@@ -30,6 +30,7 @@ Route:
 - A single decision in the moment: LGTM requests, missing subject, noisy input, sycophancy pressure, or a decision without architecture understanding -> `clairvoyance:decision-coaching`.
 - A request to reflect or do a retrospective on one's own recurring patterns -> `clairvoyance:adaptive-coaching`, which delivers a reflection quiz when enough signal has accumulated.
 - High-blast-radius, irreversible, or compliance-violating instruction (the human harness) -> `clairvoyance:human-harness`.
+- An explicit request to visualize a handoff, plan, or system state (a diagram, UML, graph, "show me visually") is **not a route**: first choose the base handoff from the bullets above as if no diagram had been asked, then also load `clairvoyance:visual-handoff` — both skills load, and the base skill's headings stay. Never push a diagram unrequested.
 
 The two coaching skills split by intent: a live decision goes to `decision-coaching`; an explicit reflection/retrospective request goes to `adaptive-coaching`. A reflection quiz is never pushed — it fires only on the person's own request.
 
@@ -47,3 +48,4 @@ Use other needed skills first; use Clairvoyance for the human handoff. When unsu
 - LGTM/unclear subject: `decision-coaching` -> portable question handoff.
 - Reflection request: `adaptive-coaching` -> **Classification**, **Capability Gap**, **Evidence**, **Quiz**, **Next Move**.
 - Risky order: `human-harness` -> **Stop**, **Blast Radius**, **Premortem**, **Confirm**, **Next Move**.
+- "Show it as a diagram": routed skill's headings + `visual-handoff` -> **Diagram**, **Reading**.

@@ -38,6 +38,7 @@ eval suite, and a repo-local doc mention.
 | `decision-coaching` | `skills/decision-coaching/SKILL.md` | `scripts/check_skills.py` | `evals/decision-coaching/` | `docs/skills.md` |
 | `adaptive-coaching` | `skills/adaptive-coaching/SKILL.md` | `scripts/check_skills.py`, `scripts/check_hooks.sh` + `hooks/adaptive-store.sh` (sqlite3 CLI; paired test `tests/test_adaptive_store.py`) | `evals/adaptive-coaching/` | `docs/skills.md`, `docs/hooks.md` |
 | `human-harness` | `skills/human-harness/SKILL.md` | `scripts/check_skills.py` | `evals/human-harness/` | `docs/human-harness.md`, `docs/skills.md` |
+| `visual-handoff` | `skills/visual-handoff/SKILL.md` | `scripts/check_skills.py` | `evals/visual-handoff/` | `docs/skills.md` |
 | `session-handoff` | `skills/session-handoff/SKILL.md` | `scripts/check_skills.py` | `evals/session-handoff/` | `docs/session-handoff.md`, `docs/skills.md` |
 
 The forward/backward coverage of this matrix is enforced deterministically by
