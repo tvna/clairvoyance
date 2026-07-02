@@ -33,6 +33,16 @@ class FakeJWKSClient:
         return cast(jwt.PyJWK, SimpleNamespace(key=_PUBLIC_PEM))
 
 
+class UnknownKeyJWKSClient:
+    def get_signing_key_from_jwt(self, token: str) -> jwt.PyJWK:
+        raise jwt.exceptions.PyJWKClientError('Unable to find a signing key that matches: "stale"')
+
+
+class FailingJWKSClient:
+    def get_signing_key_from_jwt(self, token: str) -> jwt.PyJWK:
+        raise jwt.exceptions.PyJWKClientError("jwks client could not inspect token")
+
+
 def make_token(**overrides: Any) -> str:
     claims: dict[str, Any] = {
         "sub": "admin@example.com",
@@ -45,6 +55,22 @@ def make_token(**overrides: Any) -> str:
     claims.update(overrides)
     claims = {k: v for k, v in claims.items() if v is not None}
     return jwt.encode(claims, _PRIVATE_PEM, algorithm="RS256")
+
+
+def make_token_with_kid(kid: str) -> str:
+    return jwt.encode(
+        {
+            "sub": "admin@example.com",
+            "iss": ISSUER,
+            "aud": AUDIENCE,
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+            "org": "acme",
+            "roles": ["org_admin"],
+        },
+        _PRIVATE_PEM,
+        algorithm="RS256",
+        headers={"kid": kid},
+    )
 
 
 def make_verifier(**settings_overrides: Any) -> OIDCVerifier:
@@ -105,6 +131,20 @@ def test_unreachable_jwks_is_unavailable_not_invalid_token() -> None:
     )
     with pytest.raises(JWKSUnavailableError):
         OIDCVerifier(settings).verify(make_token())
+
+
+def test_unknown_jwks_kid_is_invalid_token_not_unavailable() -> None:
+    settings = make_settings(oidc_issuer=ISSUER, oidc_audience=AUDIENCE)
+    verifier = OIDCVerifier(settings, jwks_client=UnknownKeyJWKSClient())
+    with pytest.raises(InvalidAdminTokenError):
+        verifier.verify(make_token_with_kid("stale"))
+
+
+def test_malformed_token_jwks_client_error_is_invalid_token() -> None:
+    settings = make_settings(oidc_issuer=ISSUER, oidc_audience=AUDIENCE)
+    verifier = OIDCVerifier(settings, jwks_client=FailingJWKSClient())
+    with pytest.raises(InvalidAdminTokenError):
+        verifier.verify("not-a-jwt")
 
 
 def test_garbage_token_is_invalid_even_before_jwks_fetch() -> None:

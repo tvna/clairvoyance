@@ -95,6 +95,7 @@ def upgrade() -> None:
         sa.Column("due_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("interval_days", sa.Integer(), nullable=False),
         sa.Column("last_outcome", sa.String(16), nullable=True),
+        sa.Column("last_attempted_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.UniqueConstraint("organization_id", "contributor_id", "category", "signal"),
     )

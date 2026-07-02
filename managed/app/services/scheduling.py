@@ -19,10 +19,12 @@ last applied one is ignored.
 import uuid
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from app.db.models import ReviewSchedule
+from app.db.models import ReviewSchedule, utcnow
 
 _MISS_OVERCONFIDENT_DAYS = 1
 _MISS_DAYS = 2
@@ -36,9 +38,57 @@ def interval_days_for(outcome: str, confidence: str | None) -> int:
     return _CORRECT_DAYS.get(confidence or "", _CORRECT_DEFAULT_DAYS)
 
 
-def _last_applied_at(schedule: ReviewSchedule) -> datetime:
-    # Derived, not stored: due_at was computed as occurred_at + interval.
-    return schedule.due_at - timedelta(days=schedule.interval_days)
+def _schedule_key(
+    *,
+    organization_id: uuid.UUID,
+    contributor_id: uuid.UUID,
+    category: str,
+    signal: str,
+) -> tuple[ColumnElement[bool], ...]:
+    return (
+        ReviewSchedule.organization_id == organization_id,
+        ReviewSchedule.contributor_id == contributor_id,
+        ReviewSchedule.category == category,
+        ReviewSchedule.signal == signal,
+    )
+
+
+def _upsert_statement(
+    db: Session,
+    *,
+    values: dict[str, object],
+    occurred_at: datetime,
+):
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        pg_statement = postgresql_insert(ReviewSchedule).values(**values)
+        excluded = pg_statement.excluded
+        return pg_statement.on_conflict_do_update(
+            index_elements=["organization_id", "contributor_id", "category", "signal"],
+            set_={
+                "due_at": excluded.due_at,
+                "interval_days": excluded.interval_days,
+                "last_outcome": excluded.last_outcome,
+                "last_attempted_at": excluded.last_attempted_at,
+                "updated_at": excluded.updated_at,
+            },
+            where=ReviewSchedule.last_attempted_at <= occurred_at,
+        )
+    if dialect == "sqlite":
+        sqlite_statement = sqlite_insert(ReviewSchedule).values(**values)
+        excluded = sqlite_statement.excluded
+        return sqlite_statement.on_conflict_do_update(
+            index_elements=["organization_id", "contributor_id", "category", "signal"],
+            set_={
+                "due_at": excluded.due_at,
+                "interval_days": excluded.interval_days,
+                "last_outcome": excluded.last_outcome,
+                "last_attempted_at": excluded.last_attempted_at,
+                "updated_at": excluded.updated_at,
+            },
+            where=ReviewSchedule.last_attempted_at <= occurred_at,
+        )
+    raise RuntimeError(f"unsupported review schedule dialect: {dialect}")
 
 
 def apply_outcome(
@@ -53,33 +103,33 @@ def apply_outcome(
     occurred_at: datetime,
 ) -> ReviewSchedule:
     normalized_signal = signal or ""
-    schedule = db.scalars(
-        select(ReviewSchedule).where(
-            ReviewSchedule.organization_id == organization_id,
-            ReviewSchedule.contributor_id == contributor_id,
-            ReviewSchedule.category == category,
-            ReviewSchedule.signal == normalized_signal,
-        )
-    ).first()
-    if schedule is not None and occurred_at < _last_applied_at(schedule):
-        return schedule  # stale attempt: a newer one already set the schedule
-
     interval = interval_days_for(outcome, confidence)
     due_at = occurred_at + timedelta(days=interval)
-    if schedule is None:
-        schedule = ReviewSchedule(
-            organization_id=organization_id,
-            contributor_id=contributor_id,
-            category=category,
-            signal=normalized_signal,
-            due_at=due_at,
-            interval_days=interval,
-            last_outcome=outcome,
-        )
-        db.add(schedule)
-    else:
-        schedule.due_at = due_at
-        schedule.interval_days = interval
-        schedule.last_outcome = outcome
+    values = {
+        "id": uuid.uuid4(),
+        "organization_id": organization_id,
+        "contributor_id": contributor_id,
+        "category": category,
+        "signal": normalized_signal,
+        "due_at": due_at,
+        "interval_days": interval,
+        "last_outcome": outcome,
+        "last_attempted_at": occurred_at,
+        "updated_at": utcnow(),
+    }
+
+    db.execute(_upsert_statement(db, values=values, occurred_at=occurred_at))
     db.flush()
-    return schedule
+    db.expire_all()
+    return db.scalars(
+        select(ReviewSchedule)
+        .where(
+            *_schedule_key(
+                organization_id=organization_id,
+                contributor_id=contributor_id,
+                category=category,
+                signal=normalized_signal,
+            )
+        )
+        .execution_options(populate_existing=True)
+    ).one()

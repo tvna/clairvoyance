@@ -8,7 +8,7 @@ to forget.
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.collector import PolicySettings
 
@@ -65,8 +65,30 @@ class ReviewDueListOut(BaseModel):
     due: list[ReviewDueOut]
 
 
+class PolicySettingsPatch(BaseModel):
+    """Partial admin update; omitted fields preserve the current policy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    collect_enabled: bool | None = None
+    allow_context_summary: bool | None = None
+    retention_days: int | None = Field(default=None, ge=1, le=3650)
+
+    @model_validator(mode="after")
+    def reject_null_updates(self) -> "PolicySettingsPatch":
+        for field_name in self.model_fields_set:
+            if getattr(self, field_name) is None:
+                raise ValueError(f"{field_name} cannot be null")
+        return self
+
+
 class PolicyUpdateIn(BaseModel):
-    settings: PolicySettings
+    settings: PolicySettingsPatch
+
+    def merge_with(self, current: PolicySettings) -> PolicySettings:
+        merged = current.model_dump()
+        merged.update(self.settings.model_dump(exclude_unset=True))
+        return PolicySettings.model_validate(merged)
 
 
 class AuditLogOut(BaseModel):

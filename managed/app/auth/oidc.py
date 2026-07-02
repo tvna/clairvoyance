@@ -50,6 +50,13 @@ class OIDCVerifier:
             self._jwks_client = jwt.PyJWKClient(self._jwks_url, cache_keys=True)
         return self._jwks_client.get_signing_key_from_jwt(token)
 
+    def _jwk_error_is_token_specific(self, token: str, exc: jwt.exceptions.PyJWKClientError) -> bool:
+        try:
+            header = jwt.get_unverified_header(token)
+        except jwt.PyJWTError:
+            return True
+        return "kid" in header and "Unable to find a signing key that matches" in str(exc)
+
     def verify(self, token: str) -> AdminPrincipal:
         if self._issuer is None or self._audience is None:
             raise OIDCNotConfiguredError("CLAIRVOYANCE_OIDC_ISSUER / CLAIRVOYANCE_OIDC_AUDIENCE are not set")
@@ -64,6 +71,8 @@ class OIDCVerifier:
                 options={"require": ["exp", "iss", "aud", "sub"]},
             )
         except jwt.exceptions.PyJWKClientError as exc:
+            if self._jwk_error_is_token_specific(token, exc):
+                raise InvalidAdminTokenError(str(exc)) from exc
             raise JWKSUnavailableError(str(exc)) from exc
         except jwt.PyJWTError as exc:
             raise InvalidAdminTokenError(str(exc)) from exc

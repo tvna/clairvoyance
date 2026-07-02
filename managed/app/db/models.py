@@ -153,6 +153,7 @@ class ReviewSchedule(Base):
     due_at: Mapped[datetime] = mapped_column(UTCDateTime())
     interval_days: Mapped[int] = mapped_column(Integer)
     last_outcome: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    last_attempted_at: Mapped[datetime] = mapped_column(UTCDateTime())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 
 

@@ -108,7 +108,8 @@ def put_policies(
     organization: AdminOrgDep,
     db: DbDep,
 ) -> PolicyOut:
-    updated = policies.put_policy(db, organization.id, payload.settings)
+    current = policies.get_policy(db, organization.id)
+    updated = policies.put_policy(db, organization.id, payload.merge_with(current))
     return PolicyOut(organization_key=organization.key, settings=updated)
 
 

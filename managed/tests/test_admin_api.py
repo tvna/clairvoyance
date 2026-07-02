@@ -188,6 +188,31 @@ def test_policies_roundtrip_and_audit(app: FastAPI, client: TestClient, seeded_o
     assert all(row.actor == "admin@example.com" for row in db.scalars(select(AuditLog)).all())
 
 
+def test_policy_partial_update_preserves_existing_values(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg
+) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    full = client.put(
+        "/v1/admin/policies",
+        json={"settings": {"collect_enabled": True, "allow_context_summary": True, "retention_days": 30}},
+    )
+    assert full.status_code == 200
+
+    partial = client.put("/v1/admin/policies", json={"settings": {"collect_enabled": False}})
+    assert partial.status_code == 200
+    assert partial.json()["settings"] == {
+        "collect_enabled": False,
+        "allow_context_summary": True,
+        "retention_days": 30,
+    }
+
+
+def test_policy_partial_update_rejects_nulls(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    response = client.put("/v1/admin/policies", json={"settings": {"collect_enabled": None}})
+    assert response.status_code == 422
+
+
 def test_policy_rejects_out_of_range_retention(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
     admin_override(app)
     response = client.put("/v1/admin/policies", json={"settings": {"retention_days": 0}})

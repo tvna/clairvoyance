@@ -1,8 +1,12 @@
 """Spacing contract (quiz.md) and schedule row lifecycle."""
 
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+from typing import cast
+from uuid import uuid4
 
 import pytest
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 
 from app.db.models import Contributor, Organization
@@ -36,6 +40,53 @@ def _seed(db: Session) -> tuple[Organization, Contributor]:
     return organization, contributor
 
 
+def _upsert_values(organization: Organization, contributor: Contributor) -> dict[str, object]:
+    occurred = datetime(2026, 7, 2, 10, 0, tzinfo=UTC)
+    return {
+        "id": uuid4(),
+        "organization_id": organization.id,
+        "contributor_id": contributor.id,
+        "category": "avoidance",
+        "signal": "deferred-risk-call",
+        "due_at": occurred + timedelta(days=5),
+        "interval_days": 5,
+        "last_outcome": "correct",
+        "last_attempted_at": occurred,
+        "updated_at": occurred,
+    }
+
+
+def test_postgresql_upsert_statement_is_conditional(db: Session) -> None:
+    organization, contributor = _seed(db)
+    fake_db = cast(
+        Session,
+        SimpleNamespace(get_bind=lambda: SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))),
+    )
+    statement = scheduling._upsert_statement(
+        fake_db,
+        values=_upsert_values(organization, contributor),
+        occurred_at=datetime(2026, 7, 2, 10, 0, tzinfo=UTC),
+    )
+    compiled = str(statement.compile(dialect=postgresql.dialect()))
+
+    assert "ON CONFLICT" in compiled
+    assert "last_attempted_at" in compiled
+
+
+def test_schedule_upsert_rejects_unsupported_dialect(db: Session) -> None:
+    organization, contributor = _seed(db)
+    fake_db = cast(
+        Session,
+        SimpleNamespace(get_bind=lambda: SimpleNamespace(dialect=SimpleNamespace(name="mysql"))),
+    )
+    with pytest.raises(RuntimeError, match="unsupported review schedule dialect"):
+        scheduling._upsert_statement(
+            fake_db,
+            values=_upsert_values(organization, contributor),
+            occurred_at=datetime(2026, 7, 2, 10, 0, tzinfo=UTC),
+        )
+
+
 def test_apply_outcome_creates_then_updates(db: Session) -> None:
     organization, contributor = _seed(db)
     occurred = datetime(2026, 7, 2, 10, 0, tzinfo=UTC)
@@ -53,6 +104,7 @@ def test_apply_outcome_creates_then_updates(db: Session) -> None:
     assert schedule.signal == ""
     assert schedule.interval_days == 7
     assert schedule.due_at == occurred + timedelta(days=7)
+    assert schedule.last_attempted_at == occurred
 
     updated = scheduling.apply_outcome(
         db,
@@ -67,6 +119,7 @@ def test_apply_outcome_creates_then_updates(db: Session) -> None:
     assert updated.id == schedule.id
     assert updated.interval_days == 1
     assert updated.last_outcome == "incorrect"
+    assert updated.last_attempted_at == occurred + timedelta(days=7)
 
 
 def test_stale_attempt_does_not_overwrite_newer_schedule(db: Session) -> None:
@@ -96,3 +149,4 @@ def test_stale_attempt_does_not_overwrite_newer_schedule(db: Session) -> None:
     assert stale.id == current.id
     assert stale.last_outcome == "correct"  # unchanged
     assert stale.due_at == newer + timedelta(days=5)
+    assert stale.last_attempted_at == newer
