@@ -1,0 +1,56 @@
+# Coolify deployment: `api` is the only service with a public domain.
+# Postgres and Redis are Coolify database resources on the internal network
+# (not bundled here), so their lifecycle and backups stay managed by Coolify.
+#
+# Migration runs before the api starts. Single api instance today; when api
+# replicas are scaled out (or on Kubernetes), move `alembic upgrade head`
+# to a dedicated one-shot service / Job so replicas do not race the schema.
+
+# Shared by worker and scheduler so a new required variable cannot be added
+# to one and forgotten on the other.
+x-worker-config: &worker-config
+  build: .
+  environment:
+    CLAIRVOYANCE_DATABASE_URL: ${CLAIRVOYANCE_DATABASE_URL}
+    CLAIRVOYANCE_REDIS_URL: ${CLAIRVOYANCE_REDIS_URL}
+    CLAIRVOYANCE_RETENTION_DRY_RUN: ${CLAIRVOYANCE_RETENTION_DRY_RUN:-false}
+  depends_on:
+    api:
+      condition: service_healthy
+
+services:
+  api:
+    build: .
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000"
+    environment:
+      CLAIRVOYANCE_DATABASE_URL: ${CLAIRVOYANCE_DATABASE_URL}
+      CLAIRVOYANCE_REDIS_URL: ${CLAIRVOYANCE_REDIS_URL}
+      CLAIRVOYANCE_COLLECTOR_TOKEN_PEPPER: ${CLAIRVOYANCE_COLLECTOR_TOKEN_PEPPER}
+      CLAIRVOYANCE_OIDC_ISSUER: ${CLAIRVOYANCE_OIDC_ISSUER}
+      CLAIRVOYANCE_OIDC_AUDIENCE: ${CLAIRVOYANCE_OIDC_AUDIENCE}
+      # Explicit by design: providers publish JWKS at different paths, so the
+      # server never guesses it from the issuer (see app/auth/oidc.py).
+      CLAIRVOYANCE_OIDC_JWKS_URL: ${CLAIRVOYANCE_OIDC_JWKS_URL}
+      CLAIRVOYANCE_OIDC_ROLES_CLAIM: ${CLAIRVOYANCE_OIDC_ROLES_CLAIM:-roles}
+      CLAIRVOYANCE_OIDC_ORG_CLAIM: ${CLAIRVOYANCE_OIDC_ORG_CLAIM:-org}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    <<: *worker-config
+    command: celery -A app.worker.celery_app worker --loglevel=info
+
+  scheduler:
+    <<: *worker-config
+    command: celery -A app.worker.celery_app beat --loglevel=info
