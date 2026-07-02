@@ -465,6 +465,6 @@ the [model migration guide][fable-migration], and the
 [skills-bp]: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
 [codex-skills]: https://developers.openai.com/codex/skills
 [codex-noninteractive]: https://developers.openai.com/codex/noninteractive
-[fable-intro]: https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5
+[fable-intro]: https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5
 [fable-migration]: https://platform.claude.com/docs/en/about-claude/models/migration-guide
 [fable-news]: https://www.anthropic.com/news/claude-fable-5-mythos-5
