@@ -1,6 +1,7 @@
 # Session handoff
 
-`session-handoff` produces a paste-ready prompt that lets the **next** agent
+`session-handoff` produces a paste-ready prompt — delivered as an attached
+Markdown file (`handoff.md`) — that lets the **next** agent
 session resume work without re-deriving context. It is an agent-to-next-session
 handoff, distinct from the human-facing handoffs in the rest of this package.
 
@@ -26,8 +27,11 @@ commands and expected results, PR guidance, and deterministic Acceptance criteri
 See [`skills/session-handoff/references/handoff-template.md`](../skills/session-handoff/references/handoff-template.md)
 for the template and a worked example.
 
-Handoffs avoid fenced code blocks (they use 4-space-indented command blocks) so the
-prompt pastes into a chat input without breaking.
+The handoff is delivered as a single attached Markdown file (`handoff.md`) so it
+copies and pastes in one piece; if the harness supports neither attachments nor
+file writing, the same Markdown is emitted inline as the reply. Because the
+deliverable is a Markdown file, it uses standard Markdown — fenced code blocks for
+commands and `inline code` for short snippets.
 
 ## Origin
 

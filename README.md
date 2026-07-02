@@ -24,7 +24,7 @@ recommended next move — so the human can approve, reject, or safely disagree.
 | `architecture-tradeoff` | A system-level architecture decision between options, boundaries, dependencies, or failure modes. |
 | `decision-coaching` | A human asks for LGTM / rubber-stamp on ambiguous, noisy, or architecture-poor input. |
 | `human-harness` | The human harness: a human gives a high-blast-radius, irreversible, or compliance-violating instruction. Instead of executing, it stops and presses the human to confirm intent one question at a time to catch human error before it lands. |
-| `session-handoff` | A clean restart beats trusting the harness's compaction, repository gates limit what this session can change, or work is unfinished — the next session needs a paste-ready prompt to resume. |
+| `session-handoff` | A clean restart beats trusting the harness's compaction, repository gates limit what this session can change, or work is unfinished — the next session needs a paste-ready prompt (an attached Markdown file) to resume. |
 
 Each handoff branches by stakes: reversible, low-risk calls get a compact
 `Verdict` + `Next Move`; irreversible or contested calls get the full handoff.

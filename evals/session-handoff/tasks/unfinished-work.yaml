@@ -21,5 +21,3 @@ expected:
     - "Implementation"
     - "Verification"
     - "Acceptance criteria"
-  output_not_contains:
-    - "```"
