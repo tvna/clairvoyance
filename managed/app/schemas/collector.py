@@ -13,18 +13,8 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # Vocabulary shared with the local adaptive store (store.md). Anything outside
-# CATEGORIES is folded to "other" by local clients; the server rejects instead
-# of folding so bad clients surface early.
-CATEGORIES = (
-    "avoidance",
-    "mislabeled-technical",
-    "loss-aversion",
-    "values-conflict",
-    "no-experiment",
-    "authority-dependence",
-    "other",
-)
-
+# the Category values is folded to "other" by local clients; the server rejects
+# instead of folding so bad clients surface early.
 Category = Literal[
     "avoidance",
     "mislabeled-technical",
@@ -103,8 +93,15 @@ class EventIn(BaseModel):
         return self
 
     def body_hash(self) -> str:
-        """Canonical digest for replay detection (sorted keys, no None)."""
-        canonical = json.dumps(self.model_dump(mode="json", exclude_none=True), sort_keys=True, separators=(",", ":"))
+        """Canonical digest for replay detection (sorted keys, no None).
+
+        ``organization_key`` is transport-level (the collector token is
+        authoritative and a mismatch is rejected before ingestion), so it is
+        excluded: a retry that adds or drops the redundant key is still the
+        same event, not a 409 conflict.
+        """
+        payload = self.model_dump(mode="json", exclude_none=True, exclude={"organization_key"})
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode()).hexdigest()
 
 

@@ -35,9 +35,13 @@ The first design draft was revised in these places (rationale in #51):
    separate `POST /v1/sessions` and `POST /v1/quiz-attempts` endpoints were
    dropped: one contract, one idempotency mechanism, one schema version.
 2. **Explicit idempotency semantics.** `(organization_id, event_id)` is
-   unique. Replaying the same body returns `200 {duplicate: true}`; the same
-   `event_id` with a different body is `409` — an event is never overwritten.
-   A unique constraint backstops the pre-check against concurrent inserts.
+   unique. Replaying the same body returns `200 {duplicate: true}` carrying
+   the same facts as the original acknowledgement (`context_summary_stored`,
+   `review_due_at`); the same `event_id` with a different body is `409` — an
+   event is never overwritten. Unique constraints backstop the pre-checks
+   against concurrent inserts (both the event and a first-seen contributor),
+   and the redundant `organization_key` field is excluded from the body hash
+   so adding/dropping it on a retry is not a conflict.
 3. **`quiz_attempts` has a real FK.** The draft's dangling `event_id` became
    `event_pk -> coaching_events.id` (one attempt per event, `ON DELETE
    CASCADE` so retention cleanup stays consistent).
@@ -48,11 +52,23 @@ The first design draft was revised in these places (rationale in #51):
    within the organization; display name and email are refreshed attributes.
 6. **Teams are deferred.** The draft had `/v1/admin/teams/{id}/trends` but no
    `teams` table; no dead `team_id` column ships until teams are modeled.
-7. **Admin writes are audited too**, not just reads: every admin handler
-   (list, summary, policy get/put, audit-log read) appends to `audit_logs`.
+7. **Admin writes are audited too**, not just reads — and the audit is
+   router-level, not per-handler copy-paste: every admin route (including
+   404 probes and role-denied attempts) appends to `audit_logs` with the
+   route name as the action, via a dependency with its own committed
+   session, so a new endpoint cannot forget the trail and a handler
+   rollback cannot erase it.
 8. **Retention has a default and an enforcement point**: `retention_days`
    (default 365) per organization policy, enforced daily by the Celery beat
-   task; deleted events take their quiz attempts along via FK cascade.
+   task against `occurred_at` (so imported history does not outlive the
+   policy by a fresh ingestion window); deleted events take their quiz
+   attempts along via FK cascade. `CLAIRVOYANCE_RETENTION_DRY_RUN=true`
+   makes the job report counts without deleting — run one verification pass
+   before enabling a tighter policy.
+9. **Review spacing follows the skill-side contract** (`quiz.md`): 1 day for
+   an overconfident miss, 2 for other misses, 3/5/7 days for correct with
+   low/medium/high confidence, measured from `occurred_at`; an out-of-order
+   older attempt never overwrites the schedule a newer one produced.
 
 Value vocabularies (category, outcome, confidence, calibration) match the
 local adaptive store (`skills/adaptive-coaching/references/store.md`), so a
@@ -86,15 +102,18 @@ Probes: `GET /healthz`, `GET /livez` (liveness), `GET /readyz` (DB + Redis).
 - **Admin**: OIDC bearer JWTs verified against the issuer's JWKS
   (`RS256`/`ES256`, `iss`/`aud`/`exp` required). Provider-agnostic; the
   organization key and roles ride in claims (`CLAIRVOYANCE_OIDC_ORG_CLAIM`,
-  `CLAIRVOYANCE_OIDC_ROLES_CLAIM`, defaults `org` / `roles`). Unconfigured
-  OIDC fails loudly with 503, never open.
+  `CLAIRVOYANCE_OIDC_ROLES_CLAIM`, defaults `org` / `roles`). The JWKS URL
+  (`CLAIRVOYANCE_OIDC_JWKS_URL`) is explicit — providers publish it at
+  different paths, so the server never guesses it from the issuer.
+  Unconfigured OIDC and JWKS fetch failures fail loudly with 503 (never
+  open, and never disguised as a 401 credential error).
 
 ## Configuration
 
 `CLAIRVOYANCE_`-prefixed environment variables (Kubernetes-ready: config via
 env, stateless app): `DATABASE_URL`, `REDIS_URL`, `COLLECTOR_TOKEN_PEPPER`,
-`OIDC_ISSUER`, `OIDC_AUDIENCE`, optional `OIDC_JWKS_URL` (derived from the
-issuer when unset), `OIDC_ROLES_CLAIM`, `OIDC_ORG_CLAIM`.
+`OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_ROLES_CLAIM`,
+`OIDC_ORG_CLAIM`, `RETENTION_DRY_RUN`.
 
 When a real deployment mints these secrets: generate the pepper locally
 (`python -c "import secrets; print(secrets.token_urlsafe(48))"`), store it as

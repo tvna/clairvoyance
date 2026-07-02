@@ -20,6 +20,10 @@ def build_celery() -> Celery:
         },
     }
     celery.conf.timezone = "UTC"
+    # Beat's schedule state file defaults to ./celerybeat-schedule; the image
+    # runs as a non-root user whose workdir is read-only, so keep this
+    # derivable state on the writable scratch volume.
+    celery.conf.beat_schedule_filename = "/tmp/celerybeat-schedule"  # noqa: S108 - container-local scratch, non-sensitive, derivable state.
     celery.autodiscover_tasks(["app.worker"])
     return celery
 

@@ -1,8 +1,19 @@
 """Spaced-review scheduling.
 
-Lightweight expanding schedule matching the skill-side loop: a correct answer
-doubles the interval (capped), an incorrect one resets it, and the next due
-point is measured from when the attempt actually happened.
+Intervals follow the skill-side contract
+(skills/adaptive-coaching/references/quiz.md, "Spaced follow-up"), so managed
+mode schedules the same review points the local loop names:
+
+- overconfident miss (incorrect + high confidence): 1 day
+- any other miss: 2 days
+- correct but low confidence: 3 days
+- correct with medium (or unstated) confidence: 5 days
+- correct with high confidence: 7 days
+
+The due point is measured from when the attempt occurred. Out-of-order
+arrivals (retry queues, historical imports) must not let an older attempt
+overwrite the schedule a newer one produced, so an attempt older than the
+last applied one is ignored.
 """
 
 import uuid
@@ -13,16 +24,21 @@ from sqlalchemy.orm import Session
 
 from app.db.models import ReviewSchedule
 
-INITIAL_INTERVAL_DAYS = 1
-MAX_INTERVAL_DAYS = 60
+_MISS_OVERCONFIDENT_DAYS = 1
+_MISS_DAYS = 2
+_CORRECT_DAYS = {"low": 3, "medium": 5, "high": 7}
+_CORRECT_DEFAULT_DAYS = 5
 
 
-def next_interval_days(current: int | None, outcome: str) -> int:
+def interval_days_for(outcome: str, confidence: str | None) -> int:
     if outcome != "correct":
-        return INITIAL_INTERVAL_DAYS
-    if current is None:
-        return INITIAL_INTERVAL_DAYS * 2
-    return min(current * 2, MAX_INTERVAL_DAYS)
+        return _MISS_OVERCONFIDENT_DAYS if confidence == "high" else _MISS_DAYS
+    return _CORRECT_DAYS.get(confidence or "", _CORRECT_DEFAULT_DAYS)
+
+
+def _last_applied_at(schedule: ReviewSchedule) -> datetime:
+    # Derived, not stored: due_at was computed as occurred_at + interval.
+    return schedule.due_at - timedelta(days=schedule.interval_days)
 
 
 def apply_outcome(
@@ -33,6 +49,7 @@ def apply_outcome(
     category: str,
     signal: str | None,
     outcome: str,
+    confidence: str | None,
     occurred_at: datetime,
 ) -> ReviewSchedule:
     normalized_signal = signal or ""
@@ -44,7 +61,10 @@ def apply_outcome(
             ReviewSchedule.signal == normalized_signal,
         )
     ).first()
-    interval = next_interval_days(schedule.interval_days if schedule else None, outcome)
+    if schedule is not None and occurred_at < _last_applied_at(schedule):
+        return schedule  # stale attempt: a newer one already set the schedule
+
+    interval = interval_days_for(outcome, confidence)
     due_at = occurred_at + timedelta(days=interval)
     if schedule is None:
         schedule = ReviewSchedule(

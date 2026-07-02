@@ -24,13 +24,19 @@ class Settings(BaseSettings):
     # Collector auth: HMAC pepper for token hashing (api only).
     collector_token_pepper: str | None = None
 
-    # Admin auth: OIDC bearer validation (api only).
+    # Admin auth: OIDC bearer validation (api only). The JWKS URL is explicit
+    # on purpose — providers publish it at different paths, so deriving it
+    # from the issuer would misconfigure silently (see app/auth/oidc.py).
     oidc_issuer: str | None = None
     oidc_audience: str | None = None
-    # Defaults to `{issuer}/.well-known/jwks.json` when unset.
     oidc_jwks_url: str | None = None
     oidc_roles_claim: str = "roles"
     oidc_org_claim: str = "org"
+
+    # Worker: when true, the retention job only reports what it would delete.
+    # Lets an operator verify a new retention policy against real data before
+    # the destructive pass runs.
+    retention_dry_run: bool = False
 
 
 @lru_cache(maxsize=1)

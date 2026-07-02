@@ -15,10 +15,12 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
+    Dialect,
     ForeignKey,
     Integer,
     String,
     Text,
+    TypeDecorator,
     UniqueConstraint,
     Uuid,
 )
@@ -31,13 +33,30 @@ def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+class UTCDateTime(TypeDecorator[datetime]):
+    """timestamptz that always loads timezone-aware.
+
+    All stored timestamps are UTC. PostgreSQL round-trips tzinfo natively;
+    SQLite (tests, local smoke) drops it, which would make loaded values
+    incomparable with the aware datetimes the API validates in.
+    """
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_result_value(self, value: datetime | None, dialect: Dialect) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
+
+
 class Organization(Base):
     __tablename__ = "organizations"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     key: Mapped[str] = mapped_column(String(64), unique=True)
     name: Mapped[str] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class CollectorToken(Base):
@@ -54,7 +73,7 @@ class CollectorToken(Base):
     name: Mapped[str] = mapped_column(String(255))
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
     organization: Mapped[Organization] = relationship()
 
@@ -70,7 +89,7 @@ class Contributor(Base):
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class CoachingEvent(Base):
@@ -90,7 +109,7 @@ class CoachingEvent(Base):
     schema_version: Mapped[int] = mapped_column(Integer)
     event_id: Mapped[str] = mapped_column(String(64))
     event_type: Mapped[str] = mapped_column(String(32))
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime())
     category: Mapped[str] = mapped_column(String(64))
     signal: Mapped[str | None] = mapped_column(String(64), nullable=True)
     session_kind: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -100,7 +119,7 @@ class CoachingEvent(Base):
     client_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     context_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     body_hash: Mapped[str] = mapped_column(String(64))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class QuizAttempt(Base):
@@ -113,7 +132,7 @@ class QuizAttempt(Base):
     outcome: Mapped[str] = mapped_column(String(16))
     confidence: Mapped[str | None] = mapped_column(String(16), nullable=True)
     calibration: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class ReviewSchedule(Base):
@@ -131,10 +150,10 @@ class ReviewSchedule(Base):
     contributor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contributors.id"))
     category: Mapped[str] = mapped_column(String(64))
     signal: Mapped[str] = mapped_column(String(64), default="")
-    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime())
     interval_days: Mapped[int] = mapped_column(Integer)
     last_outcome: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 
 
 class AdminPolicy(Base):
@@ -142,7 +161,7 @@ class AdminPolicy(Base):
 
     organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), primary_key=True)
     settings: Mapped[dict[str, object]] = mapped_column(JSON)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 
 
 class AuditLog(Base):
@@ -154,4 +173,4 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(64))
     target_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     target_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)

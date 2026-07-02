@@ -50,6 +50,13 @@ def seed_org_with_events(db: Session, key: str, retention_days: int | None = Non
     return organization
 
 
+def test_enforce_retention_dry_run_counts_without_deleting(db: Session) -> None:
+    seed_org_with_events(db, "strict", retention_days=30)
+    affected = enforce_retention_once(db, now=NOW, dry_run=True)
+    assert affected == {"strict": 1}
+    assert len(db.scalars(select(CoachingEvent)).all()) == 2  # nothing deleted
+
+
 def test_enforce_retention_once_respects_per_org_policy(db: Session) -> None:
     seed_org_with_events(db, "strict", retention_days=30)
     seed_org_with_events(db, "lax")  # default 365 keeps everything

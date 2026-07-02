@@ -9,18 +9,17 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.client_tokens import generate_token, hash_token
 from app.config import Settings, get_settings
 from app.db.models import CollectorToken, Organization
 from app.db.session import build_engine, build_session_factory
+from app.services import organizations
 
 
 def create_org(db: Session, key: str, name: str) -> Organization:
-    existing = db.scalars(select(Organization).where(Organization.key == key)).first()
-    if existing is not None:
+    if organizations.get_by_key(db, key) is not None:
         raise SystemExit(f"organization '{key}' already exists")
     organization = Organization(key=key, name=name)
     db.add(organization)
@@ -31,7 +30,7 @@ def create_org(db: Session, key: str, name: str) -> Organization:
 def create_collector_token(db: Session, settings: Settings, org_key: str, name: str) -> str:
     if settings.collector_token_pepper is None:
         raise SystemExit("CLAIRVOYANCE_COLLECTOR_TOKEN_PEPPER is not set")
-    organization = db.scalars(select(Organization).where(Organization.key == org_key)).first()
+    organization = organizations.get_by_key(db, org_key)
     if organization is None:
         raise SystemExit(f"organization '{org_key}' not found")
     raw = generate_token()

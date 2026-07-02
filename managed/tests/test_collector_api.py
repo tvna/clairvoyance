@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+import app.services.identity as identity_module
 import app.services.ingestion as ingestion_module
 from app.db.models import CoachingEvent, Contributor, QuizAttempt
 from app.main import create_app
@@ -188,32 +189,88 @@ def test_quiz_attempt_creates_attempt_and_schedule(client: TestClient, seeded_or
     assert attempt.confidence == "high"
     assert attempt.calibration == "accurate"
     due_at = datetime.fromisoformat(body["review_due_at"])
-    assert due_at - occurred == timedelta(days=2)
+    assert due_at - occurred == timedelta(days=7)  # correct + high confidence (quiz.md)
+
+
+def test_quiz_replay_reports_review_due_at(client: TestClient, seeded_org: SeededOrg) -> None:
+    payload = event_payload(
+        event_type="quiz_attempt",
+        quiz={"outcome": "correct", "confidence": "high", "calibration": "accurate"},
+    )
+    first = client.post("/v1/events", json=payload, headers=auth(seeded_org))
+    assert first.status_code == 201
+    replay = client.post("/v1/events", json=payload, headers=auth(seeded_org))
+    assert replay.status_code == 200
+    assert replay.json()["duplicate"] is True
+    assert replay.json()["review_due_at"] == first.json()["review_due_at"]
 
 
 def test_quiz_outcomes_drive_spacing(client: TestClient, seeded_org: SeededOrg) -> None:
     occurred = datetime(2026, 7, 2, 10, 0, tzinfo=UTC)
 
-    def attempt(event_id: str, outcome: str, at: datetime) -> datetime:
+    def attempt(event_id: str, outcome: str, confidence: str | None, at: datetime) -> datetime:
+        quiz: dict[str, Any] = {"outcome": outcome}
+        if confidence is not None:
+            quiz["confidence"] = confidence
         response = client.post(
             "/v1/events",
             json=event_payload(
                 event_id=event_id,
                 event_type="quiz_attempt",
                 occurred_at=at.isoformat(),
-                quiz={"outcome": outcome},
+                quiz=quiz,
             ),
             headers=auth(seeded_org),
         )
         assert response.status_code == 201
         return datetime.fromisoformat(response.json()["review_due_at"])
 
-    first = attempt("EV1", "correct", occurred)
-    assert first - occurred == timedelta(days=2)
-    second = attempt("EV2", "correct", occurred + timedelta(days=2))
-    assert second - (occurred + timedelta(days=2)) == timedelta(days=4)
-    third = attempt("EV3", "incorrect", occurred + timedelta(days=6))
-    assert third - (occurred + timedelta(days=6)) == timedelta(days=1)
+    first = attempt("EV1", "correct", None, occurred)
+    assert first - occurred == timedelta(days=5)
+    second = attempt("EV2", "correct", "low", occurred + timedelta(days=5))
+    assert second - (occurred + timedelta(days=5)) == timedelta(days=3)
+    third = attempt("EV3", "incorrect", "high", occurred + timedelta(days=8))
+    assert third - (occurred + timedelta(days=8)) == timedelta(days=1)
+    # A late-arriving older attempt must not move the schedule backwards.
+    stale = attempt("EV4", "correct", "high", occurred - timedelta(days=30))
+    assert stale == third
+
+
+def test_replay_with_added_organization_key_is_still_duplicate(client: TestClient, seeded_org: SeededOrg) -> None:
+    assert client.post("/v1/events", json=event_payload(), headers=auth(seeded_org)).status_code == 201
+    retry = client.post("/v1/events", json=event_payload(organization_key="acme"), headers=auth(seeded_org))
+    assert retry.status_code == 200
+    assert retry.json()["duplicate"] is True
+
+
+def test_new_contributor_insert_race_resolves_to_winner(
+    client: TestClient, seeded_org: SeededOrg, monkeypatch: pytest.MonkeyPatch, db: Session
+) -> None:
+    """Losing the contributors unique-constraint race must not 500."""
+    assert client.post("/v1/events", json=event_payload(), headers=auth(seeded_org)).status_code == 201
+
+    real = identity_module._find
+    calls = {"n": 0}
+
+    def flaky(*args: Any, **kwargs: Any) -> Any:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return None  # simulate the losing side: pre-check misses the winner's row
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(identity_module, "_find", flaky)
+    response = client.post("/v1/events", json=event_payload(event_id="SECOND"), headers=auth(seeded_org))
+    assert response.status_code == 201
+    assert len(db.scalars(select(Contributor)).all()) == 1
+
+
+def test_contributor_race_reraises_when_row_vanishes(
+    client: TestClient, seeded_org: SeededOrg, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert client.post("/v1/events", json=event_payload(), headers=auth(seeded_org)).status_code == 201
+    monkeypatch.setattr(identity_module, "_find", lambda *a, **k: None)
+    with pytest.raises(IntegrityError):
+        client.post("/v1/events", json=event_payload(event_id="SECOND"), headers=auth(seeded_org))
 
 
 def test_client_policy_endpoint(client: TestClient, seeded_org: SeededOrg) -> None:

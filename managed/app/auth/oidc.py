@@ -1,8 +1,11 @@
 """OIDC bearer verification for the admin API.
 
-Provider-agnostic: the issuer, audience, and JWKS endpoint come from the
-environment, so any OIDC/SSO provider that issues RS256/ES256 JWTs works.
-The organization key and roles ride in configurable claims.
+Provider-agnostic: issuer, audience, and the JWKS endpoint all come from the
+environment. The JWKS URL is deliberately explicit — providers publish it at
+different paths (Okta `/v1/keys`, Keycloak `/protocol/openid-connect/certs`,
+Google a separate certs host), so deriving it from the issuer would turn a
+deployment misconfiguration into per-request 401s. Configuration and JWKS
+availability problems surface as 503, never as "invalid token".
 """
 
 from typing import Protocol
@@ -20,7 +23,11 @@ class SigningKeyProvider(Protocol):
 
 
 class OIDCNotConfiguredError(Exception):
-    """Admin auth was requested but the OIDC settings are unset."""
+    """Admin auth was requested but the OIDC settings are incomplete."""
+
+
+class JWKSUnavailableError(Exception):
+    """The JWKS endpoint could not be fetched or parsed (infra, not the token)."""
 
 
 class InvalidAdminTokenError(Exception):
@@ -34,20 +41,18 @@ class OIDCVerifier:
         self._roles_claim = settings.oidc_roles_claim
         self._org_claim = settings.oidc_org_claim
         self._jwks_url = settings.oidc_jwks_url
-        if self._jwks_url is None and self._issuer is not None:
-            self._jwks_url = self._issuer.rstrip("/") + "/.well-known/jwks.json"
         self._jwks_client = jwks_client
 
     def _signing_key(self, token: str) -> jwt.PyJWK:
         if self._jwks_client is None:
             if self._jwks_url is None:
-                raise OIDCNotConfiguredError
+                raise OIDCNotConfiguredError("CLAIRVOYANCE_OIDC_JWKS_URL is not set")
             self._jwks_client = jwt.PyJWKClient(self._jwks_url, cache_keys=True)
         return self._jwks_client.get_signing_key_from_jwt(token)
 
     def verify(self, token: str) -> AdminPrincipal:
         if self._issuer is None or self._audience is None:
-            raise OIDCNotConfiguredError
+            raise OIDCNotConfiguredError("CLAIRVOYANCE_OIDC_ISSUER / CLAIRVOYANCE_OIDC_AUDIENCE are not set")
         try:
             key = self._signing_key(token)
             claims = jwt.decode(
@@ -58,6 +63,8 @@ class OIDCVerifier:
                 issuer=self._issuer,
                 options={"require": ["exp", "iss", "aud", "sub"]},
             )
+        except jwt.exceptions.PyJWKClientError as exc:
+            raise JWKSUnavailableError(str(exc)) from exc
         except jwt.PyJWTError as exc:
             raise InvalidAdminTokenError(str(exc)) from exc
 

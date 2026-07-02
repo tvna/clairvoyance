@@ -1,8 +1,10 @@
 """Idempotent event ingestion.
 
 Contract: (organization_id, event_id) is unique. A replay with the same
-body hash is acknowledged as a duplicate (idempotent retry); the same
-event_id with a different body is a conflict — an event is never overwritten.
+body hash is acknowledged as a duplicate (idempotent retry) and reports the
+same facts as the original acknowledgement — whether the context summary was
+stored and the current review due point. The same event_id with a different
+body is a conflict — an event is never overwritten.
 """
 
 import uuid
@@ -43,6 +45,17 @@ def _existing_event(db: Session, organization_id: uuid.UUID, event_id: str) -> C
     ).first()
 
 
+def _current_schedule(db: Session, event: CoachingEvent) -> ReviewSchedule | None:
+    return db.scalars(
+        select(ReviewSchedule).where(
+            ReviewSchedule.organization_id == event.organization_id,
+            ReviewSchedule.contributor_id == event.contributor_id,
+            ReviewSchedule.category == event.category,
+            ReviewSchedule.signal == (event.signal or ""),
+        )
+    ).first()
+
+
 def ingest_event(db: Session, organization: Organization, payload: EventIn, policy: PolicySettings) -> IngestResult:
     if not policy.collect_enabled:
         raise CollectionDisabledError
@@ -50,7 +63,7 @@ def ingest_event(db: Session, organization: Organization, payload: EventIn, poli
 
     existing = _existing_event(db, organization.id, payload.event_id)
     if existing is not None:
-        return _replay(existing, body_hash)
+        return _replay(db, existing, body_hash)
 
     contributor = resolve_contributor(db, organization, payload.contributor)
     store_context = payload.context_summary is not None and policy.allow_context_summary
@@ -72,17 +85,17 @@ def ingest_event(db: Session, organization: Organization, payload: EventIn, poli
         context_summary=payload.context_summary if store_context else None,
         body_hash=body_hash,
     )
-    db.add(event)
     try:
-        db.flush()
+        # SAVEPOINT: losing the concurrent-insert race on (organization_id,
+        # event_id) must not discard the contributor work above. The unique
+        # constraint is the backstop the pre-check cannot provide.
+        with db.begin_nested():
+            db.add(event)
     except IntegrityError:
-        # Lost a concurrent-insert race on (organization_id, event_id); the
-        # unique constraint is the backstop the pre-check cannot provide.
-        db.rollback()
         raced = _existing_event(db, organization.id, payload.event_id)
         if raced is None:
             raise
-        return _replay(raced, body_hash)
+        return _replay(db, raced, body_hash)
 
     schedule = None
     if payload.quiz is not None:
@@ -101,12 +114,19 @@ def ingest_event(db: Session, organization: Organization, payload: EventIn, poli
             category=payload.category,
             signal=payload.signal,
             outcome=payload.quiz.outcome,
+            confidence=payload.quiz.confidence,
             occurred_at=payload.occurred_at,
         )
     return IngestResult(event=event, duplicate=False, context_summary_stored=store_context, schedule=schedule)
 
 
-def _replay(existing: CoachingEvent, body_hash: str) -> IngestResult:
+def _replay(db: Session, existing: CoachingEvent, body_hash: str) -> IngestResult:
     if existing.body_hash != body_hash:
         raise EventConflictError(existing.event_id)
-    return IngestResult(event=existing, duplicate=True, context_summary_stored=False, schedule=None)
+    schedule = _current_schedule(db, existing) if existing.event_type == "quiz_attempt" else None
+    return IngestResult(
+        event=existing,
+        duplicate=True,
+        context_summary_stored=existing.context_summary is not None,
+        schedule=schedule,
+    )

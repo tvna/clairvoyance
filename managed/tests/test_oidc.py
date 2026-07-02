@@ -10,7 +10,7 @@ from conftest import make_settings
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from app.auth.oidc import InvalidAdminTokenError, OIDCNotConfiguredError, OIDCVerifier
+from app.auth.oidc import InvalidAdminTokenError, JWKSUnavailableError, OIDCNotConfiguredError, OIDCVerifier
 from app.auth.rbac import Role, parse_roles
 
 ISSUER = "https://idp.example.com"
@@ -90,25 +90,31 @@ def test_unconfigured_verifier_refuses() -> None:
         verifier.verify(make_token())
 
 
-def test_signing_key_without_jwks_url_refuses() -> None:
-    verifier = OIDCVerifier(make_settings())
+def test_missing_jwks_url_is_a_config_error_not_a_401() -> None:
+    # Issuer and audience alone are not enough: the JWKS URL is never derived.
+    verifier = OIDCVerifier(make_settings(oidc_issuer=ISSUER, oidc_audience=AUDIENCE))
     with pytest.raises(OIDCNotConfiguredError):
-        verifier._signing_key(make_token())
+        verifier.verify(make_token())
 
 
-def test_unreachable_jwks_is_invalid_token() -> None:
+def test_unreachable_jwks_is_unavailable_not_invalid_token() -> None:
+    settings = make_settings(
+        oidc_issuer=ISSUER,
+        oidc_audience=AUDIENCE,
+        oidc_jwks_url="http://127.0.0.1:9/jwks.json",
+    )
+    with pytest.raises(JWKSUnavailableError):
+        OIDCVerifier(settings).verify(make_token())
+
+
+def test_garbage_token_is_invalid_even_before_jwks_fetch() -> None:
     settings = make_settings(
         oidc_issuer=ISSUER,
         oidc_audience=AUDIENCE,
         oidc_jwks_url="http://127.0.0.1:9/jwks.json",
     )
     with pytest.raises(InvalidAdminTokenError):
-        OIDCVerifier(settings).verify(make_token())
-
-
-def test_jwks_url_derived_from_issuer() -> None:
-    verifier = OIDCVerifier(make_settings(oidc_issuer=ISSUER + "/", oidc_audience=AUDIENCE))
-    assert verifier._jwks_url == ISSUER + "/.well-known/jwks.json"
+        OIDCVerifier(settings).verify("not-a-jwt")
 
 
 def test_parse_roles_ignores_non_lists() -> None:

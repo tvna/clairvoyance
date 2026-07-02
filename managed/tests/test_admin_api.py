@@ -51,10 +51,24 @@ def test_admin_503_when_oidc_unconfigured(client: TestClient) -> None:
 
 def test_admin_401_on_invalid_token_when_oidc_configured(app: FastAPI, client: TestClient) -> None:
     app.state.oidc_verifier = OIDCVerifier(
-        make_settings(oidc_issuer="https://idp.example.com", oidc_audience="clairvoyance-managed")
+        make_settings(
+            oidc_issuer="https://idp.example.com",
+            oidc_audience="clairvoyance-managed",
+            oidc_jwks_url="http://127.0.0.1:9/jwks.json",
+        )
     )
     response = client.get("/v1/admin/contributors", headers={"Authorization": "Bearer not-a-jwt"})
     assert response.status_code == 401
+
+
+def test_admin_503_when_jwks_unreachable(app: FastAPI, client: TestClient) -> None:
+    from test_oidc import AUDIENCE, ISSUER, make_token
+
+    app.state.oidc_verifier = OIDCVerifier(
+        make_settings(oidc_issuer=ISSUER, oidc_audience=AUDIENCE, oidc_jwks_url="http://127.0.0.1:9/jwks.json")
+    )
+    response = client.get("/v1/admin/contributors", headers={"Authorization": f"Bearer {make_token()}"})
+    assert response.status_code == 503
 
 
 def test_unknown_organization_forbidden(app: FastAPI, client: TestClient) -> None:
@@ -100,11 +114,19 @@ def test_contributor_summary(app: FastAPI, client: TestClient, seeded_org: Seede
     assert body["last_event_at"] is not None
 
 
-def test_contributor_summary_not_found(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+def test_contributor_summary_not_found_is_audited(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session
+) -> None:
     admin_override(app)
     assert client.get("/v1/admin/contributors/not-a-uuid/summary").status_code == 404
     missing = "00000000-0000-0000-0000-000000000000"
     assert client.get(f"/v1/admin/contributors/{missing}/summary").status_code == 404
+
+    # Probing for contributors is exactly the access pattern the audit trail
+    # exists for; misses must be recorded, not just hits.
+    probes = db.scalars(select(AuditLog).where(AuditLog.action == "get_contributor_summary")).all()
+    assert [row.target_id for row in probes] == ["not-a-uuid", missing]
+    assert all(row.target_type == "contributor" for row in probes)
 
 
 def test_contributor_of_other_org_hidden(
@@ -132,7 +154,7 @@ def test_reviews_due_lists_past_due_only(app: FastAPI, client: TestClient, seede
     assert due[0]["category"] == "avoidance"
     assert due[0]["signal"] == "deferred-risk-call"
     assert due[0]["last_outcome"] == "correct"
-    assert due[0]["interval_days"] == 2
+    assert due[0]["interval_days"] == 7  # correct + high confidence (quiz.md contract)
 
 
 def test_policies_roundtrip_and_audit(app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session) -> None:
@@ -162,7 +184,7 @@ def test_policies_roundtrip_and_audit(app: FastAPI, client: TestClient, seeded_o
     }
 
     actions = [row.action for row in db.scalars(select(AuditLog)).all()]
-    assert actions == ["policies.get", "policies.put", "policies.put", "policies.get"]
+    assert actions == ["get_policies", "put_policies", "put_policies", "get_policies"]
     assert all(row.actor == "admin@example.com" for row in db.scalars(select(AuditLog)).all())
 
 
@@ -179,5 +201,38 @@ def test_audit_log_listing(app: FastAPI, client: TestClient, seeded_org: SeededO
     assert response.status_code == 200
     logs = response.json()["logs"]
     actions = {entry["action"] for entry in logs}
-    assert "contributors.list" in actions
-    assert "audit_logs.list" in actions
+    assert "list_contributors" in actions
+    assert "list_audit_logs" in actions
+
+
+def test_role_denied_attempt_is_audited(app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session) -> None:
+    admin_override(app, roles=(Role.COACH,))
+    assert client.get("/v1/admin/audit-logs").status_code == 403
+    denied = db.scalars(select(AuditLog).where(AuditLog.action == "list_audit_logs")).all()
+    assert len(denied) == 1  # the attempt itself is on the record
+
+
+def test_handler_rollback_does_not_erase_audit_row(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session
+) -> None:
+    # 422 on the payload aborts the request transaction after the router-level
+    # audit dependency ran; the audit row must survive in its own transaction.
+    admin_override(app)
+    assert client.put("/v1/admin/policies", json={"settings": {"retention_days": 0}}).status_code == 422
+    assert len(db.scalars(select(AuditLog).where(AuditLog.action == "put_policies")).all()) == 1
+
+
+def test_every_admin_route_is_audited_and_role_gated() -> None:
+    """Structural gate: a new admin route cannot ship outside audit/RBAC.
+
+    Both controls are attached at the router level, so it suffices that every
+    route actually lives on that router with its dependencies intact.
+    """
+    from app.api.admin import router
+
+    assert len(router.routes) >= 6
+    dependency_fns = {dep.dependency for dep in router.dependencies}
+    from app.deps import audit_admin_access
+
+    assert audit_admin_access in dependency_fns
+    assert len(dependency_fns) == 2  # audit + default read-role gate

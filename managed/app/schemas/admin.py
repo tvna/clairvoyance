@@ -1,14 +1,22 @@
-"""Admin API contract (JSON only; UI is a later layer)."""
+"""Admin API contract (JSON only; UI is a later layer).
 
+Out-models map straight from ORM rows (``from_attributes``) so a new column
+reaches the API by touching the model and the schema, with no hand-copy site
+to forget.
+"""
+
+import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.schemas.collector import PolicySettings
 
 
 class ContributorOut(BaseModel):
-    id: str
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
     provider: str
     external_id: str
     display_name: str | None
@@ -37,12 +45,20 @@ class ContributorSummaryOut(BaseModel):
 
 
 class ReviewDueOut(BaseModel):
-    contributor_id: str
+    model_config = ConfigDict(from_attributes=True)
+
+    contributor_id: uuid.UUID
     category: str
     signal: str | None
     due_at: datetime
     interval_days: int
     last_outcome: str | None
+
+    @field_validator("signal", mode="before")
+    @classmethod
+    def empty_signal_is_none(cls, value: str | None) -> str | None:
+        # Stored as '' (unique-constraint requirement); '' means "no signal".
+        return value or None
 
 
 class ReviewDueListOut(BaseModel):
@@ -54,6 +70,8 @@ class PolicyUpdateIn(BaseModel):
 
 
 class AuditLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     actor: str
     action: str
     target_type: str | None
