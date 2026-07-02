@@ -1,0 +1,21 @@
+id: visual-handoff-opt-in-gate
+name: No Request Means No Diagram
+description: Refuses to push a diagram when the person has not asked for visualization; the routed handoff continues in prose.
+tags:
+  - quality
+  - opt-in
+inputs:
+  prompt: |
+    Use visual-handoff only if appropriate. Is this branch ready to merge? Give me
+    your readiness verdict.
+
+    Context:
+    - The person asked for a verdict; nobody asked for a diagram, chart, or UML.
+    - Tests pass; one review thread is unresolved.
+expected:
+  output_contains:
+    - "Verdict"
+    - "Next Move"
+  output_not_contains:
+    - "```mermaid"
+    - "```plantuml"

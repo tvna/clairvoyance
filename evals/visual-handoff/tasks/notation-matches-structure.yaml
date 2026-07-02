@@ -1,0 +1,20 @@
+id: visual-handoff-notation-matches-structure
+name: Notation Matches Information Structure
+description: Picks sequence notation for an interaction-over-time question instead of defaulting to a flowchart.
+tags:
+  - quality
+  - notation
+inputs:
+  prompt: |
+    Use visual-handoff. Draw me a diagram of who calls whom, in what order, when the
+    SessionStart hook fires.
+
+    Context:
+    - The runtime invokes hooks/run-hook.cmd, which resolves the plugin root and
+      execs the shell hook; the hook prints the bootstrap skill injection, and the
+      agent then routes via using-clairvoyance.
+expected:
+  output_contains:
+    - "sequenceDiagram"
+  output_not_contains:
+    - "pie"

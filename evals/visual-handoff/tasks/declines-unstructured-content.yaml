@@ -1,0 +1,19 @@
+id: visual-handoff-declines-unstructured-content
+name: Declines Content A Diagram Cannot Help
+description: When the content has no structure a plane can exploit, says a diagram will not help and keeps prose or a table.
+tags:
+  - quality
+  - notation
+inputs:
+  prompt: |
+    Use visual-handoff. Please turn this into a UML diagram: a list of the twelve
+    unrelated license names our dependencies use, so I can review them.
+
+    Context:
+    - The licenses share no relationships, ordering, flow, or hierarchy; the review
+      needs the exact names side by side.
+expected:
+  output_contains:
+    - "table"
+  output_not_contains:
+    - "classDiagram"

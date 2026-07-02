@@ -30,6 +30,7 @@ Route:
 - A single decision in the moment: LGTM requests, missing subject, noisy input, sycophancy pressure, or a decision without architecture understanding -> `clairvoyance:decision-coaching`.
 - A request to reflect or do a retrospective on one's own recurring patterns -> `clairvoyance:adaptive-coaching`, which delivers a reflection quiz when enough signal has accumulated.
 - High-blast-radius, irreversible, or compliance-violating instruction (the human harness) -> `clairvoyance:human-harness`.
+- An explicit request to visualize a handoff, plan, or system state (a diagram, UML, graph, "show me visually") -> `clairvoyance:visual-handoff`, layered on the routed handoff. Never push a diagram unrequested.
 
 The two coaching skills split by intent: a live decision goes to `decision-coaching`; an explicit reflection/retrospective request goes to `adaptive-coaching`. A reflection quiz is never pushed — it fires only on the person's own request.
 
@@ -47,3 +48,4 @@ Use other needed skills first; use Clairvoyance for the human handoff. When unsu
 - LGTM/unclear subject: `decision-coaching` -> portable question handoff.
 - Reflection request: `adaptive-coaching` -> **Classification**, **Capability Gap**, **Evidence**, **Quiz**, **Next Move**.
 - Risky order: `human-harness` -> **Stop**, **Blast Radius**, **Premortem**, **Confirm**, **Next Move**.
+- "Show it as a diagram": routed skill's headings + `visual-handoff` -> **Diagram**, **Reading**.

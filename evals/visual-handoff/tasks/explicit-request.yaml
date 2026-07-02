@@ -1,0 +1,23 @@
+id: visual-handoff-explicit-request
+name: Explicit Request Gets A Sourced Diagram
+description: On an explicit visualization request, emits a fenced Mermaid source block plus a Reading line, alongside the routed handoff headings.
+tags:
+  - quality
+  - opt-in
+inputs:
+  prompt: |
+    Use visual-handoff. I'm deciding whether PR #12 can merge. Can you show me the
+    release flow as a diagram so I can see where the manifest write goes wrong?
+
+    Context:
+    - CI validates manifests and runs tests, then semantic-release tags.
+    - The version-apply script writes the Claude manifest but skips the Codex one.
+    - The routed handoff is review-verdict.
+expected:
+  output_contains:
+    - "```mermaid"
+    - "Diagram"
+    - "Reading"
+    - "Verdict"
+  output_not_contains:
+    - "visual learner"

@@ -27,6 +27,14 @@ exactly one human-facing handoff skill for the moment at hand:
   and only once enough has accumulated (a session grace period plus signal). The
   boundary with `decision-coaching` is intent: a live decision there, an explicit
   reflection request here. See [hooks.md](hooks.md) for the local store.
+- **`visual-handoff`** — an *opt-in* utility layered on whichever handoff skill is
+  routed: when the person explicitly asks for visualization (a diagram, UML, graph),
+  it renders the handoff's state as a reproducible text-sourced diagram (Mermaid
+  first; PlantUML/Graphviz when needed) with the source in the artifact. It serves
+  the visual modality in VARK without diagnosing anyone: primary research (Fleming &
+  Mills 1992; Pashler et al. 2008; Mayer's multimedia principle; Larkin & Simon 1987)
+  constrains it to fire only on request, never store a style label, complement — not
+  replace — the prose handoff, and decline content a diagram cannot help.
 - **`human-harness`** — the human harness: a high-blast-radius, irreversible, or
   compliance-violating instruction. It is the inverse of rubber-stamping the human's
   order — instead of executing, it stops, measures blast radius, and presses the
