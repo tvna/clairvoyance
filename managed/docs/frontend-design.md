@@ -4,11 +4,11 @@ Design for the admin UI of the managed coaching server. #51 shipped the
 server as a JSON-only API and deferred the UI; this document completes the
 design so implementation can start as its own change. Tracking issue: #55.
 
-Status: **design complete, implementation not started.** The server stays
-JSON-only until the implementation lands. Every screen below maps to the
-admin API that actually shipped (`app/api/admin.py`, `app/schemas/admin.py`);
-the design assumes **no backend change**: the UI ships as its own image
-and its runtime config is a ui-image concern (section 6).
+Status: **implemented** (`managed/ui/`, issue #59). Every screen below maps
+to the admin API that actually shipped (`app/api/admin.py`,
+`app/schemas/admin.py`); the design assumed **no backend change**, and the
+implementation shipped none: the UI is its own image and its runtime config
+is a ui-image concern (section 6).
 
 ## 1. Scope and goals
 

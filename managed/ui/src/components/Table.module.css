@@ -1,0 +1,30 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.clickableRow {
+  cursor: pointer;
+}
+
+.clickableRow:hover {
+  background: var(--color-bg-subtle);
+}
+
+.empty {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+}

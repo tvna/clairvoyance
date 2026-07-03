@@ -184,6 +184,124 @@ jobs:
         # authoritative-local-gate pattern as the root tests job.
         run: uv run --frozen pytest
 
+  managed-ui:
+    # The admin frontend (managed/ui/) is its own npm project (design doc
+    # managed/docs/frontend-design.md §13). Like managed-server, this job
+    # runs unconditionally on every PR: ci.yml has no per-job path gating,
+    # so there is no filter mechanism to mirror for a UI-only change.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: managed/ui
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: managed/ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint and format with Biome
+        run: npx biome ci .
+
+      - name: Type-check with tsc
+        run: npx tsc --noEmit
+
+      - name: Run unit tests with Vitest
+        run: npx vitest run
+
+      - name: Build
+        run: npm run build
+
+  managed-ui-e2e:
+    # Playwright smoke against the real service path (design doc §13,
+    # step 4): the ui image, the api image, Postgres, Redis, a front
+    # proxy doing the /ui-vs-API path split, and the stub OIDC issuer
+    # (managed/ui/e2e/stub-issuer/) composed together so the browser sees
+    # one origin exactly as in production. This is unconditional like the
+    # other managed-* jobs (no paths: gating); it depends on managed-ui
+    # and managed-server only so a lint/type failure doesn't spend time
+    # building four images first, not as a path-based skip.
+    needs: [managed-ui, managed-server]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: managed/ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: managed/ui
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: managed/ui
+        run: npx playwright install --with-deps chromium
+
+      - name: Build and start the e2e compose topology
+        working-directory: managed/ui/e2e
+        run: docker compose -f docker-compose.e2e.yml up -d --build --wait --wait-timeout 300
+
+      - name: Seed the e2e organization
+        # Admin API calls 403 with "unknown organization" until the org
+        # a signed-in principal's claim points at actually exists
+        # (app/deps.py get_admin_organization) -- the stub issuer mints
+        # tokens for org "acme" (e2e/admin.spec.ts), so it must exist
+        # before Playwright signs in.
+        working-directory: managed/ui/e2e
+        run: |
+          docker compose -f docker-compose.e2e.yml exec -T api \
+            python -m app.cli create-org --key acme --name "E2E Org"
+
+      - name: Run Playwright smoke
+        working-directory: managed/ui
+        run: npx playwright test e2e/
+
+      - name: Dump compose logs on failure
+        if: failure()
+        working-directory: managed/ui/e2e
+        run: docker compose -f docker-compose.e2e.yml logs
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: playwright-report
+          path: managed/ui/playwright-report/
+          retention-days: 7
+
+      - name: Tear down compose topology
+        if: always()
+        working-directory: managed/ui/e2e
+        run: docker compose -f docker-compose.e2e.yml down -v
+
   tests-windows:
     # The plugin's bundled scripts target Windows (run-hook.cmd locates Git Bash;
     # the store resolves %LOCALAPPDATA% and expects choco-installed sqlite3), but

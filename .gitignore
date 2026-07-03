@@ -10,3 +10,10 @@ htmlcov/
 .ruff_cache/
 .mypy_cache/
 battle/*.jsonl
+
+# Node / managed/ui
+managed/ui/node_modules/
+managed/ui/dist/
+managed/ui/playwright-report/
+managed/ui/test-results/
+managed/ui/e2e/stub-issuer/__pycache__/

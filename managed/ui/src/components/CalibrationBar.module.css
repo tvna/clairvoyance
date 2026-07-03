@@ -1,0 +1,23 @@
+.legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: 0;
+  margin: var(--space-2) 0 0;
+  font-size: 0.85rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 2px;
+  margin-right: var(--space-1);
+}
+
+.unreported {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: var(--space-2) 0 0;
+}

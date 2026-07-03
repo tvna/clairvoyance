@@ -53,6 +53,13 @@ exclude_lines = [
 # Mirrors the root config so the repo-wide `ruff check` applies one style.
 target-version = "py312"
 line-length = 120
+# ui/ is the admin frontend's own npm project (its own gates: biome, tsc,
+# vitest -- managed-ui CI job). ui/e2e/stub-issuer/ is a standalone Python
+# E2E fixture, deliberately kept off this project's dependency tree and
+# lint surface (see its own docstring) -- ruff's default file discovery
+# is filesystem-recursive from this directory regardless, so it must be
+# excluded explicitly or it silently inherits this project's strict rules.
+extend-exclude = ["ui"]
 
 [tool.ruff.lint]
 select = [
