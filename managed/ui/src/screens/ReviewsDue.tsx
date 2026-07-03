@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCachedContributorLookup, useReviewsDue } from "../api/queries";
 import type { ReviewDueOut } from "../api/schemas";
@@ -25,33 +26,39 @@ export function ReviewsDue() {
   // triggers per-row audited aggregate calls.
   const contributorLookup = useCachedContributorLookup();
 
-  const columns: readonly TableColumn<ReviewDueOut>[] = [
-    {
-      key: "due_at",
-      header: "Due",
-      render: (row) => (
-        <>
-          <DateCell value={row.due_at} /> — {overdueLabel(row.due_at)}
-        </>
-      ),
-    },
-    { key: "category", header: "Category", render: (row) => humanizeCategory(row.category) },
-    { key: "signal", header: "Signal", render: (row) => row.signal ?? "" },
-    { key: "interval_days", header: "Interval (days)", render: (row) => row.interval_days },
-    { key: "last_outcome", header: "Last outcome", render: (row) => row.last_outcome ?? "" },
-    {
-      key: "contributor",
-      header: "Contributor",
-      render: (row) => {
-        const contributor = contributorLookup.get(row.contributor_id);
-        const label =
-          contributor !== undefined
-            ? displayName(contributor)
-            : `${row.contributor_id.slice(0, 8)}…`;
-        return <Link to={`/contributors/${row.contributor_id}`}>{label}</Link>;
+  // Unlike the other screens' module-scope COLUMNS, the contributor cell
+  // closes over the lookup, so memoize on it instead of rebuilding the
+  // closures every render.
+  const columns: readonly TableColumn<ReviewDueOut>[] = useMemo(
+    () => [
+      {
+        key: "due_at",
+        header: "Due",
+        render: (row) => (
+          <>
+            <DateCell value={row.due_at} /> — {overdueLabel(row.due_at)}
+          </>
+        ),
       },
-    },
-  ];
+      { key: "category", header: "Category", render: (row) => humanizeCategory(row.category) },
+      { key: "signal", header: "Signal", render: (row) => row.signal ?? "" },
+      { key: "interval_days", header: "Interval (days)", render: (row) => row.interval_days },
+      { key: "last_outcome", header: "Last outcome", render: (row) => row.last_outcome ?? "" },
+      {
+        key: "contributor",
+        header: "Contributor",
+        render: (row) => {
+          const contributor = contributorLookup.get(row.contributor_id);
+          const label =
+            contributor !== undefined
+              ? displayName(contributor)
+              : `${row.contributor_id.slice(0, 8)}…`;
+          return <Link to={`/contributors/${row.contributor_id}`}>{label}</Link>;
+        },
+      },
+    ],
+    [contributorLookup],
+  );
 
   return (
     <section>

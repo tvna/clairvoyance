@@ -21,22 +21,32 @@ import {
   ValidationError,
 } from "./errors";
 
+// Mirrors of the literal `detail` strings raised in managed/app/deps.py
+// (get_admin_principal). The pairing is enforced by a drift gate:
+// managed/tests/test_admin_api.py asserts the backend emits exactly these
+// strings, so a backend rewording fails backend CI instead of silently
+// degrading both 503s to UnexpectedApiError here.
 const OIDC_NOT_CONFIGURED_DETAIL = "admin OIDC is not configured";
 const JWKS_UNAVAILABLE_DETAIL = "OIDC JWKS endpoint is unavailable";
 
 type AccessTokenProvider = () => string | null;
 /** Attempt one non-iframe silent renew; resolves true if the caller should retry. */
 type UnauthorizedHandler = () => Promise<boolean>;
+/** Drop the local session so RequireAuth actually redirects to sign-in. */
+type AuthExpiredHandler = () => Promise<void>;
 
 let getAccessToken: AccessTokenProvider = () => null;
 let onUnauthorized: UnauthorizedHandler = async () => false;
+let onAuthExpired: AuthExpiredHandler = async () => {};
 
 export function configureApiAuth(opts: {
   getAccessToken: AccessTokenProvider;
   onUnauthorized: UnauthorizedHandler;
+  onAuthExpired: AuthExpiredHandler;
 }): void {
   getAccessToken = opts.getAccessToken;
   onUnauthorized = opts.onUnauthorized;
+  onAuthExpired = opts.onAuthExpired;
 }
 
 async function safeJson(response: Response): Promise<unknown> {
@@ -77,6 +87,11 @@ export async function apiFetch<T>(
     if (attempt === 0 && (await onUnauthorized())) {
       return apiFetch(path, schema, options, attempt + 1);
     }
+    // Every path that gives up on the session must also end it, or the
+    // "Redirecting to sign in…" copy for AuthExpiredError is a lie: this
+    // covers both a renew that fails without throwing and a renewed token
+    // the server still rejects.
+    await onAuthExpired();
     throw new AuthExpiredError("admin session expired");
   }
 

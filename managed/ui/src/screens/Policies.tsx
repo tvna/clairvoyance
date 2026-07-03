@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { ForbiddenError } from "../api/errors";
 import { usePolicies, useUpdatePolicies } from "../api/queries";
 import type { PolicySettings, PolicySettingsPatch } from "../api/schemas";
 import { useAuth } from "../auth/AuthContext";
 import { hasAnyRole, POLICY_WRITE_ROLES } from "../auth/roles";
 import { ErrorState } from "../components/ErrorState";
+import { ForbiddenView } from "../components/ForbiddenView";
 import { QueryBoundary } from "../components/QueryBoundary";
 
 const CONFIRM_PHRASE = "ENABLE";
@@ -112,7 +114,15 @@ function PolicyForm({ settings, canEdit }: { settings: PolicySettings; canEdit: 
           )}
         </fieldset>
       </form>
-      {mutation.isError && <ErrorState error={mutation.error} />}
+      {/* A 403 on the write gets the same forbidden treatment QueryBoundary
+          gives reads: canEdit reflects the client-held token, so a role
+          revoked server-side mid-session still reaches this path. */}
+      {mutation.isError &&
+        (mutation.error instanceof ForbiddenError ? (
+          <ForbiddenView capability="change organization policies" />
+        ) : (
+          <ErrorState error={mutation.error} />
+        ))}
 
       {confirmingEnable && (
         <div role="dialog" aria-modal="true" aria-label="Confirm enabling context summary storage">

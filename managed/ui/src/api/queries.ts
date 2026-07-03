@@ -4,6 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { apiFetch } from "./client";
 import {
   type AuditLogListOut,
@@ -14,6 +15,7 @@ import {
   type PolicyOut,
   PolicyOutSchema,
   type PolicySettingsPatch,
+  PolicySettingsPatchSchema,
   ReviewDueListOutSchema,
 } from "./schemas";
 
@@ -67,18 +69,24 @@ export function useCachedContributorLookup(): ReadonlyMap<
   ContributorListOut["contributors"][number]
 > {
   const queryClient = useQueryClient();
-  const cached = queryClient.getQueriesData<ContributorListOut>({
-    queryKey: queryKeys.contributorsRoot,
-  });
-  const map = new Map<string, ContributorListOut["contributors"][number]>();
-  for (const [, data] of cached) {
-    if (data !== undefined) {
-      for (const contributor of data.contributors) {
-        map.set(contributor.id, contributor);
+  // Snapshot once per mount: the contributor pages were cached (or not) by
+  // earlier navigation, and nothing refetches them while this screen is up
+  // (no active observer, refetchOnWindowFocus off) — so rebuilding the map
+  // on every render would only churn allocations.
+  return useMemo(() => {
+    const cached = queryClient.getQueriesData<ContributorListOut>({
+      queryKey: queryKeys.contributorsRoot,
+    });
+    const map = new Map<string, ContributorListOut["contributors"][number]>();
+    for (const [, data] of cached) {
+      if (data !== undefined) {
+        for (const contributor of data.contributors) {
+          map.set(contributor.id, contributor);
+        }
       }
     }
-  }
-  return map;
+    return map;
+  }, [queryClient]);
 }
 
 export function usePolicies() {
@@ -94,7 +102,9 @@ export function useUpdatePolicies() {
     mutationFn: (patch: PolicySettingsPatch) =>
       apiFetch<PolicyOut>("/v1/admin/policies", PolicyOutSchema, {
         method: "PUT",
-        body: { settings: patch },
+        // Defense-in-depth promised by PolicySettingsPatchSchema's contract:
+        // an out-of-range patch fails here, before the network.
+        body: { settings: PolicySettingsPatchSchema.parse(patch) },
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.policies });
