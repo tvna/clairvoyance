@@ -1,0 +1,8 @@
+{
+  "organization_key": "acme",
+  "settings": {
+    "collect_enabled": true,
+    "allow_context_summary": false,
+    "retention_days": 365
+  }
+}
