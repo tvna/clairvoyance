@@ -236,8 +236,13 @@ end to end, the UI must not truncate that.
   the aggregate.
 - **Quiz block:** attempts, correct (with percentage when attempts > 0),
   and a segmented bar of the calibration distribution (accurate /
-  overconfident / underconfident / unknown). When attempts = 0 the block
-  says "no quiz attempts", not an empty chart.
+  overconfident / underconfident / unknown). The buckets do **not**
+  partition attempts: calibration is optional on quiz events and the
+  aggregate drops unreported values rather than folding them into
+  "unknown", so segment counts can sum to less than `attempts`. The bar
+  sizes segments against their own sum and shows "N unreported" beside
+  it; contract tests must not assert sum == attempts. When attempts = 0
+  the block says "no quiz attempts", not an empty chart.
 - No event-level drill-down: the API exposes aggregates only, and that is a
   privacy feature (`context_summary` never leaves the events table through
   any admin endpoint), not a UI omission.
