@@ -235,6 +235,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not redirect_uri:
             self._send_json(400, {"error": "invalid_request", "error_description": "missing redirect_uri"})
             return
+        # This stub exists to exercise the code+PKCE flow, so a client that
+        # stops sending PKCE is a regression the E2E suite must catch --
+        # reject instead of silently completing sign-in without it.
+        if not _first(form, "code_challenge"):
+            self._send_json(
+                400, {"error": "invalid_request", "error_description": "missing code_challenge (PKCE is required)"}
+            )
+            return
         code = secrets.token_urlsafe(24)
         with _lock:
             AUTH_CODES[code] = {
@@ -275,7 +283,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     400, {"error": "invalid_grant", "error_description": "redirect_uri/client_id mismatch"}
                 )
                 return
-            if record["code_challenge"] and not verify_pkce(
+            if not verify_pkce(
                 _first(form, "code_verifier"), record["code_challenge"], record["code_challenge_method"]
             ):
                 self._send_json(400, {"error": "invalid_grant", "error_description": "PKCE verification failed"})

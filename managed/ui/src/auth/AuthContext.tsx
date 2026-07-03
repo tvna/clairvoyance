@@ -37,6 +37,13 @@ export const AuthReactContext = createContext<AuthState | null>(null);
 const NO_END_SESSION_NOTICE =
   "Your tokens were dropped locally, but this provider has no end-session endpoint, so your provider session may still be active. Signing back in may not prompt for credentials.";
 
+const SIGN_OUT_FAILED_NOTICE =
+  "Your tokens were dropped locally, but the sign-out redirect to the provider failed, so your provider session may still be active.";
+
+// oidc-client-ts (pinned 3.5.x) throws exactly this message from
+// createSignoutRequest when the provider metadata lacks end_session_endpoint.
+const NO_END_SESSION_ERROR_MESSAGE = "No end session endpoint";
+
 function derivePrincipal(user: User | null, config: RuntimeConfig): AdminPrincipal | null {
   if (user === null) {
     return null;
@@ -75,11 +82,29 @@ export function AuthProvider({ config, children }: { config: RuntimeConfig; chil
     configureApiAuth({
       getAccessToken: () => userRef.current?.access_token ?? null,
       onUnauthorized: attemptSilentRenewOrSignOut,
+      // removeUser fires addUserUnloaded (below), flipping status to
+      // signed-out so RequireAuth performs the redirect the
+      // AuthExpiredError copy promises.
+      onAuthExpired: async () => {
+        await userManager.removeUser();
+      },
     });
 
     const unsubscribeLoaded = userManager.events.addUserLoaded((user) => {
+      // Derive the principal before adopting the token: a token missing
+      // the org/roles claim must not become the active token while the
+      // screen keeps showing the previous principal. Signing out fails
+      // loudly (addUserUnloaded resets state); rethrowing keeps the
+      // Callback screen's sign-in error path intact.
+      let nextPrincipal: AdminPrincipal | null;
+      try {
+        nextPrincipal = derivePrincipal(user, config);
+      } catch (error) {
+        void userManager.removeUser();
+        throw error;
+      }
       userRef.current = user;
-      setPrincipal(derivePrincipal(user, config));
+      setPrincipal(nextPrincipal);
       setStatus("signed-in");
     });
     const unsubscribeUnloaded = userManager.events.addUserUnloaded(() => {
@@ -136,11 +161,18 @@ export function AuthProvider({ config, children }: { config: RuntimeConfig; chil
           // Drops server-side session at the provider when it advertises
           // end-session; also removes the local user as part of the flow.
           await userManager.signoutRedirect();
-        } catch {
-          // No end-session endpoint (design §5): dropping local tokens does
-          // not end the provider's SSO session.
+        } catch (error) {
           await userManager.removeUser();
-          setSignOutNotice(NO_END_SESSION_NOTICE);
+          if (error instanceof Error && error.message === NO_END_SESSION_ERROR_MESSAGE) {
+            // No end-session endpoint (design §5): dropping local tokens
+            // does not end the provider's SSO session.
+            setSignOutNotice(NO_END_SESSION_NOTICE);
+          } else {
+            // Any other failure (metadata fetch, malformed endpoint, …)
+            // must not masquerade as the known provider limitation.
+            console.error("sign-out redirect failed", error);
+            setSignOutNotice(SIGN_OUT_FAILED_NOTICE);
+          }
         }
       },
     }),

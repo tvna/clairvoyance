@@ -77,7 +77,8 @@ export const PolicyOutSchema = z.object({
 export type PolicyOut = z.infer<typeof PolicyOutSchema>;
 
 // Outgoing request body (PolicySettingsPatch mirror). Validated before send
-// as defense-in-depth, not because the server trusts the client.
+// (useUpdatePolicies) as defense-in-depth, not because the server trusts
+// the client.
 export const PolicySettingsPatchSchema = z
   .object({
     collect_enabled: z.boolean().optional(),

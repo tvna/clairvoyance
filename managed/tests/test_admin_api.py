@@ -47,6 +47,11 @@ def test_admin_requires_bearer(client: TestClient) -> None:
 def test_admin_503_when_oidc_unconfigured(client: TestClient) -> None:
     response = client.get("/v1/admin/contributors", headers={"Authorization": "Bearer whatever"})
     assert response.status_code == 503
+    # Drift gate: the admin SPA distinguishes the two 503 states by this
+    # exact detail string (managed/ui/src/api/client.ts). Rewording it
+    # silently downgrades the SPA's operator-facing config error to a
+    # generic failure, so the string is part of the API contract.
+    assert response.json()["detail"] == "admin OIDC is not configured"
 
 
 def test_admin_401_on_invalid_token_when_oidc_configured(app: FastAPI, client: TestClient) -> None:
@@ -69,6 +74,9 @@ def test_admin_503_when_jwks_unreachable(app: FastAPI, client: TestClient) -> No
     )
     response = client.get("/v1/admin/contributors", headers={"Authorization": f"Bearer {make_token()}"})
     assert response.status_code == 503
+    # Drift gate: paired with managed/ui/src/api/client.ts, which maps this
+    # exact detail string to the retryable transient-503 state.
+    assert response.json()["detail"] == "OIDC JWKS endpoint is unavailable"
 
 
 def test_unknown_organization_forbidden(app: FastAPI, client: TestClient) -> None:

@@ -13,9 +13,28 @@ require_var() {
   fi
 }
 
+# Control characters (an inner newline or a CR from a CRLF-authored .env)
+# would survive json_escape below and render invalid JSON, so reject them
+# up front for every value that flows into config.json.
+assert_no_control_chars() {
+  var_name="$1"
+  eval "value=\${$var_name:-}"
+  if [ "$(printf '%s' "$value" | tr -d '\000-\037\177')" != "$value" ]; then
+    echo "entrypoint: environment variable $var_name contains control characters" >&2
+    exit 1
+  fi
+}
+
 require_var CLAIRVOYANCE_OIDC_ISSUER
 require_var CLAIRVOYANCE_OIDC_CLIENT_ID
 require_var CLAIRVOYANCE_OIDC_AUDIENCE
+
+for config_var in CLAIRVOYANCE_OIDC_ISSUER CLAIRVOYANCE_OIDC_CLIENT_ID \
+  CLAIRVOYANCE_OIDC_AUDIENCE CLAIRVOYANCE_OIDC_ORG_CLAIM \
+  CLAIRVOYANCE_OIDC_ROLES_CLAIM CLAIRVOYANCE_OIDC_AUTHORIZE_URL \
+  CLAIRVOYANCE_OIDC_TOKEN_URL CLAIRVOYANCE_OIDC_END_SESSION_URL; do
+  assert_no_control_chars "$config_var"
+done
 
 # Same defaults as the api service's own claim-name settings
 # (app/config.py), so a deployment that never touches these stays
@@ -54,6 +73,13 @@ CONFIG_JSON_PATH=/usr/share/nginx/html/ui/config.json
 # CSP connect-src needs the issuer's origin, not the full issuer URL
 # (design §9).
 ISSUER_ORIGIN=$(printf '%s' "$CLAIRVOYANCE_OIDC_ISSUER" | sed -E 's#^(https?://[^/]+).*#\1#')
+# The origin is substituted into nginx config below; a value that is not a
+# plain scheme://host[:port] (the sed above passes non-matching input
+# through unchanged) must fail here, not corrupt the rendered config.
+if ! printf '%s\n' "$ISSUER_ORIGIN" | grep -Eq '^https?://[][A-Za-z0-9._:-]+$'; then
+  echo "entrypoint: CLAIRVOYANCE_OIDC_ISSUER does not start with a valid http(s) origin" >&2
+  exit 1
+fi
 export ISSUER_ORIGIN
 
 # Restricted to just this one variable: nginx's own config syntax uses

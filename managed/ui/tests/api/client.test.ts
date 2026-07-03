@@ -24,7 +24,11 @@ function jsonResponse(status: number, body: unknown): Response {
 
 describe("apiFetch", () => {
   beforeEach(() => {
-    configureApiAuth({ getAccessToken: () => "test-token", onUnauthorized: async () => false });
+    configureApiAuth({
+      getAccessToken: () => "test-token",
+      onUnauthorized: async () => false,
+      onAuthExpired: async () => {},
+    });
   });
 
   afterEach(() => {
@@ -109,21 +113,33 @@ describe("apiFetch", () => {
       .mockResolvedValueOnce(jsonResponse(401, { detail: "invalid admin token" }))
       .mockResolvedValueOnce(jsonResponse(200, { ok: true }));
     vi.stubGlobal("fetch", fetchMock);
-    configureApiAuth({ getAccessToken: () => "test-token", onUnauthorized: async () => true });
+    configureApiAuth({
+      getAccessToken: () => "test-token",
+      onUnauthorized: async () => true,
+      onAuthExpired: async () => {},
+    });
 
     await expect(apiFetch("/v1/admin/x", EchoSchema)).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("throws AuthExpiredError on 401 without a retry loop when renewal fails", async () => {
+  it("throws AuthExpiredError and ends the session on 401 when renewal fails", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse(401, { detail: "invalid admin token" }));
     vi.stubGlobal("fetch", fetchMock);
-    configureApiAuth({ getAccessToken: () => "test-token", onUnauthorized: async () => false });
+    const onAuthExpired = vi.fn().mockResolvedValue(undefined);
+    configureApiAuth({
+      getAccessToken: () => "test-token",
+      onUnauthorized: async () => false,
+      onAuthExpired,
+    });
 
     await expect(apiFetch("/v1/admin/x", EchoSchema)).rejects.toBeInstanceOf(AuthExpiredError);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    // The AuthExpiredError copy promises a redirect to sign-in; that only
+    // holds if the give-up path actually drops the session.
+    expect(onAuthExpired).toHaveBeenCalledTimes(1);
   });
 
   it("does not retry a second 401 even if onUnauthorized keeps returning true", async () => {
@@ -131,10 +147,16 @@ describe("apiFetch", () => {
       .fn()
       .mockResolvedValue(jsonResponse(401, { detail: "invalid admin token" }));
     vi.stubGlobal("fetch", fetchMock);
-    configureApiAuth({ getAccessToken: () => "test-token", onUnauthorized: async () => true });
+    const onAuthExpired = vi.fn().mockResolvedValue(undefined);
+    configureApiAuth({
+      getAccessToken: () => "test-token",
+      onUnauthorized: async () => true,
+      onAuthExpired,
+    });
 
     await expect(apiFetch("/v1/admin/x", EchoSchema)).rejects.toBeInstanceOf(AuthExpiredError);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(onAuthExpired).toHaveBeenCalledTimes(1);
   });
 });
 
