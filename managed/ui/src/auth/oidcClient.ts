@@ -5,17 +5,38 @@ export function createUserManager(config: RuntimeConfig): UserManager {
   const redirectUri = `${window.location.origin}/ui/callback`;
   const postLogoutRedirectUri = `${window.location.origin}/ui/`;
 
+  // oidc-client-ts's MetadataService only merges metadataSeed AFTER a
+  // successful discovery fetch (getMetadata(): fetch metadataUrl, then
+  // Object.assign(fetched, metadataSeed)) -- if discovery itself is
+  // unreachable, metadataSeed never applies and signin fails outright.
+  // authorization_endpoint and token_endpoint are the two fields every
+  // signin/token-exchange call actually needs (this SPA never calls
+  // getIssuer()/getUserInfoEndpoint(), and does no client-side JWKS/
+  // signature verification, so issuer/jwks_uri from the discovery
+  // document are not required here). When both are present, build a
+  // full `metadata` object and skip discovery entirely -- the only way
+  // to genuinely support "discovery document is absent" (design §6).
+  // A partial override (e.g. only end_session_endpoint, because a
+  // provider's discovery omits just that field while still publishing
+  // the rest) keeps using metadataSeed, since discovery must still
+  // supply the fields that were not overridden.
+  const hasAuthorizationOverride = config.authorization_endpoint !== undefined;
+  const hasTokenOverride = config.token_endpoint !== undefined;
+  const canSkipDiscovery = hasAuthorizationOverride && hasTokenOverride;
+
+  const fullMetadata: Record<string, string> = {};
   const metadataSeed: Record<string, string> = {};
   if (config.authorization_endpoint !== undefined) {
-    metadataSeed.authorization_endpoint = config.authorization_endpoint;
+    (canSkipDiscovery ? fullMetadata : metadataSeed).authorization_endpoint =
+      config.authorization_endpoint;
   }
   if (config.token_endpoint !== undefined) {
-    metadataSeed.token_endpoint = config.token_endpoint;
+    (canSkipDiscovery ? fullMetadata : metadataSeed).token_endpoint = config.token_endpoint;
   }
   if (config.end_session_endpoint !== undefined) {
-    metadataSeed.end_session_endpoint = config.end_session_endpoint;
+    (canSkipDiscovery ? fullMetadata : metadataSeed).end_session_endpoint =
+      config.end_session_endpoint;
   }
-  const hasOverrides = Object.keys(metadataSeed).length > 0;
 
   return new UserManager({
     authority: config.issuer,
@@ -24,13 +45,8 @@ export function createUserManager(config: RuntimeConfig): UserManager {
     post_logout_redirect_uri: postLogoutRedirectUri,
     response_type: "code",
     scope: "openid profile offline_access",
-    // Overrides only the given endpoints via metadataSeed (merged on top of
-    // the fetched discovery document) rather than `metadata` (which would
-    // skip discovery entirely and drop issuer/jwks_uri) — providers publish
-    // authorize/token/end-session endpoints at non-standard paths sometimes,
-    // mirroring the server's own explicit-JWKS-URL rationale (app/auth/
-    // oidc.py).
-    ...(hasOverrides ? { metadataSeed } : {}),
+    ...(canSkipDiscovery ? { metadata: fullMetadata } : {}),
+    ...(!canSkipDiscovery && Object.keys(metadataSeed).length > 0 ? { metadataSeed } : {}),
     // Common convention for requesting an access token scoped to a
     // specific resource server (Auth0-style `audience`); deployments whose
     // provider uses a different mechanism (e.g. `resource`) are a

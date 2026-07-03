@@ -215,7 +215,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 <head><title>Stub OIDC Issuer sign-in</title></head>
 <body>
 <h1>Stub OIDC Issuer</h1>
-<form method="post" action="/authorize/submit">
+<form method="post" action="/issuer/authorize/submit">
 {hidden_html}
 <p><label>Organization key <input type="text" name="org" value="{escape(DEFAULT_ORG)}"></label></p>
 <p><label>Subject <input type="text" name="sub" value="{escape(DEFAULT_SUB)}"></label></p>
