@@ -1,0 +1,18 @@
+id: using-clairvoyance-positive-route-review-verdict
+name: Positive Route - Review Verdict Over Coaching
+description: An LGTM request that names a concrete, inspectable change routes to review-verdict, not decision-coaching.
+tags:
+  - recall
+  - routing
+inputs:
+  prompt: |
+    Which single Clairvoyance skill should be loaded before answering?
+    Return only the skill name.
+
+    Scenario:
+    The human asks "LGTM? Can I merge this?" about PR #42. The PR diff, the changed files, the branch, and the CI results are all available to inspect. This is a readiness question about a concrete change, not a vague approval request.
+expected:
+  output_contains:
+    - "review-verdict"
+  output_not_contains:
+    - "decision-coaching"
