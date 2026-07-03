@@ -23,6 +23,11 @@ verbatim from the upstream by `.github/workflows/sync-agent-instructions.yml`,
 pinned to the upstream commit it fetched. They are therefore outside these lanes —
 treat them as read-only provenance, not a lane this repo owns.
 
+The Claude Code **rules lane (`.claude/rules/`) is banned in this repository**
+by operator decision: instructions must not fork into a carrier that loads
+outside the SessionStart hook and the skills. `scripts/check_coverage.py`
+enforces the ban deterministically.
+
 ## Coverage matrix
 
 The matrix axis is the **skill**, not a list of principles. Each skill should be
@@ -42,8 +47,8 @@ eval suite, and a repo-local doc mention.
 | `session-handoff` | `skills/session-handoff/SKILL.md` | `scripts/check_skills.py` | `evals/session-handoff/` | `docs/session-handoff.md`, `docs/skills.md` |
 
 The forward/backward coverage of this matrix is enforced deterministically by
-`scripts/check_coverage.py` (every skill has an eval and a doc mention; no eval
-suite is an orphan). The per-skill structural quality is enforced by
+`scripts/check_coverage.py` (every skill has an eval, a doc mention, and a
+`README.md` listing; no eval suite is an orphan). The per-skill structural quality is enforced by
 `scripts/check_skills.py`; hook integrity by `scripts/check_hooks.sh`.
 
 ## Gap analysis procedure
@@ -55,10 +60,10 @@ the drift sweep stays a manual review.
 ### Forward sweep — skill to carrier
 
 For each skill under `skills/`, confirm a carrier exists in each lane it needs: a
-harness check covers it, an eval suite exercises it, and a repo-local doc names
-it. A skill with no eval or no doc mention is a gap — add the carrier, or record
-in this matrix why the cell is intentionally empty. Automated by
-`check_coverage.py`.
+harness check covers it, an eval suite exercises it, a repo-local doc names it,
+and the `README.md` skill table lists it. A skill with no eval, no doc mention,
+or no README listing is a gap — add the carrier, or record in this matrix why
+the cell is intentionally empty. Automated by `check_coverage.py`.
 
 ### Backward sweep — carrier to skill
 

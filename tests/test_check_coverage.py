@@ -19,6 +19,10 @@ def _doc(tmp_path, text):
     (d / "skills.md").write_text(text)
 
 
+def _readme(tmp_path, text):
+    (tmp_path / "README.md").write_text(text)
+
+
 def _errors(tmp_path):
     return cc.check_all(tmp_path)
 
@@ -27,7 +31,51 @@ def test_full_coverage_passes(tmp_path):
     _skill(tmp_path, "alpha")
     _eval(tmp_path, "alpha")
     _doc(tmp_path, "The alpha skill does things.\n")
+    _readme(tmp_path, "| `alpha` | does things |\n")
     assert _errors(tmp_path) == []
+
+
+def test_missing_readme_mention_is_flagged(tmp_path):
+    _skill(tmp_path, "alpha")
+    _eval(tmp_path, "alpha")
+    _doc(tmp_path, "alpha\n")
+    _readme(tmp_path, "unrelated text\n")
+    assert any("not listed in the README.md skill table" in m for _, m in _errors(tmp_path))
+
+
+def test_no_readme_flags_unlisted(tmp_path):
+    _skill(tmp_path, "alpha")
+    _eval(tmp_path, "alpha")
+    _doc(tmp_path, "alpha\n")
+    # No README.md at all: readme_text returns "" and the skill is unlisted.
+    assert any("not listed in the README.md skill table" in m for _, m in _errors(tmp_path))
+
+
+def test_readme_substring_row_does_not_satisfy_gate(tmp_path):
+    # A row for `using-alpha` (and prose mentions) must not pass for `alpha`:
+    # the gate matches the exact backticked skill cell, not a raw substring.
+    _skill(tmp_path, "alpha")
+    _eval(tmp_path, "alpha")
+    _doc(tmp_path, "alpha\n")
+    _readme(tmp_path, "Install alpha today.\n\n| `using-alpha` | routes handoffs |\n")
+    assert any("not listed in the README.md skill table" in m for _, m in _errors(tmp_path))
+
+
+def test_readme_exact_table_row_passes(tmp_path):
+    _skill(tmp_path, "alpha")
+    _eval(tmp_path, "alpha")
+    _doc(tmp_path, "alpha\n")
+    _readme(tmp_path, "| `using-alpha` | routes |\n| `alpha` | does things |\n")
+    assert _errors(tmp_path) == []
+
+
+def test_rules_lane_is_banned(tmp_path):
+    _skill(tmp_path, "alpha")
+    _eval(tmp_path, "alpha")
+    _doc(tmp_path, "alpha\n")
+    _readme(tmp_path, "| `alpha` | does things |\n")
+    (tmp_path / ".claude" / "rules").mkdir(parents=True)
+    assert any(".claude/rules/ is banned" in m for _, m in _errors(tmp_path))
 
 
 def test_missing_eval_is_flagged(tmp_path):
@@ -78,5 +126,6 @@ def test_main_returns_zero_when_clean(tmp_path, capsys):
     _skill(tmp_path, "alpha")
     _eval(tmp_path, "alpha")
     _doc(tmp_path, "alpha\n")
+    _readme(tmp_path, "| `alpha` | does things |\n")
     assert cc.main(tmp_path) == 0
     assert "no orphan evals" in capsys.readouterr().out

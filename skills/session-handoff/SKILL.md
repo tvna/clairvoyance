@@ -1,6 +1,6 @@
 ---
 name: session-handoff
-description: Produces a paste-ready handoff prompt, delivered as an attached Markdown file, so the next agent session resumes the work cleanly - a deliberate alternative to trusting the harness's automatic context compaction. Use when context is running low and a clean restart beats compaction, when unfinished work must carry over, or when repository gates limit what the current session can change.
+description: Produces a paste-ready handoff prompt (an attached Markdown file) so the next agent session resumes the work cleanly instead of trusting automatic context compaction. Use when context runs low and a clean restart beats compaction, when unfinished work must carry over, or when repository gates limit what this session can change.
 ---
 
 # Session Handoff
@@ -31,4 +31,4 @@ Read [the handoff template](references/handoff-template.md) for exact section or
 
 Deliver the handoff as a single attached Markdown file (`handoff.md`) so it copies and pastes in one piece. Portable delivery, in order of preference: attach the file when the harness supports attachments; otherwise write it to a Markdown file outside the repository (for example, a temporary directory) and give its path - never write into the repo workspace, since a handoff often fires in the blocked or low-context states where the session must avoid extra repo changes; if the harness supports neither attachments nor writing outside the repo, emit the same Markdown inline as the reply. The file (or inline block) holds one prompt with headings **Context**, **Background**, **Files to read**, **Implementation**, **Verification**, **PR creation**, **Acceptance criteria**.
 
-Because the deliverable is a Markdown file rather than inline chat text, use standard Markdown: fenced code blocks for commands and `inline code` for short snippets. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another for outward-facing artifacts.
+Because the deliverable is a Markdown file rather than inline chat text, use standard Markdown: fenced code blocks for commands and `inline code` for short snippets.

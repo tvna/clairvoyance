@@ -3,7 +3,8 @@
 The store accumulates anonymous signal locally so a reflection quiz has enough
 data to be fair. It does not trigger anything on its own: the quiz fires only when
 the person asks to reflect. Entry point `adaptive-store.sh`, backed by the
-`sqlite3` CLI (`choco install sqlite`). By default record only coded metadata —
+`sqlite3` CLI (usually preinstalled on macOS/Linux; `choco install sqlite` on
+Windows). By default record only coded metadata —
 never prompt text, code, or file paths. Opt-in context capture (below) can also
 store an abstracted summary — passed on stdin via `--context-stdin`, secret-redacted
 — when the operator enables it.
@@ -95,7 +96,8 @@ token so no free text persists.
 
 ## Storage and volatility
 
-Persists on the local workstation (`%LOCALAPPDATA%\clairvoyance` on Windows;
+Persists on the local workstation (`$XDG_DATA_HOME/clairvoyance` or
+`~/.clairvoyance` on macOS/Linux; `%LOCALAPPDATA%\clairvoyance` on Windows;
 `$CLAIRVOYANCE_DATA_DIR` overrides). Volatility is tolerated: ephemeral or remote
 sessions simply do not persist, and an unavailable store means hold the quiz, not
 fail.

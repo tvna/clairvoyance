@@ -167,6 +167,16 @@ language is fixed by **one** source: the `CLAIRVOYANCE_OPERATOR_LANGUAGE`
 environment variable, set in the operator's own environment configuration. There
 is **no** git-identity lookup and **no** committed per-contributor mapping.
 
+The hook's injection is also the **single carrier** of the language rule: the
+skills carry no per-skill language step (removed as a multi-runtime hedge; this
+plugin optimizes for Claude Code, where the hook always fires). The injection
+covers every operator-facing string — prose, section headings, question bullet
+titles, and `AskUserQuestion` questions, header chips, and choice labels — so
+structured question output localizes along with the prose; the English heading
+names in the skill files are canonical identifiers, not display strings.
+`scripts/check_skills.py` keeps any reintroduced language sentence pinned to the
+canonical wording so copies cannot drift.
+
 **Why env-var-only (the fix).** The previous design also keyed a *committed*
 `<project>/.clairvoyance/contributor-languages.txt` mapping by the session's git
 identity (`user.email`, then `user.name`). On a volatile host — notably Claude

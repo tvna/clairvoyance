@@ -1,0 +1,19 @@
+id: using-clairvoyance-positive-route-adaptive-record
+name: Positive Route - Adaptive Recording Mid-Task
+description: A recurring capability gap surfacing mid-task routes to adaptive-coaching for record-only logging, never a quiz.
+tags:
+  - recall
+  - routing
+inputs:
+  prompt: |
+    Which single Clairvoyance skill should be loaded before answering?
+    Return only the skill name.
+
+    Scenario:
+    For the fourth session running, the owner asks the agent to "just pick" the rollout cutover date instead of deciding it, framing the blocker as a tooling problem. The person has not asked to reflect; the moment calls for silently recording the recurring deferral as anonymous local signal.
+expected:
+  output_contains:
+    - "adaptive-coaching"
+  output_not_contains:
+    - "decision-coaching"
+    - "Quiz"

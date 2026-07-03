@@ -19,7 +19,6 @@ The human harness pauses a risky instruction and makes the human confirm intent 
 6. For a compliance conflict, judge whether the rule is overridable: an overridable risk may proceed on a recorded override; a mandatory safety gate is not waivable - route to a safer path or refuse. When the class is unclear, read [compliance](references/compliance.md).
 7. Stay non-shaming; for an overridable risk the human keeps authority to proceed after acknowledging it.
 8. Use portable question handoff: AskUserQuestion when available, else `AskUserQuestion:` text with the same choices.
-9. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another for outward-facing artifacts.
 
 ## Output
 
@@ -33,4 +32,4 @@ Use these headings. When the handoff format is unclear, read [a worked example](
 - **Confirm:** the human restates the irreversible outcome (no bare LGTM) and the recommended answer.
 - **Next Move:** what happens per answer.
 
-Pattern: **Stop** -> **Blast Radius** -> **Premortem** -> **Confirm** -> **Next Move**. Add Compliance and Safer Path when relevant.
+Pattern: **Stop** -> **Blast Radius** -> **Compliance** -> **Premortem** -> **Confirm** -> **Next Move**. Add Safer Path when one exists.
