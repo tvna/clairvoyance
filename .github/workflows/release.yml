@@ -1,7 +1,9 @@
-name: Release
+name: Plugin Release
 
-# Semantic versioning via semantic-release; the git tag is the single source of
-# truth. The full release flow and required setup live in docs/versioning.md.
+# Product-scoped release for the plugin bundle (tags: plugin-vX.Y.Z). Semantic
+# versioning via semantic-release; the git tag is the single source of truth. The
+# managed server releases independently (managed-vX.Y.Z); the full product-scoped
+# release flow and required setup live in docs/versioning.md.
 #
 # Cadence is intentional, not per-merge: a weekly schedule cuts the release, and
 # workflow_dispatch allows an ad-hoc release between weeks. Plain pushes to main
@@ -46,12 +48,13 @@ jobs:
 
       - name: Require a baseline tag
         # semantic-release recognizes prior releases only through tags matching
-        # tagFormat (v-prefixed semver). A bare or unrelated tag would let a naive
-        # "any tag" check pass yet still cut 1.0.0, so require a v-prefixed semver
-        # tag (see docs/versioning.md); fail loudly rather than silently releasing 1.0.0.
+        # tagFormat (plugin-v-prefixed semver). A bare or unrelated tag would let a
+        # naive "any tag" check pass yet still cut 1.0.0, so require a product-prefixed
+        # semver tag (see docs/versioning.md); fail loudly rather than silently
+        # releasing 1.0.0. Legacy bare vX.Y.Z tags are not baselines for this line.
         run: |
-          if [ -z "$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*')" ]; then
-            echo "::error::No v-prefixed semver tag found. Seed the 0.x baseline first: git tag v0.1.0 && git push origin v0.1.0"
+          if [ -z "$(git tag --list 'plugin-v[0-9]*.[0-9]*.[0-9]*')" ]; then
+            echo "::error::No plugin-v semver tag found. Seed the plugin baseline first: git tag plugin-v0.3.0 && git push origin plugin-v0.3.0"
             exit 1
           fi
 

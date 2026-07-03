@@ -13,10 +13,24 @@ not cosmetic — it determines the release.
 | `feat!:` / `fix!:` or `BREAKING CHANGE:` footer | major | a backward-incompatible change |
 | `docs:` `chore:` `test:` `refactor:` `ci:` | none | no release on their own |
 
-While the project is on `0.x.x`, a breaking change bumps **minor** (not major) —
-the version stays below `1.0.0` until the API is declared stable (configured by a
-release rule in `.releaserc.json`). See [docs/versioning.md](docs/versioning.md)
-for the full release flow, the git-tag source of truth, and the branch strategy.
+**Product scope (required for releasing changes).** The repository ships two
+products with independent version lines, so carry the product in the commit scope
+so the right one releases and only its changelog is touched:
+
+| Scope | Product | Releases | Owns |
+|-------|---------|----------|------|
+| `(plugin)` | plugin bundle | `plugin-vX.Y.Z` | `skills/`, `hooks/`, `*/plugin.json` |
+| `(managed)` | managed server | `managed-vX.Y.Z` | `managed/app/`, `managed/alembic/`, `managed/pyproject.toml` |
+
+For example `feat(plugin): ...`, `fix(managed): ...`. Infrastructure-only commits
+(`ci:`, `chore:`) do not release unless they alter a shipped artifact; if one PR
+touches both products, make both release impacts explicit.
+
+While a product is on `0.x.x`, a breaking change bumps **minor** (not major) —
+the version stays below `1.0.0` until that product's surface is declared stable
+(configured by a release rule in `.releaserc.json`). See
+[docs/versioning.md](docs/versioning.md) for the full product-scoped release flow,
+the git-tag source of truth, and the branch strategy.
 
 ## Authoring skills
 

@@ -186,6 +186,28 @@ Ingress, `worker` -> Deployment, `scheduler` -> CronJob or beat Deployment,
 `ui` -> Deployment + Service (same Ingress, path-routed), env vars ->
 ConfigMap/Secret, health checks -> probes, migrate -> Job.
 
+## Versioning
+
+The managed server releases **independently of the plugin bundle** on its own
+Semantic Versioning line (see [../docs/versioning.md](../docs/versioning.md) for
+the repository's product-scoped model):
+
+- **Tag format** `managed-vX.Y.Z` (bare `vX.Y.Z` tags are legacy *plugin* tags and
+  never apply to the server).
+- **Version sources** `pyproject.toml` (`[project].version`) and the FastAPI app
+  factory in `app/main.py` (the `version=` the server advertises at
+  `/openapi.json`). They must stay in step; `scripts/check_managed_version.py`
+  fails CI on drift.
+- **Container image** the release tags the server image `managed-vX.Y.Z` so a
+  deployed image maps to an exact source revision and changelog entry.
+- **Changelog** `managed/CHANGELOG.md` (a plugin release never touches it, and a
+  managed release never touches the root plugin changelog).
+- Use `feat(managed):` / `fix(managed):` commit scopes so a change releases the
+  server and not the plugin.
+
+The managed release workflow is enabled in a later rollout slice; the parity and
+tag-format CI gates land first so the boundary is governed before automation runs.
+
 ## Deferred (tracked in #51)
 
 - Teams model and team trend endpoints.
