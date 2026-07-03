@@ -22,7 +22,7 @@ Decision coaching protects the human's autonomy and psychological safety while i
 9. If input is noisy, summarize only observed facts before asking.
 10. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another language for outward-facing artifacts.
 
-## Portable Question Shape
+## Output
 
 Every coaching reply ends with this portable question handoff, even when you first name a missing subject or refuse an LGTM:
 

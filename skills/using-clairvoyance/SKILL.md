@@ -9,7 +9,7 @@ description: Routes an agent-to-human handoff. Use when starting a session or af
 
 ## Rule
 
-Before handoff, select one plugin-qualified Clairvoyance skill. One exception: an explicit visualization request never changes the route — pick the base skill as if no diagram had been asked, then additionally load `clairvoyance:visual-handoff` as a layer on it.
+Before handoff, select one plugin-qualified Clairvoyance skill. One exception: an explicit visualization request never changes the route — pick the base skill as if no diagram had been asked, then additionally load `clairvoyance:visual-handoff` as a layer on it. `clairvoyance:session-handoff` is not routed here: it hands work to the next agent session, not a human — load it directly when a clean restart beats compaction.
 
 SessionStart contributor language (the active contributor's, not a fixed owner's) is authoritative; if missing, use portable question handoff.
 
@@ -25,10 +25,11 @@ Depth after routing — branch by stakes:
 Route:
 
 - Human owner decision, blocker, or prepared options outside PR readiness -> `clairvoyance:clairvoyance`.
-- PR, commit, branch, review verdict, or "should this merge?" -> `clairvoyance:review-verdict`.
+- PR, commit, branch, review verdict, "should this merge?", or LGTM sought on a concrete, inspectable change -> `clairvoyance:review-verdict`.
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
-- A single decision in the moment: LGTM requests, missing subject, noisy input, sycophancy pressure, or a decision without architecture understanding -> `clairvoyance:decision-coaching`.
+- A single decision in the moment: LGTM sought without an inspectable change, missing subject, noisy input, sycophancy pressure, or a decision without architecture understanding -> `clairvoyance:decision-coaching`.
 - A request to reflect or do a retrospective on one's own recurring patterns -> `clairvoyance:adaptive-coaching`, which delivers a reflection quiz when enough signal has accumulated.
+- A recurring capability gap surfacing mid-task (repeated deferral, avoidance, a technical fix standing in for an owner call) -> `clairvoyance:adaptive-coaching` to record it as anonymous local signal — record only, never a quiz.
 - High-blast-radius, irreversible, or compliance-violating instruction (the human harness) -> `clairvoyance:human-harness`.
 - An explicit request to visualize a handoff, plan, or system state (a diagram, UML, graph, "show me visually") is **not a route**: first choose the base handoff from the bullets above as if no diagram had been asked, then also load `clairvoyance:visual-handoff` — both skills load, and the base skill's headings stay. Never push a diagram unrequested.
 
@@ -38,7 +39,7 @@ Do not route implementation, progress, tests, typos, or refactors unless they be
 
 ## Priority
 
-Use other needed skills first; use Clairvoyance for the human handoff. When unsure, prefer the narrowest matching scene; if none applies, continue normally. If a human-only answer blocks the handoff, use portable question handoff with prepared choices.
+Use other needed skills first; use Clairvoyance for the human handoff. When two routes match, `human-harness` outranks every other route; otherwise prefer the narrowest matching scene, and if none applies, continue normally. If a human-only answer blocks the handoff, use portable question handoff with prepared choices.
 
 ## Examples
 
