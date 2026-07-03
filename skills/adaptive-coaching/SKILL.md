@@ -27,7 +27,6 @@ Deliver the quiz **only** when the person asks to reflect or do a retrospective,
 4. Deliver a prosthesis-building quiz: AskUserQuestion (or `AskUserQuestion:` text) with 2-3 plausible choices and a confidence prompt. Do **not** reveal or mark the correct answer before the person answers; retrieval practice needs the person to retrieve first (see [how to build the quiz](references/quiz.md)).
 5. After the person answers, give feedback: correct/incorrect, the better move, and a short calibration note comparing confidence to outcome. Record outcome, confidence, and calibration when the store supports it.
 6. Schedule or name a spaced follow-up point (**Review Again**) so the corrected judgement is revisited later.
-7. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another language for outward-facing artifacts.
 
 ## Output
 

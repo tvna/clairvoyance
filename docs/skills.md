@@ -56,6 +56,13 @@ Human handoffs share named headings so the owner can inspect by section — at m
 `Reversibility`, `Open Questions`). Each skill lists its exact set and a worked
 example under `references/`.
 
+The heading names are **canonical identifiers** for the contract, written in
+English in each `SKILL.md` and asserted by the evals' English-language scenarios.
+At runtime they are display strings in the operator's language: the SessionStart
+hook's language injection instructs the agent to render every operator-facing
+string — prose, section headings, question bullet titles, and `AskUserQuestion`
+questions, header chips, and choice labels — in the operator's native language.
+
 ## Evidence and authority
 
 Every handoff ties claims to evidence (URLs, files, tests, command output, observed

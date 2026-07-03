@@ -23,7 +23,6 @@ Visual handoff converts the state a handoff must make inspectable into a diagram
 4. Build the smallest diagram that carries one message: drop extraneous nodes and decoration, label marks in place, and highlight the anomaly or decision point the human must see (Mayer's coherence, contiguity, and signaling principles).
 5. Emit it as a fenced text-to-diagram source block — Mermaid first (GitHub renders it natively); PlantUML or Graphviz DOT only when Mermaid cannot express the structure. Never hand over a rendered image without its source: the text source is what makes the visual reproducible, diffable, and re-renderable.
 6. Insert it as a **Diagram** section inside the routed skill's output, next to the evidence it visualizes, and state in one line what the diagram shows and where to look.
-7. Write labels and the surrounding prose in the active contributor's language unless a repository rule requires another language for outward-facing artifacts.
 
 ## Output
 

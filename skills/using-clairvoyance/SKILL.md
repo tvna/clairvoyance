@@ -11,9 +11,9 @@ description: Routes an agent-to-human handoff. Use when starting a session or af
 
 Before handoff, select one plugin-qualified Clairvoyance skill. One exception: an explicit visualization request never changes the route — pick the base skill as if no diagram had been asked, then additionally load `clairvoyance:visual-handoff` as a layer on it. `clairvoyance:session-handoff` is not routed here: it hands work to the next agent session, not a human — load it directly when a clean restart beats compaction.
 
-SessionStart contributor language (the active contributor's, not a fixed owner's) is authoritative; if missing, use portable question handoff.
+SessionStart contributor language (the active contributor's, not a fixed owner's) is authoritative and covers every operator-facing string: prose, section headings, question bullet titles, and AskUserQuestion questions, header chips, and choice labels alike. The English heading names in the skill files are canonical identifiers for the output contract, not display strings — render them in the operator's language. If the language is missing, use portable question handoff.
 
-Portable question handoff: AskUserQuestion if available; else print `AskUserQuestion:` plus the same question and 1-3 choices.
+Portable question handoff: AskUserQuestion if available; else print `AskUserQuestion:` plus the same question and 1-3 choices — question, headers, bullet titles, and choices all in the operator's language.
 
 Depth after routing — branch by stakes:
 

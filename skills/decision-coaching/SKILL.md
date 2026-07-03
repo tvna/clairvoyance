@@ -20,7 +20,6 @@ Decision coaching protects the human's autonomy and psychological safety while i
 7. Give 2-3 prepared choices and mark the recommended answer.
 8. Explain how the answer changes the next move.
 9. If input is noisy, summarize only observed facts before asking.
-10. Write in the active contributor's language (the person driving the current session, not a fixed project owner) unless a repository rule requires another language for outward-facing artifacts.
 
 ## Output
 
@@ -33,3 +32,5 @@ Every coaching reply ends with this portable question handoff, even when you fir
 - **Recommended:** the safest default and why.
 
 Pattern: **AskUserQuestion** -> **Why** -> **Premortem** -> **Choices** -> **Recommended**. Ask the smallest non-flattering question that safely widens the human's imagination.
+
+The English bullet titles above are canonical identifiers for this contract, not display strings: emit every bullet title, question, and choice label in the operator's language.
