@@ -15,8 +15,9 @@ flowchart LR
     A --> R["Redis"]
     W["Celery Worker"] --> P
     W --> R
-    Admin["Admin User"] --> UI["Admin API"]
-    UI --> P
+    Admin["Admin User"] --> SPA["Admin UI (own image, ui/)"]
+    SPA -- "Bearer" --> AdminAPI["Admin API"]
+    AdminAPI --> P
 ```
 
 ## Stack
@@ -144,25 +145,53 @@ uv run python -m app.cli create-token --org-key acme --name dev
 uv run uvicorn app.main:create_app --factory --reload
 ```
 
+## Admin UI
+
+`ui/` is the admin frontend (React + TypeScript + Vite SPA), its own npm
+project shipping as its own image — see
+[docs/frontend-design.md](docs/frontend-design.md) for the design and
+[ui/README.md](ui/README.md) for development. The api process, its schemas,
+and its routes are unchanged by the UI's existence.
+
 ## Deployment (Coolify)
 
 `docker-compose.coolify.yml` runs `api` (public domain, health-checked),
-`worker`, and `scheduler` from the same image. Postgres and Redis are Coolify
-database resources on the internal network — not bundled in the Compose file —
-so Coolify owns their lifecycle and backups (S3-compatible storage).
-Migration runs in the api command before uvicorn starts; with a single api
-instance that is race-free. When replicas scale out (or on Kubernetes), move
+`worker`, `scheduler`, and `ui` from two images (api/worker/scheduler share
+one, ui is separate). Postgres and Redis are Coolify database resources on
+the internal network — not bundled in the Compose file — so Coolify owns
+their lifecycle and backups (S3-compatible storage). Migration runs in the
+api command before uvicorn starts; with a single api instance that is
+race-free. When replicas scale out (or on Kubernetes), move
 `alembic upgrade head` into a one-shot service / Job.
+
+`api` and `ui` share one public domain, split by path at the edge router
+(Traefik under Coolify): `/ui/*` -> ui, everything else -> api. The claim-name
+variables (`CLAIRVOYANCE_OIDC_ROLES_CLAIM` / `CLAIRVOYANCE_OIDC_ORG_CLAIM`)
+must be set once from a shared source (a Coolify shared variable) and bound
+to both services — if they drift, the UI shapes navigation from claims the
+server does not verify. `CLAIRVOYANCE_OIDC_CLIENT_ID` is ui-only (the public
+OIDC client the SPA authenticates as); the api service needs no client
+identifier of its own.
+
+Registering the SPA with the OIDC provider: create a public client (no
+client secret), redirect URI `https://<domain>/ui/callback`, post-logout
+redirect URI `https://<domain>/ui/`, refresh-token rotation enabled for the
+public client. Verify the deployment by signing in, loading
+`/ui/contributors`, and confirming sign-out actually ends the session (reload
+must require credentials again) — a provider with no end-session endpoint
+will not end the session on sign-out and the UI says so.
 
 Kubernetes mapping when the time comes: `api` -> Deployment + Service +
 Ingress, `worker` -> Deployment, `scheduler` -> CronJob or beat Deployment,
-env vars -> ConfigMap/Secret, health checks -> probes, migrate -> Job.
+`ui` -> Deployment + Service (same Ingress, path-routed), env vars ->
+ConfigMap/Secret, health checks -> probes, migrate -> Job.
 
 ## Deferred (tracked in #51)
 
 - Teams model and team trend endpoints.
-- Admin UI implementation — the frontend design is complete in
-  [docs/frontend-design.md](docs/frontend-design.md) (#55); the server stays
-  JSON-only until that implementation lands.
 - Collector rate limiting (needs a limits decision).
 - Local-mode history import tooling (`evidence_level: imported`).
+- Admin UI API gaps recorded in
+  [docs/frontend-design.md §14](docs/frontend-design.md#14-api-gaps-observed-follow-ups-none-blocking-v1)
+  (contributor search, reviews-due pagination/identity, review dismissal,
+  audit-log filters) — none blocking the UI's v1.
