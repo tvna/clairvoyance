@@ -198,16 +198,29 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Compute monthly cache generation
+        # `choco install sqlite` installs whatever the community feed currently
+        # publishes (no version pin: see the review discussion on this PR for
+        # why an unverified hardcoded version wasn't used instead). A constant
+        # cache key would therefore let a cache hit silently pin CI to
+        # whatever build happened to be current the first time the cache was
+        # populated, forever, since actions/cache skips choco entirely on an
+        # exact-key hit and choco itself never upgrades an installed package.
+        # Folding the year-month into the key bounds that staleness to at most
+        # one month and self-invalidates with no manual step to remember.
+        id: cache-gen
+        shell: pwsh
+        run: echo "gen=$(Get-Date -UFormat '%Y-%m')" >> $env:GITHUB_OUTPUT
+
       - name: Cache Chocolatey sqlite package
         # `choco install sqlite` (a fresh package-feed resolve + download) is
-        # consistently the single slowest step in this workflow. The package
-        # itself only changes when this pin changes, so cache the installed
-        # package directory and skip the reinstall on a cache hit.
+        # consistently the single slowest step in this workflow. Cache the
+        # installed package directory and skip the reinstall on a cache hit.
         id: cache-sqlite
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: C:\ProgramData\chocolatey\lib\sqlite
-          key: windows-choco-sqlite-v1
+          key: windows-choco-sqlite-${{ steps.cache-gen.outputs.gen }}
 
       - name: Install sqlite3 CLI
         # Git for Windows ships no sqlite3, and a bare `choco install` can leave a
