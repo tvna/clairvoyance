@@ -7,9 +7,8 @@ design so implementation can start as its own change. Tracking issue: #55.
 Status: **design complete, implementation not started.** The server stays
 JSON-only until the implementation lands. Every screen below maps to the
 admin API that actually shipped (`app/api/admin.py`, `app/schemas/admin.py`);
-no new backend surface is assumed except the one runtime-config endpoint
-called out in section 6, which is recorded as a follow-up decision, not a
-dependency.
+the design assumes **no backend change**: the UI ships as its own image
+and its runtime config is a ui-image concern (section 6).
 
 ## 1. Scope and goals
 
@@ -49,24 +48,30 @@ audit trail (the audit dependency runs before the role gate).
 
 ## 3. Architecture decision
 
-Three options were considered:
+Four options were considered. In all SPA options the browser does OIDC
+Authorization Code + PKCE and calls the JSON API with a bearer token.
 
 | Option | Description | Trade-offs |
 | ------ | ----------- | ---------- |
-| **A. Static SPA, same origin (recommended)** | Vite-built static bundle served by the existing `api` process at `/ui`; browser does OIDC Authorization Code + PKCE and calls the JSON API with a bearer token. | No CORS, no cookies, no server-side session state (stays Kubernetes-ready); one image, no new Compose service; the API keeps its exact auth model. Cost: a Node build stage in the Dockerfile. |
+| A. Single image | Vite-built static bundle served by the existing `api` process at `/ui` (StaticFiles mount, multi-stage build). | No CORS, no new Compose service -- but the release artifact couples UI and server: a CSS tweak rebuilds the server image and redeploys worker/scheduler, and the static mount and any config route compete for paths inside one process. |
 | B. Server-rendered (Jinja2/htmx) | FastAPI renders HTML; auth via session cookie after an OIDC code flow handled server-side. | Fewer moving parts in the browser, but introduces server-side sessions, CSRF handling, and a cookie auth path parallel to the bearer path the API already has -- two auth models to audit instead of one. |
-| C. Separate SPA deployment | Same SPA as A, but its own nginx service and domain. | Independent release cadence, but adds CORS configuration, a second Compose/Ingress entry, and a second thing to health-check -- speculative until release cadences actually diverge. |
+| **C. Separate ui image, same origin (chosen)** | The SPA ships as its own static-server image (`managed/ui/Dockerfile`); the edge router (Traefik under Coolify, Ingress on Kubernetes) serves one domain and splits paths: `/ui/*` to the ui container, everything else to the api container. | Independent artifacts and release cadence, zero backend change, still no CORS/no cookies (one origin at the edge). Cost: a second service to run and health-check, and the path split must exist in every environment, including the E2E harness. |
+| D. Separate image and domain | Same ui image as C on its own domain. | Adds CORS configuration and a second TLS/domain surface for no additional benefit over C today. |
 
-**Decision: Option A.** It is the minimum construction that solves the
-problem: the API already speaks OIDC bearer and is provider-agnostic; the
-browser is just another client of it. Revisit C only if the UI needs to
-ship on a different cadence than the server.
+**Decision: Option C** (owner decision, 2026-07-03: release artifacts must
+be separable; supersedes the earlier option-A draft of this document). The
+API already speaks OIDC bearer and is provider-agnostic -- the browser is
+just another client of it -- and the edge keeps the origin unified so none
+of the CORS/cookie machinery of option D is needed. Revisit D only if the
+UI must ever leave the shared domain.
 
 ```mermaid
 flowchart LR
-    B["Browser (SPA at /ui)"] -- "1. code + PKCE" --> IDP["OIDC Provider"]
-    IDP -- "2. tokens" --> B
-    B -- "3. Authorization: Bearer" --> API["FastAPI api process"]
+    B["Browser"] -- "code + PKCE" --> IDP["OIDC Provider"]
+    IDP -- "tokens" --> B
+    B -- "one domain" --> E["Edge router (Traefik / Ingress)"]
+    E -- "/ui/*" --> U["ui image (static server)"]
+    E -- "/v1/*, probes" --> API["api image (FastAPI)"]
     API --> P["PostgreSQL"]
     API -- "JWKS fetch" --> IDP
 ```
@@ -172,14 +177,22 @@ claim in such a deployment. Baking any of this in at build time would make
 the image deployment-specific, which the server side deliberately avoids
 (config via env, stateless app).
 
-**Design:** the api process serves `GET /ui/config.json` (no auth; values
-are public by definition -- they appear in every authorize redirect or are
-claim *names*, not values) with `issuer`, `client_id`, `audience`,
-`org_claim`, and `roles_claim`, built from one new env var
-`CLAIRVOYANCE_OIDC_CLIENT_ID` and the existing
-`CLAIRVOYANCE_OIDC_ISSUER` / `CLAIRVOYANCE_OIDC_AUDIENCE` /
-`CLAIRVOYANCE_OIDC_ORG_CLAIM` / `CLAIRVOYANCE_OIDC_ROLES_CLAIM`, so the
-SPA reads exactly the claims the server verifies.
+**Design:** the ui image's entrypoint renders `/ui/config.json` into the
+web root at container start, from environment variables (no auth needed;
+the values are public by definition -- they appear in every authorize
+redirect or are claim *names*, not values): `issuer`, `client_id`,
+`audience`, `org_claim`, and `roles_claim`, from
+`CLAIRVOYANCE_OIDC_CLIENT_ID` plus `CLAIRVOYANCE_OIDC_ISSUER` /
+`CLAIRVOYANCE_OIDC_AUDIENCE` / `CLAIRVOYANCE_OIDC_ORG_CLAIM` /
+`CLAIRVOYANCE_OIDC_ROLES_CLAIM` set on the ui service. A missing required
+variable aborts the container at startup -- fail loud at boot, before any
+user sees a broken sign-in. No backend endpoint is involved.
+
+The claim-name variables also configure the api service's verifier, so
+the two services must agree. Set them once from a shared source (a
+Coolify shared variable today, one ConfigMap on Kubernetes) rather than
+twice by hand; the section 13 smoke pins the agreement by asserting
+role-shaped navigation end to end.
 
 By default the SPA locates the authorize/token endpoints via standard
 issuer discovery (`.well-known`), but the server's own rationale for an
@@ -192,9 +205,9 @@ unset and omitted by default), fed to oidc-client-ts as explicit
 `metadata`. A provider whose discovery document is absent or non-standard
 gets configured, not locked out of the UI.
 
-This endpoint is the only backend addition the design requires and ships
-with the implementation change, not before. If OIDC is unconfigured the
-endpoint returns 503, same contract as the admin routes.
+With config owned by the ui image, the design requires **no backend
+change at all**: the api process, its schemas, and its routes ship
+untouched.
 
 ## 7. Information architecture and screens
 
@@ -377,24 +390,45 @@ managed/
     tests/               # vitest unit + testing-library
     e2e/                 # playwright smoke (section 13)
     package.json
+    Dockerfile           # ui image: node build stage -> static server
+    server/              # nginx/Caddy config + config.json entrypoint
   app/ ...               # unchanged
+  Dockerfile             # api image: unchanged by this design
 ```
 
-Dockerfile becomes multi-stage: a `node` build stage runs `npm ci && npm
-run build`, and the existing Python stage copies `ui/dist` to a static
-directory the api process mounts at `/ui` (FastAPI `StaticFiles`, SPA
-fallback to `index.html` for client-side routes). Worker/scheduler
-commands are untouched; the image still runs as the same four commands.
+The UI gets its own `managed/ui/Dockerfile`; the existing
+`managed/Dockerfile` is untouched. Build stages mirror the caching
+discipline of the Python image (dependency layer first, so source edits
+do not re-download node_modules):
+
+1. `node` stage: `COPY package.json package-lock.json` -> `npm ci` ->
+   `COPY src ...` -> `npm run build`.
+2. Final stage: a static server (nginx or Caddy) serving `dist/` under
+   `/ui` with SPA fallback to `index.html` for client-side routes,
+   setting the section 9 security headers, plus the entrypoint that
+   renders `/ui/config.json` from env (section 6) and refuses to start
+   when required variables are missing.
+
+The api image still runs as the same four commands and never learns the
+UI exists.
 
 ## 12. Deployment
 
-- **Coolify Compose:** no new service. The `api` service gains
-  `CLAIRVOYANCE_OIDC_CLIENT_ID`; the existing domain serves `/ui`.
-  Health checks are unchanged (static files add no readiness dependency).
-- **Kubernetes later:** unchanged mapping from the README; the UI rides
-  the api Deployment. If option C (separate deployment) is ever chosen,
-  only the Dockerfile split and CORS config change -- the SPA itself is
-  origin-agnostic because it fetches runtime config.
+- **Coolify Compose:** one new `ui` service from the ui image, on the
+  same domain as `api` with the edge path split (`/ui/*` -> ui,
+  everything else -> api; Traefik router rules under Coolify). The ui
+  service carries the OIDC config env vars (section 6) and gets its own
+  health check (`GET /ui/`); the api service and its health checks are
+  unchanged. This is also where deployment-layer access control attaches
+  when an organization wants it: an edge IP allowlist scoped to `/ui`
+  and `/v1/admin` must leave `/v1/events` reachable from contributor
+  workstations.
+- **Kubernetes later:** ui -> its own Deployment + Service; one Ingress
+  with path rules (`/ui` prefix to the ui Service, default to api). The
+  README's existing mapping for api/worker/scheduler is unchanged. If
+  option D (separate domain) is ever chosen, CORS configuration is the
+  only SPA-side change -- the SPA is origin-agnostic because it fetches
+  runtime config.
 - OIDC provider registration is deployment work the implementation PR must
   document concretely: create a public client, redirect URI
   `https://<domain>/ui/callback`, post-logout URI `https://<domain>/ui`,
@@ -411,23 +445,26 @@ Deterministic gates first, in CI as a `managed-ui` job alongside
 every PR: ci.yml has no per-job path gating today (`paths:` is a
 workflow-level trigger, not a per-job feature, and a required check that
 gets skipped leaves the PR permanently pending), so there is no filter
-mechanism to mirror. The smoke must keep covering serving behavior that
-lives outside the SPA tree (`/ui/config.json` and the StaticFiles mount
-in `managed/app`, the build/copy path in the Dockerfile); if CI time
-ever forces gating, the answer is a change-detection step or a workflow
-split scoped as its own change -- not a `paths:` line on a required job:
+mechanism to mirror. The smoke exercises the composed topology -- ui
+image, api image, and the edge path split between them -- which spans
+both source trees, so it must not be gated on either tree alone; if CI
+time ever forces gating, the answer is a change-detection step or a
+workflow split scoped as its own change -- not a `paths:` line on a
+required job:
 
 1. `biome ci` (lint + format), `tsc --noEmit`.
 2. `vitest run` -- unit tests including the zod contract schemas parsing
    recorded API fixtures.
 3. `npm run build` -- the bundle must build to pass.
-4. Playwright smoke against the real service path: the api image with CI
-   service containers for Postgres and Redis -- the same backends the
-   deployment uses. SQLite is a unit-test convenience that does not
-   survive the container boundary (the app engine has no StaticPool
-   setup, so an in-memory database is per-connection and alembic's tables
-   vanish; `/readyz` also probes Redis), so the smoke provisions real
-   services instead. The stub OIDC issuer is new harness code scoped to
+4. Playwright smoke against the real service path: a compose of the ui
+   image, the api image, Postgres, Redis, and a small front proxy doing
+   the same `/ui`-vs-API path split the deployment's edge does, so the
+   browser sees one origin exactly as in production. Postgres and Redis
+   are the same backends the deployment uses -- SQLite is a unit-test
+   convenience that does not survive the container boundary (the app
+   engine has no StaticPool setup, so an in-memory database is
+   per-connection and alembic's tables vanish; `/readyz` also probes
+   Redis). The stub OIDC issuer is new harness code scoped to
    the implementation issue: generate a key, serve a real JWKS document
    with a `kid`, mint `kid`-headed RS256 tokens, and point
    `CLAIRVOYANCE_OIDC_ISSUER/AUDIENCE/JWKS_URL` at it
@@ -446,25 +483,25 @@ CI, plus the deployment verification in section 12 recorded in the PR.
 Recorded here per the design rule that gaps surface as decisions, not
 silent backend patches:
 
-1. **Runtime UI config** (section 6): `GET /ui/config.json` +
-   `CLAIRVOYANCE_OIDC_CLIENT_ID`, plus the three optional endpoint
-   overrides for providers without standard discovery. Ships with the
-   implementation.
-2. **Contributor search/filter:** `GET /v1/admin/contributors` has no
+Runtime UI config, once listed here as the sole backend addition, is no
+longer a gap: the ui image owns `/ui/config.json` (section 6) and the
+backend ships untouched.
+
+1. **Contributor search/filter:** `GET /v1/admin/contributors` has no
    query filter; fine below a few hundred contributors, needed beyond.
    Trigger: first org where paging hurts.
-3. **Reviews-due pagination and per-contributor filter:** the endpoint has
+2. **Reviews-due pagination and per-contributor filter:** the endpoint has
    `limit` only and no `contributor_id` filter, so the summary screen
    cannot show "this contributor's due reviews" without over-fetching.
    Add `offset`/`contributor_id` when the queue outgrows one page.
-4. **Audit-log total and time filter:** offset paging without `total` is
+3. **Audit-log total and time filter:** offset paging without `total` is
    deliberate v1; an auditor asking "what happened last Tuesday" will need
    `from`/`to` parameters eventually.
-5. **Reviews-due identity fields:** `ReviewDueOut` carries only
+4. **Reviews-due identity fields:** `ReviewDueOut` carries only
    `contributor_id`, so the queue joins names client-side from the cached
    contributors list (section 7.3). Add identity fields to the row (or a
    batch contributor lookup) when that join stops scaling.
-6. **Review dismissal:** `review_schedules` has no status column, so rows
+5. **Review dismissal:** `review_schedules` has no status column, so rows
    for inactive or departed contributors never leave the queue
    (section 7.3). Needs a migration plus an audited dismiss/acknowledge
    write with RBAC and reopen semantics -- a backend decision this design
@@ -483,11 +520,11 @@ silent backend patches:
 
 | # | Decision | Recommendation | Alternatives kept on record |
 | - | -------- | -------------- | --------------------------- |
-| 1 | Rendering model | Static SPA, same origin at `/ui` | Server-rendered htmx; separate deployment |
+| 1 | Rendering model | Static SPA, same origin via edge path split | Server-rendered htmx; single image; separate domain |
 | 2 | Framework | React + TS + Vite | Svelte, htmx |
 | 3 | Auth | OIDC code + PKCE, tokens in memory, refresh-token rotation for renewal | Cookie session (rejected: second auth model); iframe silent renew (rejected: third-party cookies, blocked by the CSP) |
-| 4 | Runtime config | `GET /ui/config.json` from env | Build-time baking (rejected: per-deploy images) |
+| 4 | Runtime config | `config.json` templated at ui-container start from env | Build-time baking (rejected: per-deploy images); backend config endpoint (superseded by the image split) |
 | 5 | Styling | CSS modules + tokens, no framework | Tailwind/MUI (speculative at 5 screens) |
 | 6 | Charts | Inline SVG | Chart library (speculative for 2 static visuals) |
-| 7 | Serving | StaticFiles in api image, multi-stage build | nginx sidecar |
+| 7 | Serving | Own ui image (static server + config entrypoint) behind the edge router | StaticFiles in the api image (rejected: couples release artifacts) |
 | 8 | Quality gates | biome/tsc/vitest/build + Playwright live smoke | (none) |
