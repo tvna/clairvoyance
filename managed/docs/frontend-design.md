@@ -80,9 +80,13 @@ as speculative for a five-screen UI.
 - **React + TypeScript + Vite.** Boring, dominant, typed against the API
   contract. (Svelte/htmx would also work; React maximizes contributor
   familiarity and testing-library maturity.)
-- **TanStack Query** for server state: caching, retries, and invalidation
-  after the policy write. No Redux or global client state -- the server is
-  the state.
+- **TanStack Query** for server state: caching and invalidation after the
+  policy write. No Redux or global client state -- the server is the
+  state. Library defaults are overridden globally: `retry` fires only on
+  network errors, never on resolved 4xx/5xx responses (section 8's table
+  owns those; every admin request is audited server-side and the API has
+  no rate limiting, so blind retries multiply audit rows), and
+  `refetchOnWindowFocus` is off for the same reason.
 - **react-router** for the five routes.
 - **oidc-client-ts** for Authorization Code + PKCE and silent renewal. This
   is the one dependency doing security work, pinned and reviewed like one.
@@ -105,10 +109,15 @@ the declarative-dependency rule the server side follows with `uv.lock`.
 - **Flow:** Authorization Code + PKCE, public client, initiated by the SPA.
   No client secret exists in the browser.
 - **Token handling:** access token kept in memory only (never
-  localStorage/sessionStorage); silent renewal via the provider's refresh
-  or iframe mechanism through oidc-client-ts. A hard reload re-runs the
-  redirect flow; that is acceptable for an admin tool and cheaper than a
-  persisted-token attack surface.
+  localStorage/sessionStorage); silent renewal via refresh-token rotation
+  through oidc-client-ts, with the rotated refresh token in the same
+  in-memory store as the access token. Iframe silent renew is explicitly
+  not used: it depends on third-party cookies browsers are removing, and
+  section 9's CSP (`default-src 'self'`, no `frame-src`) blocks issuer
+  iframes by design. On a provider without refresh-token rotation for
+  public clients, expiry falls back to a full redirect. A hard reload
+  re-runs the redirect flow; that is acceptable for an admin tool and
+  cheaper than a persisted-token attack surface.
   - Memory-only is **not** the library default and must be configured
     explicitly: oidc-client-ts defaults `userStore` to
     `window.sessionStorage` (verified in `UserManagerSettings.ts`), so the
@@ -127,7 +136,13 @@ the declarative-dependency rule the server side follows with `uv.lock`.
   runtime config (section 6), never as hardcoded defaults. Unknown roles
   are ignored, exactly as `parse_roles` does server-side.
 - **Logout:** drop in-memory tokens and hit the provider's end-session
-  endpoint when it advertises one; otherwise just drop tokens.
+  endpoint when it advertises one. When no end-session endpoint exists,
+  dropping tokens does **not** end the provider's SSO session -- the next
+  visit signs back in silently, which on a shared machine hands the next
+  person an authenticated session attributed to the previous subject. The
+  UI must state this after such a sign-out ("your provider session may
+  still be active"), and the section 12 deployment handoff verifies real
+  sign-out (sign out, reload, confirm credentials are required again).
 - The server keeps rejecting with 401 (bad/expired token), 403 (role), and
   503 (OIDC unconfigured / JWKS unreachable); the UI maps these in
   section 8 rather than retrying its way around them.
@@ -144,7 +159,7 @@ sequenceDiagram
     S->>A: GET /v1/admin/... (Bearer)
     A->>O: JWKS (cached)
     A-->>S: 200 JSON (audited)
-    Note over S,A: 401 -> re-auth, 403 -> denied view, 503 -> server config error view
+    Note over S,A: 401 -> re-auth, 403 -> denied view, 503 -> section 8 (unconfigured vs JWKS-transient)
 ```
 
 ## 6. Runtime configuration
@@ -164,10 +179,22 @@ claim *names*, not values) with `issuer`, `client_id`, `audience`,
 `CLAIRVOYANCE_OIDC_CLIENT_ID` and the existing
 `CLAIRVOYANCE_OIDC_ISSUER` / `CLAIRVOYANCE_OIDC_AUDIENCE` /
 `CLAIRVOYANCE_OIDC_ORG_CLAIM` / `CLAIRVOYANCE_OIDC_ROLES_CLAIM`, so the
-SPA reads exactly the claims the server verifies. This is the only
-backend addition the design requires and ships with the implementation
-change, not before. If OIDC is unconfigured the endpoint returns 503, same
-contract as the admin routes.
+SPA reads exactly the claims the server verifies.
+
+By default the SPA locates the authorize/token endpoints via standard
+issuer discovery (`.well-known`), but the server's own rationale for an
+explicit JWKS URL -- providers publish metadata at non-standard paths --
+applies to the browser too. The config response therefore carries three
+optional overrides, `authorization_endpoint` / `token_endpoint` /
+`end_session_endpoint` (env `CLAIRVOYANCE_OIDC_AUTHORIZE_URL` /
+`CLAIRVOYANCE_OIDC_TOKEN_URL` / `CLAIRVOYANCE_OIDC_END_SESSION_URL`,
+unset and omitted by default), fed to oidc-client-ts as explicit
+`metadata`. A provider whose discovery document is absent or non-standard
+gets configured, not locked out of the UI.
+
+This endpoint is the only backend addition the design requires and ships
+with the implementation change, not before. If OIDC is unconfigured the
+endpoint returns 503, same contract as the admin routes.
 
 ## 7. Information architecture and screens
 
@@ -222,10 +249,27 @@ end to end, the UI must not truncate that.
 - Table: due date (with "overdue by N days" emphasis), category, signal
   (nullable), interval_days, last_outcome, contributor link
   (`contributor_id` -> summary screen).
+- `ReviewDueOut` carries only `contributor_id`, no display name. The
+  screen resolves names by joining client-side against the cached
+  contributors-list query (paginated list calls shared through the query
+  cache) -- **never** a per-row summary call: each summary request runs
+  the full aggregate queries and writes an audit row, so a 50-row queue
+  would mean 50 audited aggregate calls per render. A contributor missing
+  from the cached pages renders as a shortened id. The durable fix
+  (identity fields on the row, or a batch lookup) is recorded in
+  section 14.
 - Empty state: "No reviews due" is the success state and looks like one.
 - v1 is read-only: there is no "mark reviewed" write -- schedules move when
   the contributor's next quiz attempt is ingested, and the UI says so in
-  the empty-action footer.
+  the empty-action footer. This is a domain gap, not only a UI choice:
+  `review_schedules` has no status column, so a row only ever leaves the
+  queue via a newer attempt, and inactive or departed contributors
+  accumulate permanently-overdue rows that due_at-ascending ordering pins
+  to the top of a limit-only page. v1 mitigates by de-emphasizing rows
+  whose contributor is inactive (via the client-side join above); the
+  real fix -- a status column plus an audited dismiss write and its
+  reopen semantics -- is a backend decision recorded in section 14, not
+  something the UI fakes.
 
 ### 7.4 Policies (`/ui/policies`)
 
@@ -271,8 +315,8 @@ not interpret status codes individually.
 | 401 | Drop tokens, silent renew once, else full re-auth redirect. Never a retry loop. |
 | 403 | "Your roles do not allow this" view naming the missing capability. No auto-redirect: the attempt is audited and the user should understand why. |
 | 404 (contributor) | In-place "not found" state with a link back to the list. |
-| 409 / 422 | Form-level error rendering the API detail verbatim (policy form). |
-| 503 | "Server configuration error" page: states the server reported OIDC/JWKS unavailability and this needs an operator, not a retry. Fail loudly, mirroring the server's never-fail-open stance. |
+| 422 | Form-level validation error rendering the API detail verbatim (policy form). The admin API has no 409 path -- conflict semantics exist only on the collector, which the UI never calls; policy PUT has no optimistic-concurrency contract. |
+| 503 | The server sends 503 for two states it distinguishes in the detail body, and the fetch layer reads it: "admin OIDC is not configured" -> operator page immediately; "OIDC JWKS endpoint is unavailable" (transient infra, e.g. one failed JWKS fetch) -> bounded automatic retry first, operator page only if it persists. Never fail open, mirroring the server. |
 | Network failure | Inline retry affordance per screen; TanStack Query backoff capped at 3. |
 
 Empty states are designed, not defaulted: contributors (onboarding hint:
@@ -287,6 +331,8 @@ audit logs (only possible before first admin access).
   must not widen where it flows.
 - **CSP** served with the SPA: `default-src 'self'`, `connect-src 'self'`
   plus the OIDC issuer origin, `frame-ancestors 'none'`. No inline script.
+  No `frame-src` is opened: renewal uses refresh-token rotation, not
+  issuer iframes (section 5), so the CSP and the auth design agree.
 - Tokens in memory only (section 5); no cookies, so no CSRF surface.
 - `context_summary` is not exposed by any admin endpoint and therefore
   cannot appear in the UI; the design keeps it that way deliberately.
@@ -347,31 +393,45 @@ commands are untouched; the image still runs as the same four commands.
 - OIDC provider registration is deployment work the implementation PR must
   document concretely: create a public client, redirect URI
   `https://<domain>/ui/callback`, post-logout URI `https://<domain>/ui`,
-  no client secret, and verify the handoff by signing in and loading
-  `/ui/contributors` before the change is called done.
+  no client secret, refresh-token rotation enabled for the public client
+  (section 5), and verify the handoff by signing in, loading
+  `/ui/contributors`, and confirming sign-out actually ends the session
+  (reload must require credentials again) before the change is called
+  done.
 
 ## 13. Quality gates and verification plan
 
-Deterministic gates first, in CI as a `managed-ui` job mirroring
-`managed-server`. The job is path-filtered to `managed/**`, not
-`managed/ui/` alone: the smoke exercises serving behavior that lives
-outside the SPA tree (`/ui/config.json` and the StaticFiles mount in
-`managed/app`, the build/copy path in the Dockerfile), so a server-side
-change must not skip it. The Node-only gates (1-3) may additionally be
-skipped when the diff touches no `managed/ui/` file, but the smoke (4)
-runs for any `managed/**` change:
+Deterministic gates first, in CI as a `managed-ui` job alongside
+`managed-server`. Like `managed-server`, the job runs unconditionally on
+every PR: ci.yml has no per-job path gating today (`paths:` is a
+workflow-level trigger, not a per-job feature, and a required check that
+gets skipped leaves the PR permanently pending), so there is no filter
+mechanism to mirror. The smoke must keep covering serving behavior that
+lives outside the SPA tree (`/ui/config.json` and the StaticFiles mount
+in `managed/app`, the build/copy path in the Dockerfile); if CI time
+ever forces gating, the answer is a change-detection step or a workflow
+split scoped as its own change -- not a `paths:` line on a required job:
 
 1. `biome ci` (lint + format), `tsc --noEmit`.
 2. `vitest run` -- unit tests including the zod contract schemas parsing
    recorded API fixtures.
 3. `npm run build` -- the bundle must build to pass.
-4. Playwright smoke against the real service path: the api container with
-   SQLite-mode test settings and a stub OIDC issuer (the test suite
-   already fabricates signed JWTs in `tests/test_oidc.py`; the E2E harness
-   reuses that key material). The smoke signs in, loads each of the five
-   screens, edits a policy as org_admin, and asserts the 403 view as
-   coach. This is the live proof the completion gate requires -- type
-   checks and unit tests verify shape, the smoke verifies behavior.
+4. Playwright smoke against the real service path: the api image with CI
+   service containers for Postgres and Redis -- the same backends the
+   deployment uses. SQLite is a unit-test convenience that does not
+   survive the container boundary (the app engine has no StaticPool
+   setup, so an in-memory database is per-connection and alembic's tables
+   vanish; `/readyz` also probes Redis), so the smoke provisions real
+   services instead. The stub OIDC issuer is new harness code scoped to
+   the implementation issue: generate a key, serve a real JWKS document
+   with a `kid`, mint `kid`-headed RS256 tokens, and point
+   `CLAIRVOYANCE_OIDC_ISSUER/AUDIENCE/JWKS_URL` at it
+   (`tests/test_oidc.py` shows in-process token fabrication but bypasses
+   JWKS entirely -- there is no reusable fixture). The smoke signs in,
+   loads each of the five screens, edits a policy as org_admin, and
+   asserts the 403 view as coach. This is the live proof the completion
+   gate requires -- type checks and unit tests verify shape, the smoke
+   verifies behavior.
 
 Definition of done for the implementation issue: all four gates green in
 CI, plus the deployment verification in section 12 recorded in the PR.
@@ -382,7 +442,9 @@ Recorded here per the design rule that gaps surface as decisions, not
 silent backend patches:
 
 1. **Runtime UI config** (section 6): `GET /ui/config.json` +
-   `CLAIRVOYANCE_OIDC_CLIENT_ID`. Ships with the implementation.
+   `CLAIRVOYANCE_OIDC_CLIENT_ID`, plus the three optional endpoint
+   overrides for providers without standard discovery. Ships with the
+   implementation.
 2. **Contributor search/filter:** `GET /v1/admin/contributors` has no
    query filter; fine below a few hundred contributors, needed beyond.
    Trigger: first org where paging hurts.
@@ -393,6 +455,15 @@ silent backend patches:
 4. **Audit-log total and time filter:** offset paging without `total` is
    deliberate v1; an auditor asking "what happened last Tuesday" will need
    `from`/`to` parameters eventually.
+5. **Reviews-due identity fields:** `ReviewDueOut` carries only
+   `contributor_id`, so the queue joins names client-side from the cached
+   contributors list (section 7.3). Add identity fields to the row (or a
+   batch contributor lookup) when that join stops scaling.
+6. **Review dismissal:** `review_schedules` has no status column, so rows
+   for inactive or departed contributors never leave the queue
+   (section 7.3). Needs a migration plus an audited dismiss/acknowledge
+   write with RBAC and reopen semantics -- a backend decision this design
+   deliberately does not fake in the UI.
 
 ## 15. Deferred
 
@@ -409,7 +480,7 @@ silent backend patches:
 | - | -------- | -------------- | --------------------------- |
 | 1 | Rendering model | Static SPA, same origin at `/ui` | Server-rendered htmx; separate deployment |
 | 2 | Framework | React + TS + Vite | Svelte, htmx |
-| 3 | Auth | OIDC code + PKCE, tokens in memory | Cookie session (rejected: second auth model) |
+| 3 | Auth | OIDC code + PKCE, tokens in memory, refresh-token rotation for renewal | Cookie session (rejected: second auth model); iframe silent renew (rejected: third-party cookies, blocked by the CSP) |
 | 4 | Runtime config | `GET /ui/config.json` from env | Build-time baking (rejected: per-deploy images) |
 | 5 | Styling | CSS modules + tokens, no framework | Tailwind/MUI (speculative at 5 screens) |
 | 6 | Charts | Inline SVG | Chart library (speculative for 2 static visuals) |
