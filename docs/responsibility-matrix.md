@@ -23,6 +23,11 @@ verbatim from the upstream by `.github/workflows/sync-agent-instructions.yml`,
 pinned to the upstream commit it fetched. They are therefore outside these lanes —
 treat them as read-only provenance, not a lane this repo owns.
 
+The Claude Code **rules lane (`.claude/rules/`) is banned in this repository**
+by operator decision: instructions must not fork into a carrier that loads
+outside the SessionStart hook and the skills. `scripts/check_coverage.py`
+enforces the ban deterministically.
+
 ## Coverage matrix
 
 The matrix axis is the **skill**, not a list of principles. Each skill should be

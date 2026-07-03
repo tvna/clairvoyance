@@ -69,6 +69,15 @@ def test_readme_exact_table_row_passes(tmp_path):
     assert _errors(tmp_path) == []
 
 
+def test_rules_lane_is_banned(tmp_path):
+    _skill(tmp_path, "alpha")
+    _eval(tmp_path, "alpha")
+    _doc(tmp_path, "alpha\n")
+    _readme(tmp_path, "| `alpha` | does things |\n")
+    (tmp_path / ".claude" / "rules").mkdir(parents=True)
+    assert any(".claude/rules/ is banned" in m for _, m in _errors(tmp_path))
+
+
 def test_missing_eval_is_flagged(tmp_path):
     _skill(tmp_path, "alpha")
     _doc(tmp_path, "alpha\n")

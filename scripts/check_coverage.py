@@ -9,6 +9,10 @@ Enforces the coverage matrix in ``docs/responsibility-matrix.md``:
   reads first; translated READMEs are best-effort and not gated).
 * Backward sweep -- every eval suite under ``evals/`` maps to a real skill,
   so no eval directory is left orphaned by a skill rename or deletion.
+* Banned lanes -- the Claude Code rules lane (``.claude/rules/``) is banned in
+  this repository by operator decision: the SessionStart hook and the skills
+  are the only instruction carriers, so constraints must not fork into a lane
+  that loads outside them.
 
 Emits GitHub Actions annotations and exits non-zero on any gap. Pure stdlib so
 it runs in the CI ``validate`` job without uv. The per-skill *structural* quality
@@ -76,6 +80,15 @@ def check_all(root: pathlib.Path) -> list[tuple[str, str]]:
     for name in sorted(evals):
         if name not in skill_set:
             errors.append(("error", f"eval suite '{name}' has no matching skill (skills/{name}/SKILL.md)"))
+
+    if (root / ".claude" / "rules").exists():
+        errors.append(
+            (
+                "error",
+                ".claude/rules/ is banned in this repository: keep constraints in the "
+                "SessionStart hook or the skills, not the rules lane",
+            )
+        )
 
     return errors
 
