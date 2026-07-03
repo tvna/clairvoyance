@@ -161,6 +161,8 @@ env vars -> ConfigMap/Secret, health checks -> probes, migrate -> Job.
 ## Deferred (tracked in #51)
 
 - Teams model and team trend endpoints.
-- Admin UI (JSON API only for now, per the design recommendation).
+- Admin UI implementation — the frontend design is complete in
+  [docs/frontend-design.md](docs/frontend-design.md) (#55); the server stays
+  JSON-only until that implementation lands.
 - Collector rate limiting (needs a limits decision).
 - Local-mode history import tooling (`evidence_level: imported`).
