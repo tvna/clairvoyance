@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import type { User, UserManager } from "oidc-client-ts";
 import {
   createContext,
@@ -53,6 +54,7 @@ function derivePrincipal(user: User | null, config: RuntimeConfig): AdminPrincip
 
 export function AuthProvider({ config, children }: { config: RuntimeConfig; children: ReactNode }) {
   const userManager = useMemo<UserManager>(() => createUserManager(config), [config]);
+  const queryClient = useQueryClient();
   const userRef = useRef<User | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [principal, setPrincipal] = useState<AdminPrincipal | null>(null);
@@ -111,6 +113,14 @@ export function AuthProvider({ config, children }: { config: RuntimeConfig; chil
       userRef.current = null;
       setPrincipal(null);
       setStatus("signed-out");
+      // Query keys (contributors, policies, …) don't include the
+      // principal/org, so a different organization signing in next would
+      // otherwise render this session's cached admin data until refetch
+      // completes. Every path that ends a session (auth-expired,
+      // sign-out, failed silent renew) goes through removeUser(), which
+      // fires this event -- one chokepoint instead of a clear() at each
+      // call site.
+      queryClient.clear();
     });
 
     userManager
@@ -138,7 +148,7 @@ export function AuthProvider({ config, children }: { config: RuntimeConfig; chil
       unsubscribeLoaded();
       unsubscribeUnloaded();
     };
-  }, [userManager, config]);
+  }, [userManager, config, queryClient]);
 
   const value = useMemo<AuthState>(
     () => ({
