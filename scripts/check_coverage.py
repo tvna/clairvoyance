@@ -19,6 +19,7 @@ it runs in the CI ``validate`` job without uv. The per-skill *structural* qualit
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -45,6 +46,16 @@ def readme_text(root: pathlib.Path) -> str:
     return readme.read_text() if readme.exists() else ""
 
 
+def readme_lists(readme: str, name: str) -> bool:
+    """Return whether the README skill table carries a row for ``name``.
+
+    Matches an exact backticked skill cell at the start of a table row, not a
+    raw substring: ``clairvoyance`` appearing inside ``using-clairvoyance`` (or
+    in prose) must not satisfy the gate for the ``clairvoyance`` row.
+    """
+    return bool(re.search(rf"(?m)^\|\s*`{re.escape(name)}`\s*\|", readme))
+
+
 def check_all(root: pathlib.Path) -> list[tuple[str, str]]:
     """Return a list of (level, message) coverage gaps."""
     skills = list_skills(root)
@@ -58,8 +69,8 @@ def check_all(root: pathlib.Path) -> list[tuple[str, str]]:
             errors.append(("error", f"skill '{name}' has no eval suite (evals/{name}/eval.yaml)"))
         if name not in docs:
             errors.append(("error", f"skill '{name}' is not documented in any docs/*.md"))
-        if name not in readme:
-            errors.append(("error", f"skill '{name}' is not listed in README.md"))
+        if not readme_lists(readme, name):
+            errors.append(("error", f"skill '{name}' is not listed in the README.md skill table"))
 
     skill_set = set(skills)
     for name in sorted(evals):
