@@ -55,6 +55,21 @@ jobs:
             exit 1
           fi
 
+      - name: Cache npm packages for semantic-release
+        # npx re-resolves and downloads the 8 packages (plus transitive deps)
+        # from the registry on every run since there is no lockfile to key a
+        # setup-node cache off of (see the "Run semantic-release" step comment
+        # for why no node manifest is committed). Caching npm's own tarball
+        # cache directory (~/.npm) cuts that repeat download on unchanged
+        # runs; the key is scoped to this file so a version bump in the npx
+        # command below naturally invalidates it.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.npm
+          key: npm-semantic-release-${{ hashFiles('.github/workflows/release.yml') }}
+          restore-keys: |
+            npm-semantic-release-
+
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}

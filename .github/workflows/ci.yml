@@ -198,16 +198,33 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Cache Chocolatey sqlite package
+        # `choco install sqlite` (a fresh package-feed resolve + download) is
+        # consistently the single slowest step in this workflow. The package
+        # itself only changes when this pin changes, so cache the installed
+        # package directory and skip the reinstall on a cache hit.
+        id: cache-sqlite
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: C:\ProgramData\chocolatey\lib\sqlite
+          key: windows-choco-sqlite-v1
+
       - name: Install sqlite3 CLI
         # Git for Windows ships no sqlite3, and a bare `choco install` can leave a
         # Store/stub `sqlite3` ahead of the real one on PATH (it prints a UTF-16
-        # "…to install" notice and breaks the store). Install via choco, then put
-        # the actual sqlite3.exe directory first on PATH for later steps.
+        # "…to install" notice and breaks the store). Install via choco unless
+        # already restored from cache above.
+        if: steps.cache-sqlite.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: choco install sqlite -y --no-progress
+
+      - name: Put sqlite3.exe on PATH
+        # Runs unconditionally (cache hit or fresh install) since GITHUB_PATH
+        # is not restored by the cache step, only the files are.
         shell: pwsh
         run: |
-          choco install sqlite -y --no-progress
-          $exe = Get-ChildItem -Path 'C:\ProgramData\chocolatey\lib' -Recurse -Filter sqlite3.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $exe) { throw 'sqlite3.exe not found after choco install sqlite' }
+          $exe = Get-ChildItem -Path 'C:\ProgramData\chocolatey\lib\sqlite' -Recurse -Filter sqlite3.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw 'sqlite3.exe not found under C:\ProgramData\chocolatey\lib\sqlite' }
           Write-Host "sqlite3 at $($exe.FullName)"
           Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $exe.FullName)
 
