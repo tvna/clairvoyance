@@ -200,6 +200,33 @@ def test_backslash_link_is_flagged(tmp_path):
     assert any("forward slashes" in m for _, m in _errors(tmp_path))
 
 
+def test_drifted_language_rule_is_flagged(tmp_path):
+    _skill(
+        tmp_path,
+        "ok",
+        body="Write in the contributor's language unless a repository rule requires another for artifacts.\n",
+    )
+    assert any("language rule drifts" in m for _, m in _errors(tmp_path))
+
+
+def test_canonical_language_rule_passes(tmp_path):
+    _skill(
+        tmp_path,
+        "ok",
+        body=(
+            "Write in the active contributor's language unless a repository rule "
+            "requires another language for outward-facing artifacts.\n"
+        ),
+    )
+    assert _errors(tmp_path) == []
+
+
+def test_drifted_language_rule_in_reference_is_flagged(tmp_path):
+    _skill(tmp_path, "ok", body="See [r](references/a.md).\n")
+    _ref(tmp_path, "ok", "a.md", "# A\n\nunless a repository rule requires something else.\n")
+    assert any("language rule drifts" in m for _, m in _errors(tmp_path))
+
+
 def _ref(tmp_path, dirname, refname, content):
     refs = tmp_path / "skills" / dirname / "references"
     refs.mkdir(parents=True, exist_ok=True)

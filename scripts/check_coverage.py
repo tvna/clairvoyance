@@ -4,7 +4,9 @@
 Enforces the coverage matrix in ``docs/responsibility-matrix.md``:
 
 * Forward sweep -- every skill under ``skills/`` is carried by an eval
-  suite (``evals/<skill>/eval.yaml``) and named in at least one ``docs/*.md``.
+  suite (``evals/<skill>/eval.yaml``), named in at least one ``docs/*.md``,
+  and listed in ``README.md`` (the canonical skill table a marketplace user
+  reads first; translated READMEs are best-effort and not gated).
 * Backward sweep -- every eval suite under ``evals/`` maps to a real skill,
   so no eval directory is left orphaned by a skill rename or deletion.
 
@@ -37,11 +39,18 @@ def docs_text(root: pathlib.Path) -> str:
     return "".join(p.read_text() for p in sorted(root.glob("docs/*.md")))
 
 
+def readme_text(root: pathlib.Path) -> str:
+    """Return the text of the canonical README.md, or "" when absent."""
+    readme = root / "README.md"
+    return readme.read_text() if readme.exists() else ""
+
+
 def check_all(root: pathlib.Path) -> list[tuple[str, str]]:
     """Return a list of (level, message) coverage gaps."""
     skills = list_skills(root)
     evals = set(list_evals(root))
     docs = docs_text(root)
+    readme = readme_text(root)
 
     errors: list[tuple[str, str]] = []
     for name in skills:
@@ -49,6 +58,8 @@ def check_all(root: pathlib.Path) -> list[tuple[str, str]]:
             errors.append(("error", f"skill '{name}' has no eval suite (evals/{name}/eval.yaml)"))
         if name not in docs:
             errors.append(("error", f"skill '{name}' is not documented in any docs/*.md"))
+        if name not in readme:
+            errors.append(("error", f"skill '{name}' is not listed in README.md"))
 
     skill_set = set(skills)
     for name in sorted(evals):
@@ -65,7 +76,7 @@ def main(root: pathlib.Path | None = None) -> int:
         print(f"{level.upper()}: {message}")
     if errors:
         return 1
-    print("all skills have eval + doc coverage; no orphan evals")
+    print("all skills have eval + doc + README coverage; no orphan evals")
     return 0
 
 
