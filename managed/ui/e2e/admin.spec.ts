@@ -2,8 +2,11 @@ import { expect, type Page, test } from "@playwright/test";
 
 const ROLES = ["org_admin", "team_manager", "coach", "auditor"] as const;
 
-async function signInAs(page: Page, opts: { sub: string; org: string; roles: readonly string[] }) {
-  await page.goto("/ui/");
+async function signInAs(
+  page: Page,
+  opts: { sub: string; org: string; roles: readonly string[]; startPath?: string },
+) {
+  await page.goto(opts.startPath ?? "/ui/");
   await page.getByRole("button", { name: "Sign in" }).click();
   // Full-page redirect to the stub issuer (design §13's real, non-mocked flow).
   await page.waitForURL(/\/issuer\/authorize/);
@@ -60,10 +63,21 @@ test.describe("admin UI smoke (design §13)", () => {
     await signInAs(page, { sub: "coach-e2e@example.com", org: "acme", roles: ["coach"] });
     await expect(page.getByRole("heading", { name: "Contributors" })).toBeVisible();
 
-    // Nav hides Audit logs for coach as a courtesy only (design §2) --
-    // direct navigation still hits the server and gets a real 403.
+    // Nav hides Audit logs for coach as a courtesy only (design §2).
     await expect(page.getByRole("link", { name: "Audit logs" })).toHaveCount(0);
-    await page.goto("/ui/audit");
+
+    // A direct request to a role-denied route still hits the server and
+    // gets a real 403. Tokens are in-memory only (design §5) and do not
+    // survive a hard navigation, so re-signing in starting at /ui/audit
+    // exercises the redirect-back-to-the-original-route path (RequireAuth
+    // -> SignIn -> stub issuer -> Callback) rather than a page.goto that
+    // would just drop the session and land back on the sign-in screen.
+    await signInAs(page, {
+      sub: "coach-e2e@example.com",
+      org: "acme",
+      roles: ["coach"],
+      startPath: "/ui/audit",
+    });
     await expect(page.getByRole("heading", { name: "Access denied" })).toBeVisible();
 
     // Policies stays view-only for a non-org_admin (design §7.4).

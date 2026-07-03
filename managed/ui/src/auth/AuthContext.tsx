@@ -20,10 +20,14 @@ export interface AuthState {
   principal: AdminPrincipal | null;
   /** Set after a sign-out when the provider advertises no end-session endpoint (design §5). */
   signOutNotice: string | null;
-  signIn: () => Promise<void>;
+  /** `returnTo` round-trips through the provider via oidc-client-ts's own
+   * signin `state` (not router state, which cannot survive a full
+   * navigation away to the IdP and back). */
+  signIn: (returnTo?: string) => Promise<void>;
   signOut: () => Promise<void>;
-  /** Completes the redirect-back leg of the code+PKCE flow (Callback screen only). */
-  completeSignIn: () => Promise<void>;
+  /** Completes the redirect-back leg of the code+PKCE flow (Callback
+   * screen only). Resolves the `returnTo` path passed to signIn(), if any. */
+  completeSignIn: () => Promise<string | undefined>;
 }
 
 // Exported (not just AuthProvider/useAuth) so tests can inject a fake
@@ -116,12 +120,15 @@ export function AuthProvider({ config, children }: { config: RuntimeConfig; chil
       status,
       principal,
       signOutNotice,
-      signIn: () => userManager.signinRedirect(),
+      signIn: (returnTo) =>
+        userManager.signinRedirect(returnTo !== undefined ? { state: returnTo } : {}),
       completeSignIn: async () => {
         // addUserLoaded (subscribed above) picks up the resulting user and
         // flips status to signed-in; the Callback screen just awaits this
-        // to know when to navigate away (success or failure).
-        await userManager.signinCallback();
+        // to know when to navigate away (success or failure). The signin
+        // `state` (set by signIn's returnTo) round-trips on the User.
+        const user = await userManager.signinCallback();
+        return typeof user?.state === "string" ? user.state : undefined;
       },
       signOut: async () => {
         setSignOutNotice(null);

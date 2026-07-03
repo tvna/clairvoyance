@@ -16,7 +16,7 @@ export function makeAuthState(overrides: Partial<AuthState> = {}): AuthState {
     signOutNotice: null,
     signIn: async () => {},
     signOut: async () => {},
-    completeSignIn: async () => {},
+    completeSignIn: async () => undefined,
     ...overrides,
   };
 }

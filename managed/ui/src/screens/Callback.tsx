@@ -15,11 +15,12 @@ export function Callback() {
   useEffect(() => {
     let cancelled = false;
     completeSignIn()
-      .then(() => {
+      .then((returnTo) => {
         if (!cancelled) {
           // Router basename is "/ui" (main.tsx), so app routes are
-          // basename-relative.
-          navigate("/", { replace: true });
+          // basename-relative. returnTo is the path RequireAuth captured
+          // before the redirect to the IdP, round-tripped via signIn().
+          navigate(returnTo ?? "/", { replace: true });
         }
       })
       .catch((err: unknown) => {
