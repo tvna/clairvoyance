@@ -35,3 +35,7 @@ export function categoryColorVar(category: string): string {
   const index = CATEGORY_ORDER.indexOf(category as Category);
   return `var(--category-${index === -1 ? 6 : index})`;
 }
+
+export function humanizeCategory(category: string): string {
+  return category.replace(/-/g, " ");
+}

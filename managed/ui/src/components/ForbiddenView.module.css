@@ -1,0 +1,12 @@
+.state {
+  padding: var(--space-4);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius);
+  background: var(--color-bg-subtle);
+  max-width: 40rem;
+}
+
+.state h2 {
+  margin-top: 0;
+  color: var(--color-danger);
+}

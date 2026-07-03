@@ -1,0 +1,7 @@
+.empty {
+  color: var(--color-text-muted);
+}
+
+.label {
+  fill: var(--color-text);
+}

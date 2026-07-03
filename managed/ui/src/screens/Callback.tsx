@@ -17,7 +17,9 @@ export function Callback() {
     completeSignIn()
       .then(() => {
         if (!cancelled) {
-          navigate("/ui/", { replace: true });
+          // Router basename is "/ui" (main.tsx), so app routes are
+          // basename-relative.
+          navigate("/", { replace: true });
         }
       })
       .catch((err: unknown) => {
@@ -35,7 +37,7 @@ export function Callback() {
       <main>
         <h1>Sign-in failed</h1>
         <p>{error}</p>
-        <Link to="/ui/signin">Try again</Link>
+        <Link to="/signin">Try again</Link>
       </main>
     );
   }

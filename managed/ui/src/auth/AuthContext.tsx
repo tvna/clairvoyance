@@ -26,7 +26,9 @@ export interface AuthState {
   completeSignIn: () => Promise<void>;
 }
 
-const AuthReactContext = createContext<AuthState | null>(null);
+// Exported (not just AuthProvider/useAuth) so tests can inject a fake
+// AuthState without booting real oidc-client-ts wiring.
+export const AuthReactContext = createContext<AuthState | null>(null);
 
 const NO_END_SESSION_NOTICE =
   "Your tokens were dropped locally, but this provider has no end-session endpoint, so your provider session may still be active. Signing back in may not prompt for credentials.";
