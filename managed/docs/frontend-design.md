@@ -109,11 +109,23 @@ the declarative-dependency rule the server side follows with `uv.lock`.
   or iframe mechanism through oidc-client-ts. A hard reload re-runs the
   redirect flow; that is acceptable for an admin tool and cheaper than a
   persisted-token attack surface.
+  - Memory-only is **not** the library default and must be configured
+    explicitly: oidc-client-ts defaults `userStore` to
+    `window.sessionStorage` (verified in `UserManagerSettings.ts`), so the
+    implementation must set
+    `userStore: new WebStorageStateStore({ store: new InMemoryWebStorage() })`
+    and a test must pin that no token ever lands in web storage.
+  - The redirect interaction state (`stateStore`: state, nonce, PKCE
+    verifier) defaults to `window.localStorage` and has to survive the
+    redirect by construction. It contains no tokens and the library clears
+    it on callback, so the default is acceptable there -- the boundary is
+    "no tokens in web storage", not "no web storage".
 - **Claims:** the SPA reads the same claims the server verifies -- the org
   claim for display and the roles claim for navigation shaping
   (`CLAIRVOYANCE_OIDC_ORG_CLAIM` / `CLAIRVOYANCE_OIDC_ROLES_CLAIM`,
-  defaults `org` / `roles`). Unknown roles are ignored, exactly as
-  `parse_roles` does server-side.
+  defaults `org` / `roles`); the configured claim names reach the SPA via
+  runtime config (section 6), never as hardcoded defaults. Unknown roles
+  are ignored, exactly as `parse_roles` does server-side.
 - **Logout:** drop in-memory tokens and hit the provider's end-session
   endpoint when it advertises one; otherwise just drop tokens.
 - The server keeps rejecting with 401 (bad/expired token), 403 (role), and
@@ -137,14 +149,22 @@ sequenceDiagram
 
 ## 6. Runtime configuration
 
-The SPA needs three non-secret values: issuer, client id, and audience.
-Baking them at build time would make the image deployment-specific, which
-the server side deliberately avoids (config via env, stateless app).
+The SPA needs five non-secret values: issuer, client id, audience, and the
+two claim names it must read (org and roles) -- deployments can rename
+those via `CLAIRVOYANCE_OIDC_ORG_CLAIM` / `CLAIRVOYANCE_OIDC_ROLES_CLAIM`,
+and a UI that hardcoded the defaults would shape navigation from the wrong
+claim in such a deployment. Baking any of this in at build time would make
+the image deployment-specific, which the server side deliberately avoids
+(config via env, stateless app).
 
 **Design:** the api process serves `GET /ui/config.json` (no auth; values
-are public by definition -- they appear in every authorize redirect) built
-from two new env vars `CLAIRVOYANCE_OIDC_CLIENT_ID` and the existing
-`CLAIRVOYANCE_OIDC_ISSUER` / `CLAIRVOYANCE_OIDC_AUDIENCE`. This is the only
+are public by definition -- they appear in every authorize redirect or are
+claim *names*, not values) with `issuer`, `client_id`, `audience`,
+`org_claim`, and `roles_claim`, built from one new env var
+`CLAIRVOYANCE_OIDC_CLIENT_ID` and the existing
+`CLAIRVOYANCE_OIDC_ISSUER` / `CLAIRVOYANCE_OIDC_AUDIENCE` /
+`CLAIRVOYANCE_OIDC_ORG_CLAIM` / `CLAIRVOYANCE_OIDC_ROLES_CLAIM`, so the
+SPA reads exactly the claims the server verifies. This is the only
 backend addition the design requires and ships with the implementation
 change, not before. If OIDC is unconfigured the endpoint returns 503, same
 contract as the admin routes.
@@ -333,7 +353,13 @@ commands are untouched; the image still runs as the same four commands.
 ## 13. Quality gates and verification plan
 
 Deterministic gates first, in CI as a `managed-ui` job mirroring
-`managed-server` (path-filtered to `managed/ui/`):
+`managed-server`. The job is path-filtered to `managed/**`, not
+`managed/ui/` alone: the smoke exercises serving behavior that lives
+outside the SPA tree (`/ui/config.json` and the StaticFiles mount in
+`managed/app`, the build/copy path in the Dockerfile), so a server-side
+change must not skip it. The Node-only gates (1-3) may additionally be
+skipped when the diff touches no `managed/ui/` file, but the smoke (4)
+runs for any `managed/**` change:
 
 1. `biome ci` (lint + format), `tsc --noEmit`.
 2. `vitest run` -- unit tests including the zod contract schemas parsing
