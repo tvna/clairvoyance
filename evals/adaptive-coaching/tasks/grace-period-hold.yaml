@@ -1,0 +1,20 @@
+id: adaptive-coaching-grace-period-hold
+name: Grace Period Holds Coaching
+description: Holds the quiz when the signal threshold is met but the session grace period has not elapsed; keeps observing without manufacturing a quiz.
+tags:
+  - quality
+  - data-gate
+inputs:
+  prompt: |
+    Use adaptive-coaching. I keep dodging the same rollout call and I want to reflect on the pattern now.
+
+    Context:
+    - The local store reports not ready: 6 observations (threshold 5) but only 12 of 50 grace sessions.
+    - The person is still in their first weeks of using the tool.
+expected:
+  output_contains:
+    - "Classification"
+    - "Evidence"
+    - "Next Move"
+  output_not_contains:
+    - "AskUserQuestion"

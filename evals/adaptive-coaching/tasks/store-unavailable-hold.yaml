@@ -1,0 +1,21 @@
+id: adaptive-coaching-store-unavailable-hold
+name: Unavailable Store Holds Not Fails
+description: An unavailable store means hold the quiz and keep observing - never an error, and never a quiz built from memory of past sessions.
+tags:
+  - quality
+  - data-gate
+  - resilience
+inputs:
+  prompt: |
+    Use adaptive-coaching. Let's do a retrospective on my recurring pattern - I think I keep deferring decisions that are mine to make.
+
+    Context:
+    - The local store is unavailable this session (status reports available false; the sqlite3 CLI is missing on this host).
+    - Past sessions may have had signal, but nothing can be read now.
+expected:
+  output_contains:
+    - "Classification"
+    - "Evidence"
+    - "Next Move"
+  output_not_contains:
+    - "AskUserQuestion"

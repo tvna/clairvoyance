@@ -1,0 +1,22 @@
+id: adaptive-coaching-tie-recurring-quiz
+name: Tied Co-Dominant Patterns Still Quiz
+description: Two linked categories recur in equal measure (a tie); both are genuine recurring patterns, so the reflection must quiz - a mixed composition alone is never a reason to hold.
+tags:
+  - quality
+  - classification
+  - compound
+inputs:
+  prompt: |
+    Use adaptive-coaching. I want to reflect on my recurring patterns - I think I keep dodging calls that are mine to make.
+
+    Context:
+    - The local store reports ready: 6 observations (threshold 5), 70 of 50 grace sessions.
+    - by_category: avoidance 3, authority-dependence 3 - the same reversible release call is dodged by handing it to the agent, session after session.
+    - Both categories recur across many sessions; neither is a single instance.
+expected:
+  output_contains:
+    - "Classification"
+    - "Capability Gap"
+    - "Evidence"
+    - "AskUserQuestion"
+    - "Next Move"

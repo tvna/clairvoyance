@@ -1,0 +1,22 @@
+id: adaptive-coaching-scattered-signal-hold
+name: Scattered Signal Holds Coaching
+description: Holds the quiz when the store reports ready on total count but every category is a single instance - no recurring pattern exists to coach, and quizzing a one-off breaks the skill's own contract.
+tags:
+  - quality
+  - data-gate
+  - compound
+inputs:
+  prompt: |
+    Use adaptive-coaching. It has been a rough month and I want to reflect on my recurring patterns.
+
+    Context:
+    - The local store reports ready: 5 observations (threshold 5), 60 of 50 grace sessions.
+    - by_category: avoidance 1, loss-aversion 1, values-conflict 1, authority-dependence 1, no-experiment 1.
+    - Every category is a single instance; no single category recurs.
+expected:
+  output_contains:
+    - "Classification"
+    - "Evidence"
+    - "Next Move"
+  output_not_contains:
+    - "AskUserQuestion"
