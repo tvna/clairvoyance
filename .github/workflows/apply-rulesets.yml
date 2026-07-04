@@ -1,0 +1,80 @@
+name: Apply main ruleset
+
+# Manage the `main` branch ruleset from checked-in JSON
+# (.github/rulesets/main.json) instead of the GitHub settings UI, so a change
+# to the required status checks (e.g. adding managed-ui-e2e) is reviewed as a
+# PR and applied deterministically. Adapted from tvna/claude-md's
+# apply-rulesets workflow; see docs/runbooks/rulesets.md.
+#
+# Manual dispatch only, and dry_run defaults to true: a run plans (renders a
+# live-vs-SoT diff into the job summary) and mutates nothing until someone
+# dispatches again with dry_run unchecked. A PUT replaces the whole ruleset, so
+# always review the plan diff first.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Plan only (diff into the job summary, no live change). Uncheck to apply."
+        type: boolean
+        required: true
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # A PAT/App token with repository Administration: write is required to read and
+  # write rulesets; GITHUB_TOKEN cannot. See docs/runbooks/rulesets.md.
+  GH_TOKEN: ${{ secrets.RULESETS_PAT }}
+  REPO: ${{ github.repository }}
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Optional protected environment: add required reviewers here to gate the
+    # mutating (dry_run=false) dispatch behind a human approval. Referencing an
+    # environment that does not yet exist auto-creates it unprotected, so the
+    # workflow still runs; configure it per the runbook to get the gate.
+    environment: ruleset-apply
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Guard dispatch ref
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::apply-rulesets must be dispatched against main (got ${{ github.ref }})."
+          exit 1
+
+      - name: Guard RULESETS_PAT
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::RULESETS_PAT secret is not set. See docs/runbooks/rulesets.md (Required secret)."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Validate ruleset JSON
+        run: python3 -m json.tool .github/rulesets/main.json > /dev/null
+
+      - name: Plan or apply the main ruleset
+        env:
+          MODE: ${{ inputs.dry_run && 'plan' || 'apply' }}
+        run: |
+          set -euo pipefail
+          python3 scripts/rulesets_apply.py "$MODE" \
+            --repo "${REPO}" \
+            --sot-file .github/rulesets/main.json \
+            --summary-file "$GITHUB_STEP_SUMMARY"
