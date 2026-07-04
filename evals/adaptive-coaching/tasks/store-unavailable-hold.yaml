@@ -14,6 +14,7 @@ inputs:
     - Past sessions may have had signal, but nothing can be read now.
 expected:
   output_contains:
+    - "Classification"
     - "Evidence"
     - "Next Move"
   output_not_contains:

@@ -435,6 +435,49 @@ PERSONAS = (
             _reflect(ready=True, count=3, sessions=2, by_category={"avoidance": 3}),
         ),
     ),
+    # Tomo ties two LINKED categories in equal measure: dodging his own call
+    # (avoidance) by handing it to the agent (authority-dependence) is one
+    # behaviour wearing two labels, so equal counts are the realistic shape.
+    # No dominant exists (dominant=None keeps play()'s spec-lint out), and the
+    # skill must NOT confuse a tie with Rin's scatter: both tied categories
+    # genuinely recur, so the reflection quizzes -- the discrimination pair is
+    # evals/adaptive-coaching/tasks/tie-recurring-quiz.yaml vs
+    # scattered-signal-hold.yaml.
+    Persona(
+        name="tomo-linked-tie",
+        coach_threshold=4,
+        session_threshold=2,
+        timeline=(
+            _session(sessions=1),
+            _observe("avoidance", "call-dodged", count=1),
+            _observe("authority-dependence", "agent-decides", count=2),
+            _session(sessions=2),
+            _observe("avoidance", "call-dodged", count=3),
+            _observe("authority-dependence", "agent-decides", count=4, ready=True),
+            _reflect(ready=True, count=4, sessions=2, by_category={"authority-dependence": 2, "avoidance": 2}),
+        ),
+    ),
+    # Umi is the most common real shape: one genuine recurring pattern plus
+    # scattered one-off noise in other categories. The singletons must not
+    # displace or dilute the dominant category the quiz should aim at.
+    Persona(
+        name="umi-dominant-plus-noise",
+        coach_threshold=5,
+        session_threshold=0,
+        dominant="no-experiment",
+        timeline=(
+            _observe("no-experiment", "debated-not-spiked", count=1),
+            _observe("loss-aversion", "legacy-kept", count=2),
+            _observe("no-experiment", "debated-not-spiked", count=3),
+            _observe("other", count=4),
+            _observe("no-experiment", "debated-not-spiked", count=5, ready=True),
+            _reflect(
+                ready=True,
+                count=5,
+                by_category={"loss-aversion": 1, "no-experiment": 3, "other": 1},
+            ),
+        ),
+    ),
 )
 
 
@@ -533,6 +576,39 @@ def test_outcome_rows_alone_sustain_readiness_after_rotation(tmp_path):
         .fetchone()
     )
     assert rows == (3, 3)  # every remaining row is a quiz outcome, zero raw signal
+
+
+@needs_sqlite3
+def test_readiness_rearms_after_improvement_and_relapse(tmp_path):
+    """The full long-run lifecycle: coached pattern fades (improvement), the
+    store correctly holds a mid-period reflection, then a relapse into a
+    DIFFERENT pattern re-arms readiness with the new dominant category. This is
+    the second-coaching-cycle path the skill exists for -- behaviour change
+    relapses are the norm, not the exception."""
+    data_dir = tmp_path / "store"
+    env_extra = {"CLAIRVOYANCE_MAX_AGE_DAYS": "30"}
+    for _ in range(3):
+        run_store(["record", "--category", "avoidance"], data_dir, 3, 0, env_extra)
+    assert run_store(["status"], data_dir, 3, 0, env_extra)["ready"] is True
+    answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "medium"]
+    run_store(answer, data_dir, 3, 0, env_extra)
+    # Months pass with no new signal: every row (raw and outcome) ages out.
+    conn = sqlite3.connect(str(data_dir / "coaching.db"))
+    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
+    conn.commit()
+    conn.close()
+    # Relapse into a different pattern: the first record prunes the old cycle,
+    # so the mid-relapse reflection correctly holds (improvement stuck).
+    first = run_store(["record", "--category", "no-experiment"], data_dir, 3, 0, env_extra)
+    assert first["count"] == 1
+    assert first["ready"] is False
+    run_store(["record", "--category", "no-experiment"], data_dir, 3, 0, env_extra)
+    rearmed = run_store(["record", "--category", "no-experiment"], data_dir, 3, 0, env_extra)
+    assert rearmed["count"] == 3
+    assert rearmed["ready"] is True
+    status = run_store(["status"], data_dir, 3, 0, env_extra)
+    # The second cycle carries only the new pattern: no avoidance remnants.
+    assert status["by_category"] == {"no-experiment": 3}
 
 
 def test_missing_sqlite3_holds_not_fails(tmp_path):

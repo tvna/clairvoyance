@@ -15,6 +15,7 @@ inputs:
     - Every category is a single instance; no single category recurs.
 expected:
   output_contains:
+    - "Classification"
     - "Evidence"
     - "Next Move"
   output_not_contains:

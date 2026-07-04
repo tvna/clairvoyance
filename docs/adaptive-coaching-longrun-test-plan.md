@@ -91,7 +91,7 @@ running the worked example (`references/example.md`) against a seeded store:
 ## Persona roster
 
 Seven category personas (one per store category), one Type II boundary case,
-three negative personas that must never reach a quiz, and two compound
+three negative personas that must never reach a quiz, and four compound
 personas whose threshold crossings combine (see the combined-crossings
 section). `Thresholds` is
 `coach/session`. Timeline notation: `S` session, `O` observation, `R:hold` /
@@ -114,6 +114,8 @@ is a defect, and `-` means the persona must never be quizzed.
 | 11 | Kaho | Healthy long-run user, no recurring pattern (negative) | 3/2 | S S R:hold | - | Zero signal holds; the skill must not manufacture a pattern |
 | 12 | Rin | Rough month: five DIFFERENT single instances, one per category (compound) | 5/2 | S O S O O O O R | store says ready at 7 of 8 | Gate is category-blind (F6): total crosses on scatter; the contract-faithful hold is the skill layer's job (`scattered-signal-hold.yaml`) |
 | 13 | Sora | One crunch day: three same-category observations inside a single session, grace already past (compound) | 3/2 | S S O O O R | 5 of 6, all in one session | No across-session spread requirement (F7); undetectable from status JSON — rows carry no session linkage |
+| 14 | Tomo | Dodges his own call by handing it to the agent: `avoidance` and `authority-dependence` tie at 2-2 (compound) | 4/2 | S O O S O O R:ready | 6 of 7 | A tie has no dominant, but both patterns genuinely recur — the reflection must quiz, not hold (`tie-recurring-quiz.yaml` is the discrimination pair against Rin's scatter) |
+| 15 | Umi | One genuine recurring pattern plus one-off noise in two other categories (compound) | 5/0 | O O O O O R:ready | 5 of 6 | Singleton noise must not displace or dilute the dominant category (`no-experiment` 3 vs two singletons) |
 
 Every roster row is executable: `tests/test_adaptive_coaching_personas.py`
 encodes the same timelines with exact expected JSON (`ready`, `count`,
@@ -181,6 +183,29 @@ F7 and the F4 corollary are not, because the distinguishing evidence (session
 linkage, row kind) never leaves the store. A skill-layer test for those would
 assert on information the skill cannot have.
 
+**Compound compositions that are correct behaviour, not defects.** Three more
+realistic combinations were added for coverage; unlike the table above they
+pin behaviour that *should* survive any store fix:
+
+| Compound case | Why it is realistic | Pin (L1) | Skill-layer counterpart (L2) |
+| ------------- | ------------------- | -------- | ---------------------------- |
+| Tie: two linked categories recur in equal measure | Dodging one's own call (`avoidance`) by handing it to the agent (`authority-dependence`) is one behaviour wearing two labels | persona 14 `tomo-linked-tie` | `tie-recurring-quiz.yaml` (new): both patterns recur, so the reflection must **quiz** — the discrimination pair that stops "mixed composition" from being over-generalized into a hold |
+| Dominant plus singleton noise | One genuine pattern plus scattered one-offs is the most common real shape | persona 15 `umi-dominant-plus-noise` | covered by the ready-path tasks; asserting *which* category the quiz names would be a brittle prose assertion |
+| Re-arm cycle: improve, fade, relapse into a new pattern | Behaviour-change relapse is the norm; the skill's value is the second coaching cycle | `test_readiness_rearms_after_improvement_and_relapse` | not expressible single-turn (spans two coaching cycles); part of the manual soak |
+
+The tie and scatter personas together define the composition boundary the
+skill layer must judge: all-singletons (Rin) holds, tied-recurrence (Tomo)
+quizzes. A skill change that passes one and fails the other has learned the
+wrong rule.
+
+**Considered and deliberately not encoded** (no new mechanism beyond existing
+pins): store loss re-arming the grace period (mechanically identical to the
+existing empty-store negatives — volatility is documented as tolerated);
+context capture inside persona timelines (unit-covered in
+`test_adaptive_store.py`; contributes nothing to readiness arithmetic); mixed
+raw-plus-outcome rows re-crossing the threshold (subsumed by the F4-corollary
+pin).
+
 ## Infrastructure scenarios (rotation, unavailable store)
 
 | Scenario | Asset (L1) | Expected |
@@ -217,6 +242,9 @@ unavailable, the skill must keep observing and must not quiz from memory.
 | Scattered singletons reach ready (F6) | persona 12 | `scattered-signal-hold.yaml` (new) | - | - |
 | Single-session burst reaches ready (F7) | persona 13 | not possible (no session linkage in status JSON) | - | - |
 | Outcome rows self-sustain readiness (F4 corollary) | `test_outcome_rows_alone_sustain_readiness_after_rotation` | not possible single-turn | - | included in soak |
+| Tied co-dominant categories still quiz | persona 14 | `tie-recurring-quiz.yaml` (new) | - | - |
+| Singleton noise does not displace the dominant | persona 15 | - (prose-brittle at L2) | - | - |
+| Readiness re-arms after improvement and relapse | `test_readiness_rearms_after_improvement_and_relapse` | not possible single-turn | - | included in soak |
 | Real SessionStart accumulation over weeks | - | - | - | **manual** soak |
 
 ## Findings pinned by these tests
