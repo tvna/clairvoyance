@@ -36,7 +36,8 @@
           { "context": "managed-ui" },
           { "context": "stub-issuer-unit" },
           { "context": "managed-ui-e2e" },
-          { "context": "tests-windows" }
+          { "context": "tests-windows" },
+          { "context": "tests-macos-bash32" }
         ]
       }
     }

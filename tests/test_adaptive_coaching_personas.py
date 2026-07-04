@@ -40,7 +40,13 @@ STORE_SH = REPO_ROOT / "hooks" / "adaptive-store.sh"
 
 
 def _resolve_bash():
-    """A POSIX bash for running the bundled .sh (same logic as test_adaptive_store)."""
+    """A POSIX bash for running the bundled .sh (same logic as test_adaptive_store).
+
+    ``CLAIRVOYANCE_TEST_BASH`` overrides the resolved interpreter -- see
+    ``test_adaptive_store.py`` for why (issue #89, finding F5).
+    """
+    if override := os.environ.get("CLAIRVOYANCE_TEST_BASH"):
+        return override
     if os.name == "nt":
         for candidate in (
             r"C:\Program Files\Git\bin\bash.exe",
@@ -526,10 +532,12 @@ def test_max_observations_below_threshold_never_ready(tmp_path):
 
 
 @needs_sqlite3
-def test_status_counts_rows_past_age_bound_until_next_record(tmp_path):
-    """Pins finding F1 (issue #89): rotation pruning runs only on record, so a
-    reflection request (status) can report ready on rows already past the age
-    bound; the next record prunes them and readiness drops back."""
+def test_status_prunes_rows_past_age_bound_before_computing_readiness(tmp_path):
+    """Fix for finding F1 (issue #89): status now applies the same rotation as
+    record, so a reflection request never reports ready on rows already past
+    the age bound. Was: test_status_counts_rows_past_age_bound_until_next_record,
+    which pinned the opposite (unfixed) behaviour -- rewritten here now that
+    hooks/adaptive-store.sh prunes on the status path too."""
     data_dir = tmp_path / "store"
     env_extra = {"CLAIRVOYANCE_MAX_AGE_DAYS": "30"}
     run_store(["record", "--category", "avoidance"], data_dir, 2, 0, env_extra)
@@ -538,12 +546,9 @@ def test_status_counts_rows_past_age_bound_until_next_record(tmp_path):
     conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
     conn.commit()
     conn.close()
-    stale = run_store(["status"], data_dir, 2, 0, env_extra)
-    assert stale["count"] == 2
-    assert stale["ready"] is True  # current behaviour: expired rows still count
-    pruned = run_store(["record", "--category", "no-experiment"], data_dir, 2, 0, env_extra)
-    assert pruned["count"] == 1
-    assert pruned["ready"] is False
+    status = run_store(["status"], data_dir, 2, 0, env_extra)
+    assert status["count"] == 0
+    assert status["ready"] is False
 
 
 @needs_sqlite3

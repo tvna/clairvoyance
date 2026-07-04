@@ -97,12 +97,27 @@ resolve_data_dir() {
 }
 
 resolve_threshold() {
+  # Unlike CLAIRVOYANCE_SESSION_THRESHOLD, 0 does not disable this gate -- it
+  # falls back to the default, same as any other non-positive/non-numeric
+  # value (issue #89, finding F3). Warn on stderr when an explicit value was
+  # rejected so the fallback is not silent; stdout/exit-code contract (one
+  # JSON line, always exit 0) is untouched.
   local raw="${CLAIRVOYANCE_COACH_THRESHOLD:-}"
   case "${raw}" in
-    '' | *[!0-9]*) printf '%s' "${DEFAULT_THRESHOLD}"; return ;;
+    '') printf '%s' "${DEFAULT_THRESHOLD}"; return ;;
+    *[!0-9]*)
+      printf 'adaptive-store.sh: CLAIRVOYANCE_COACH_THRESHOLD=%s is not a positive integer; falling back to default %s\n' "${raw}" "${DEFAULT_THRESHOLD}" >&2
+      printf '%s' "${DEFAULT_THRESHOLD}"
+      return
+      ;;
   esac
   local value=$((10#${raw}))
-  if [ "${value}" -gt 0 ]; then printf '%s' "${value}"; else printf '%s' "${DEFAULT_THRESHOLD}"; fi
+  if [ "${value}" -gt 0 ]; then
+    printf '%s' "${value}"
+  else
+    printf 'adaptive-store.sh: CLAIRVOYANCE_COACH_THRESHOLD=0 does not disable coaching (unlike CLAIRVOYANCE_SESSION_THRESHOLD=0); falling back to default %s\n' "${DEFAULT_THRESHOLD}" >&2
+    printf '%s' "${DEFAULT_THRESHOLD}"
+  fi
 }
 
 resolve_session_threshold() {
@@ -189,10 +204,16 @@ sql_value() {
 # A SQLite string literal for arbitrary text: double every single quote so the
 # value cannot break out of the literal (this is what makes storing the raw
 # context string by interpolation safe). Empty -> NULL.
+#
+# Uses `sed` rather than a `${v//\'/\'\'}` parameter-substitution: bash 3.2
+# (the stock /bin/bash on macOS) leaves the backslashes in the replacement
+# text literally, producing `\'\'` instead of `''` inside the SQL literal --
+# a syntax error that silently drops the row (see issue #89, finding F5).
+# `sed` doubling is bash-version-independent.
 sql_text() {
   local v="$1"
   [ -z "${v}" ] && { printf 'NULL'; return; }
-  v="${v//\'/\'\'}"
+  v="$(printf '%s' "${v}" | sed "s/'/''/g")"
   printf "'%s'" "${v}"
 }
 
@@ -230,6 +251,13 @@ limit="$(resolve_threshold)"
 session_limit="$(resolve_session_threshold)"
 max_obs="$(resolve_max_observations)"
 max_age="$(resolve_max_age_days)"
+
+# A count bound below the coach threshold caps count below threshold forever,
+# so coaching can never become ready (issue #89, finding F2). Warn on stderr;
+# the stdout/exit-code contract is untouched.
+if [ "${max_obs}" -gt 0 ] && [ "${max_obs}" -lt "${limit}" ]; then
+  printf 'adaptive-store.sh: CLAIRVOYANCE_MAX_OBSERVATIONS=%s is below CLAIRVOYANCE_COACH_THRESHOLD=%s; coaching can never become ready\n' "${max_obs}" "${limit}" >&2
+fi
 
 unavailable_json() {
   case "${cmd}" in
@@ -386,6 +414,10 @@ case "${cmd}" in
   status)
     [ -f "${db}" ] || emit "$(unavailable_json)"
     sqlite3 "${busy_opts[@]}" "${db}" "${schema}" >/dev/null 2>&1 || emit "$(unavailable_json)"
+    # Apply the same rotation as record (issue #89, finding F1): without this, a
+    # reflection request could compute readiness over rows already past the
+    # age/count bound, ready before the next record prunes them back down.
+    prune_observations || emit "$(unavailable_json)"
     if ! out="$(summary_json)"; then emit "$(unavailable_json)"; fi
     total="$(printf '%s' "${out}" | sed -n '1p')"
     distinct="$(printf '%s' "${out}" | sed -n '2p')"

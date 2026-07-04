@@ -430,3 +430,47 @@ jobs:
         # it here — this run is about cross-platform execution, not coverage.
         run: uv run --frozen pytest tests/test_adaptive_store.py --no-cov
         shell: bash
+
+  tests-macos-bash32:
+    # Regression gate for issue #89 finding F5: bash 3.2 (Apple's stock,
+    # GPLv2-frozen /bin/bash, still the default on GitHub's macOS runners)
+    # mishandles `${var//pattern/replacement}` differently from bash 4/5 -- the
+    # replacement's backslashes survive literally instead of being consumed,
+    # which broke sql_text()'s quote-doubling and silently dropped observation
+    # rows. The ubuntu/windows jobs above only ever exercise bash 4/5, so they
+    # cannot catch this class of regression; pin CLAIRVOYANCE_TEST_BASH to the
+    # real /bin/bash here instead of relying on PATH order (Homebrew bash, if
+    # present, would otherwise shadow it). harden-runner is Linux-only, so it is
+    # omitted here (see tests-windows).
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Verify /bin/bash is the stock bash 3.2
+        # Fail loudly rather than silently passing on a runner image where
+        # Apple has (hypothetically) changed the stock interpreter -- a quiet
+        # pass here would defeat the whole point of the gate.
+        run: |
+          set -euo pipefail
+          version="$(/bin/bash --version | head -1)"
+          echo "${version}"
+          case "${version}" in
+            *"version 3.2"*) : ;;
+            *) echo "::error::/bin/bash is not bash 3.2 on this runner (${version}); this job no longer exercises finding F5 -- update it" >&2; exit 1 ;;
+          esac
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Run store tests under bash 3.2
+        # Coverage (--cov-fail-under=100) is enforced by the Linux job, so
+        # disable it here -- this run is about the bash-version regression.
+        env:
+          CLAIRVOYANCE_TEST_BASH: /bin/bash
+        run: uv run --frozen pytest tests/test_adaptive_store.py tests/test_adaptive_coaching_personas.py --no-cov

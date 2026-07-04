@@ -53,7 +53,9 @@ can additionally store an abstracted, secret-redacted scenario summary.
   `--context-stdin`) so a later reflection can reproduce the moment. Rotation keeps
   the store bounded:
   `CLAIRVOYANCE_MAX_OBSERVATIONS` (default 500, newest kept) and
-  `CLAIRVOYANCE_MAX_AGE_DAYS` (default 180); `0` disables either bound.
+  `CLAIRVOYANCE_MAX_AGE_DAYS` (default 180); `0` disables either bound. Rotation
+  runs on both `record` and `status`, so a reflection request never computes
+  `ready` over rows already past the bound (issue #89, finding F1).
 
 ### Backend (SQLite CLI, no Python)
 
@@ -149,6 +151,15 @@ procedure, so operators can judge the privacy/utility balance:
 8. **Calibration starts when recorded.** Older rows have no confidence,
    calibration, or due date, so migration can import them as observed history but
    cannot backcast the person's confidence state.
+9. **`CLAIRVOYANCE_COACH_THRESHOLD=0` does not disable the signal gate.** Unlike
+   `CLAIRVOYANCE_SESSION_THRESHOLD=0` (a valid "no grace period" setting), 0 is
+   treated as unset and falls back to the default (5); the store warns on
+   stderr when this happens (issue #89, finding F3).
+10. **A count rotation bound below the coach threshold silently disables
+    coaching.** `CLAIRVOYANCE_MAX_OBSERVATIONS` set lower than
+    `CLAIRVOYANCE_COACH_THRESHOLD` caps `count` below `threshold` forever, so
+    `ready` can never become true; the store warns on stderr when this
+    misconfiguration is detected (issue #89, finding F2).
 
 ### Codex
 

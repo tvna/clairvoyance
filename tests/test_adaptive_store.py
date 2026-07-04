@@ -32,7 +32,15 @@ def _resolve_bash():
     with no distro installed — prints a UTF-16 "…to install" notice and exits
     non-zero. Prefer Git Bash (the same interpreter run-hook.cmd locates in
     production); fall back to whatever ``bash`` is on PATH elsewhere.
+
+    ``CLAIRVOYANCE_TEST_BASH`` overrides the resolved interpreter -- CI uses it
+    to pin a specific bash (e.g. the stock bash 3.2 on macOS) regardless of
+    what a later PATH entry (Homebrew, etc.) would otherwise resolve to, so a
+    bash-version regression like issue #89's finding F5 is caught
+    deterministically instead of depending on runner PATH order.
     """
+    if override := os.environ.get("CLAIRVOYANCE_TEST_BASH"):
+        return override
     if os.name == "nt":
         for candidate in (
             r"C:\Program Files\Git\bin\bash.exe",
