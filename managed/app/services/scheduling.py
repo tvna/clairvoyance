@@ -18,8 +18,9 @@ last applied one is ignored.
 
 import uuid
 from datetime import datetime, timedelta
+from typing import Any
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, case, null, select
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -53,40 +54,54 @@ def _schedule_key(
     )
 
 
+def _conflict_update(excluded: Any) -> dict[str, object]:
+    """The ON CONFLICT ... DO UPDATE SET clause, dialect-independent (only the
+    insert constructor differs between postgres and sqlite).
+
+    ``excluded`` is the row proposed for insertion. The field refreshes run
+    whenever the caller's WHERE guard holds (``last_attempted_at <= occurred_at``,
+    inclusive), but the reopen only fires for a *strictly newer* attempt: an
+    equal-timestamp redelivery (e.g. coarse historical imports sharing one
+    ``occurred_at``) must not silently undo an admin's dismissal.
+    """
+    reopened = excluded.last_attempted_at > ReviewSchedule.last_attempted_at
+    return {
+        "due_at": excluded.due_at,
+        "interval_days": excluded.interval_days,
+        "last_outcome": excluded.last_outcome,
+        "last_attempted_at": excluded.last_attempted_at,
+        "updated_at": excluded.updated_at,
+        "status": case((reopened, "active"), else_=ReviewSchedule.status),
+        "dismissed_at": case((reopened, null()), else_=ReviewSchedule.dismissed_at),
+        "dismissed_by": case((reopened, null()), else_=ReviewSchedule.dismissed_by),
+    }
+
+
 def _upsert_statement(
     db: Session,
     *,
     values: dict[str, object],
     occurred_at: datetime,
 ):
+    # The two branches differ only in the dialect insert constructor (each
+    # carries its own `.excluded`/`.on_conflict_do_update` type); the conflict
+    # SET clause is shared via _conflict_update.
+    guard = ReviewSchedule.last_attempted_at <= occurred_at
+    index_elements = ["organization_id", "contributor_id", "category", "signal"]
     dialect = db.get_bind().dialect.name
     if dialect == "postgresql":
         pg_statement = postgresql_insert(ReviewSchedule).values(**values)
-        excluded = pg_statement.excluded
         return pg_statement.on_conflict_do_update(
-            index_elements=["organization_id", "contributor_id", "category", "signal"],
-            set_={
-                "due_at": excluded.due_at,
-                "interval_days": excluded.interval_days,
-                "last_outcome": excluded.last_outcome,
-                "last_attempted_at": excluded.last_attempted_at,
-                "updated_at": excluded.updated_at,
-            },
-            where=ReviewSchedule.last_attempted_at <= occurred_at,
+            index_elements=index_elements,
+            set_=_conflict_update(pg_statement.excluded),
+            where=guard,
         )
     if dialect == "sqlite":
         sqlite_statement = sqlite_insert(ReviewSchedule).values(**values)
-        excluded = sqlite_statement.excluded
         return sqlite_statement.on_conflict_do_update(
-            index_elements=["organization_id", "contributor_id", "category", "signal"],
-            set_={
-                "due_at": excluded.due_at,
-                "interval_days": excluded.interval_days,
-                "last_outcome": excluded.last_outcome,
-                "last_attempted_at": excluded.last_attempted_at,
-                "updated_at": excluded.updated_at,
-            },
-            where=ReviewSchedule.last_attempted_at <= occurred_at,
+            index_elements=index_elements,
+            set_=_conflict_update(sqlite_statement.excluded),
+            where=guard,
         )
     raise RuntimeError(f"unsupported review schedule dialect: {dialect}")
 

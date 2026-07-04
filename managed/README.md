@@ -86,11 +86,12 @@ Collector (bearer collector token, org-scoped):
 
 Admin (OIDC bearer, RBAC: `org_admin`, `team_manager`, `coach`, `auditor`):
 
-- `GET /v1/admin/contributors`
+- `GET /v1/admin/contributors` (`q` filters on name/external id/email)
 - `GET /v1/admin/contributors/{id}/summary`
-- `GET /v1/admin/reviews/due`
+- `GET /v1/admin/reviews/due` (`offset`, `contributor_id` filters; active only)
+- `POST /v1/admin/reviews/{schedule_id}/dismiss` (org_admin, coach)
 - `GET /v1/admin/policies` / `PUT /v1/admin/policies` (org_admin only)
-- `GET /v1/admin/audit-logs` (org_admin, auditor)
+- `GET /v1/admin/audit-logs` (org_admin, auditor; `from`/`to` time filter, `total` in response)
 
 Probes: `GET /healthz`, `GET /livez` (liveness), `GET /readyz` (DB + Redis).
 

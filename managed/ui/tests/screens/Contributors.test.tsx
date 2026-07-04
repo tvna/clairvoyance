@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Contributors } from "../../src/screens/Contributors";
 import contributorList from "../api/fixtures/contributor_list.json";
@@ -35,6 +36,40 @@ describe("Contributors screen", () => {
     renderWithProviders(<Contributors />);
 
     expect(await screen.findByText(/Mint a collector token/)).toBeInTheDocument();
+  });
+
+  it("sends the search text as a `q` query param and resets to the first page", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, contributorList));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Contributors />);
+    await screen.findByText("tvna");
+
+    await user.type(screen.getByLabelText("Search"), "octo");
+
+    await waitFor(() => {
+      const lastUrl = String(fetchMock.mock.calls.at(-1)?.[0]);
+      expect(lastUrl).toContain("q=octo");
+      expect(lastUrl).toContain("offset=0");
+    });
+  });
+
+  it("shows a search-specific empty state when a query matches nothing", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.includes("q=") ? { contributors: [], total: 0 } : contributorList;
+      return Promise.resolve(jsonResponse(200, body));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Contributors />);
+    await screen.findByText("tvna");
+
+    await user.type(screen.getByLabelText("Search"), "nobody");
+
+    expect(await screen.findByText(/No contributors match/)).toBeInTheDocument();
   });
 
   it("renders the forbidden view on a 403", async () => {

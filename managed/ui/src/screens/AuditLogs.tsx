@@ -36,12 +36,13 @@ export function AuditLogs() {
               getRowKey={(row, index) => `${offset}-${index}-${row.created_at}`}
               emptyState={<p>No audit activity yet.</p>}
             />
-            {/* No `total` on this endpoint by design (§7.5) — "next" is
-                enabled only on a full page, never a count that might be wrong. */}
+            {/* The endpoint now carries `total` (design §14 gap 3), so paging
+                is total-driven and shows the count, like Contributors. */}
             <Pagination
               offset={offset}
               limit={PAGE_SIZE}
-              hasNextPage={data.logs.length === PAGE_SIZE}
+              hasNextPage={offset + PAGE_SIZE < data.total}
+              totalLabel={`${data.total} total`}
               onOffsetChange={setOffset}
             />
           </>

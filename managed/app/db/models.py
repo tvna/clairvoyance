@@ -154,6 +154,12 @@ class ReviewSchedule(Base):
     interval_days: Mapped[int] = mapped_column(Integer)
     last_outcome: Mapped[str | None] = mapped_column(String(16), nullable=True)
     last_attempted_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    # 'active' rows are the work queue; 'dismissed' rows are hidden from
+    # reviews/due until a newer attempt reopens them (see scheduling.py).
+    # server_default backfills existing rows on the additive migration.
+    status: Mapped[str] = mapped_column(String(16), default="active", server_default="active")
+    dismissed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    dismissed_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 
 

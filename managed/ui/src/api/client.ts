@@ -58,7 +58,7 @@ async function safeJson(response: Response): Promise<unknown> {
 }
 
 export interface ApiFetchOptions {
-  method?: "GET" | "PUT";
+  method?: "GET" | "PUT" | "POST";
   body?: unknown;
 }
 

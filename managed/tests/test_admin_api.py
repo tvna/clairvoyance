@@ -1,6 +1,6 @@
 """Admin API: RBAC, org scoping, audit trail."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 from conftest import SeededOrg, admin_override, make_settings
@@ -12,7 +12,7 @@ from test_collector_api import auth, event_payload
 
 from app.auth.oidc import OIDCVerifier
 from app.auth.rbac import Role
-from app.db.models import AuditLog, Contributor, Organization
+from app.db.models import AuditLog, Contributor, Organization, ReviewSchedule
 
 
 def seed_events(client: TestClient, seeded_org: SeededOrg) -> None:
@@ -163,6 +163,237 @@ def test_reviews_due_lists_past_due_only(app: FastAPI, client: TestClient, seede
     assert due[0]["signal"] == "deferred-risk-call"
     assert due[0]["last_outcome"] == "correct"
     assert due[0]["interval_days"] == 7  # correct + high confidence (quiz.md contract)
+
+
+def test_contributor_search_matches_identity_fields(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    seed_events(client, seeded_org)  # display_name=octocat, provider=github, external_id=12345678
+    admin_override(app, roles=(Role.COACH,))
+
+    # Case-insensitive partial match on display_name, and total counts the
+    # filtered set (not every contributor).
+    hit = client.get("/v1/admin/contributors", params={"q": "OCTO"}).json()
+    assert hit["total"] == 1
+    assert hit["contributors"][0]["external_id"] == "12345678"
+
+    # Partial match on external_id too.
+    assert client.get("/v1/admin/contributors", params={"q": "1234"}).json()["total"] == 1
+
+    # A non-matching query returns an empty, correctly-counted page.
+    miss = client.get("/v1/admin/contributors", params={"q": "nobody"}).json()
+    assert miss["total"] == 0
+    assert miss["contributors"] == []
+
+
+def test_reviews_due_carries_contributor_identity(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    seed_events(client, seeded_org)
+    admin_override(app, roles=(Role.COACH,))
+    due = client.get("/v1/admin/reviews/due").json()["due"]
+    assert len(due) == 1
+    # Identity now rides on the row (no client-side join needed).
+    assert due[0]["display_name"] == "octocat"
+    assert due[0]["provider"] == "github"
+    assert due[0]["external_id"] == "12345678"
+
+
+def test_reviews_due_filters_by_contributor_and_offset(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session
+) -> None:
+    seed_events(client, seeded_org)
+    admin_override(app, roles=(Role.COACH,))
+    contributor_id = db.scalars(select(Contributor)).one().id
+
+    # A matching contributor filter keeps the row.
+    scoped = client.get("/v1/admin/reviews/due", params={"contributor_id": str(contributor_id)})
+    assert len(scoped.json()["due"]) == 1
+
+    # A foreign contributor id filters it out.
+    other = "00000000-0000-0000-0000-000000000000"
+    assert client.get("/v1/admin/reviews/due", params={"contributor_id": other}).json()["due"] == []
+
+    # Offset past the only row yields an empty page.
+    assert client.get("/v1/admin/reviews/due", params={"offset": 1}).json()["due"] == []
+
+
+def test_reviews_due_pagination_is_stable_across_due_at_ties(
+    app: FastAPI,
+    client: TestClient,
+    seeded_org: SeededOrg,
+    session_factory: sessionmaker[Session],
+) -> None:
+    # Two schedules sharing an identical due_at: without a unique secondary
+    # sort key, offset paging can duplicate or skip one of them.
+    org = seeded_org.organization
+    due = datetime(2026, 1, 1, tzinfo=UTC)
+    expected_ids = set()
+    with session_factory() as session:
+        for external_id in ("aaa", "bbb"):
+            contributor = Contributor(organization_id=org.id, provider="github", external_id=external_id)
+            session.add(contributor)
+            session.flush()
+            schedule = ReviewSchedule(
+                organization_id=org.id,
+                contributor_id=contributor.id,
+                category="avoidance",
+                signal="",
+                due_at=due,
+                interval_days=2,
+                last_outcome="incorrect",
+                last_attempted_at=due,
+            )
+            session.add(schedule)
+            session.flush()
+            expected_ids.add(str(schedule.id))
+        session.commit()
+
+    admin_override(app, roles=(Role.COACH,))
+    first = client.get("/v1/admin/reviews/due", params={"limit": 1, "offset": 0}).json()["due"]
+    second = client.get("/v1/admin/reviews/due", params={"limit": 1, "offset": 1}).json()["due"]
+    assert len(first) == 1
+    assert len(second) == 1
+    # Both distinct rows are returned across the two pages -- none skipped or
+    # duplicated.
+    assert {first[0]["id"], second[0]["id"]} == expected_ids
+
+
+def test_audit_logs_report_total_and_filter_by_time(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    assert client.get("/v1/admin/contributors").status_code == 200
+
+    body = client.get("/v1/admin/audit-logs").json()
+    assert body["total"] >= 2  # the contributors read plus this audit-logs read
+    assert body["total"] == len(body["logs"])  # small dataset fits one page
+
+    # A future lower bound excludes everything; a past upper bound too.
+    future = client.get("/v1/admin/audit-logs", params={"from": "2999-01-01T00:00:00+00:00"}).json()
+    assert future["total"] == 0
+    assert future["logs"] == []
+    assert client.get("/v1/admin/audit-logs", params={"to": "2000-01-01T00:00:00+00:00"}).json()["total"] == 0
+
+
+def test_audit_logs_time_filter_normalizes_non_utc_offsets(
+    app: FastAPI,
+    client: TestClient,
+    seeded_org: SeededOrg,
+    session_factory: sessionmaker[Session],
+) -> None:
+    # A bound carrying a non-UTC offset must filter by the instant it denotes,
+    # not its wall-clock components -- otherwise sqlite (which drops tzinfo at
+    # compare time) would mismatch. Seed a row at a fixed 2020 instant and
+    # bracket it with a +09:00 window; the request's own audit row is at "now"
+    # and falls outside the window, so a correct filter returns exactly the seed.
+    org = seeded_org.organization
+    with session_factory() as session:
+        session.add(
+            AuditLog(
+                organization_id=org.id,
+                actor="x",
+                action="seed_marker",
+                created_at=datetime(2020, 1, 1, 0, 0, tzinfo=UTC),
+            )
+        )
+        session.commit()
+
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    jst = timezone(timedelta(hours=9))
+    body = client.get(
+        "/v1/admin/audit-logs",
+        params={
+            "from": datetime(2020, 1, 1, 8, 0, tzinfo=jst).isoformat(),  # 2019-12-31T23:00Z
+            "to": datetime(2020, 1, 1, 10, 0, tzinfo=jst).isoformat(),  # 2020-01-01T01:00Z
+        },
+    ).json()
+    assert body["total"] == 1
+    assert body["logs"][0]["action"] == "seed_marker"
+
+
+def test_audit_logs_reject_naive_time_bound(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    # A timezone-naive bound is ambiguous against UTC-aware storage -> 422.
+    assert client.get("/v1/admin/audit-logs", params={"from": "2026-01-01T00:00:00"}).status_code == 422
+
+
+def test_dismiss_removes_review_from_due_and_is_audited(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session
+) -> None:
+    seed_events(client, seeded_org)
+    schedule_id = str(db.scalars(select(ReviewSchedule)).one().id)
+    admin_override(app, roles=(Role.COACH,))
+    assert len(client.get("/v1/admin/reviews/due").json()["due"]) == 1
+
+    response = client.post(f"/v1/admin/reviews/{schedule_id}/dismiss")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "dismissed"
+    assert body["dismissed_by"] == "admin@example.com"
+    assert body["dismissed_at"] is not None
+
+    # The dismissed row leaves the work queue.
+    assert client.get("/v1/admin/reviews/due").json()["due"] == []
+
+    # The write is on the audit record, targeted at the schedule.
+    dismissals = db.scalars(select(AuditLog).where(AuditLog.action == "dismiss_review")).all()
+    assert any(row.target_type == "review_schedule" and row.target_id == schedule_id for row in dismissals)
+
+
+def test_dismiss_denied_for_non_dismiss_role_is_audited(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session
+) -> None:
+    seed_events(client, seeded_org)
+    schedule_id = str(db.scalars(select(ReviewSchedule)).one().id)
+    # Auditor can read but not dismiss (REVIEW_DISMISS_ROLES = org_admin, coach).
+    admin_override(app, roles=(Role.AUDITOR,))
+    assert client.post(f"/v1/admin/reviews/{schedule_id}/dismiss").status_code == 403
+
+    denied = db.scalars(select(AuditLog).where(AuditLog.action == "dismiss_review")).all()
+    assert len(denied) == 1  # the denied attempt itself is recorded
+    assert denied[0].target_type == "review_schedule"
+    assert denied[0].target_id == schedule_id
+
+
+def test_dismiss_of_other_org_schedule_is_hidden(
+    app: FastAPI,
+    client: TestClient,
+    seeded_org: SeededOrg,
+    session_factory: sessionmaker[Session],
+) -> None:
+    # Tenant isolation on the write path: a schedule that exists but belongs to
+    # another org must 404, never dismiss. Exercises the org-scope half of
+    # _get_schedule's guard, not just the nonexistent-id half.
+    past = datetime(2026, 1, 1, tzinfo=UTC)
+    with session_factory() as session:
+        other = Organization(key="other-org", name="Other")
+        session.add(other)
+        session.flush()
+        contributor = Contributor(organization_id=other.id, provider="github", external_id="777")
+        session.add(contributor)
+        session.flush()
+        schedule = ReviewSchedule(
+            organization_id=other.id,
+            contributor_id=contributor.id,
+            category="avoidance",
+            signal="",
+            due_at=past,
+            interval_days=2,
+            last_outcome="incorrect",
+            last_attempted_at=past,
+        )
+        session.add(schedule)
+        session.flush()
+        foreign_id = str(schedule.id)
+
+    admin_override(app, roles=(Role.ORG_ADMIN,))  # acting as the seeded "acme" org
+    # 404 (not 200) means the guard rejected the foreign schedule before any
+    # write -- the dismiss path never runs, so the row cannot be touched.
+    assert client.post(f"/v1/admin/reviews/{foreign_id}/dismiss").status_code == 404
+
+
+def test_dismiss_not_found_matches_contributor_semantics(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg
+) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    assert client.post("/v1/admin/reviews/not-a-uuid/dismiss").status_code == 404
+    missing = "00000000-0000-0000-0000-000000000000"
+    assert client.post(f"/v1/admin/reviews/{missing}/dismiss").status_code == 404
 
 
 def test_policies_roundtrip_and_audit(app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session) -> None:

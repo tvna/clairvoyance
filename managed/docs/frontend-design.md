@@ -6,9 +6,11 @@ design so implementation can start as its own change. Tracking issue: #55.
 
 Status: **implemented** (`managed/ui/`, issue #59). Every screen below maps
 to the admin API that actually shipped (`app/api/admin.py`,
-`app/schemas/admin.py`); the design assumed **no backend change**, and the
-implementation shipped none: the UI is its own image and its runtime config
-is a ui-image concern (section 6).
+`app/schemas/admin.py`); the UI v1 assumed **no backend change** and shipped
+none (the UI is its own image and its runtime config is a ui-image concern,
+section 6). The section-14 API gaps that v1 absorbed with client-side
+workarounds were later closed with backend additions in #68; section 14
+records each, and sections 7.1/7.3/7.5 reflect the current behavior.
 
 ## 1. Scope and goals
 
@@ -229,13 +231,16 @@ end to end, the UI must not truncate that.
 
 ### 7.1 Contributors (`/ui/contributors`)
 
-- **API:** `GET /v1/admin/contributors?limit=&offset=` (default 50,
+- **API:** `GET /v1/admin/contributors?limit=&offset=&q=` (default 50,
   max 200; response carries `total`).
 - Table: display name (fallback `provider:external_id`), provider,
   external id, email (may be absent -- render empty, do not invent),
   active flag, created date. Row click opens the summary.
-- Offset pagination driven by `total`. No search/filter in v1; the gap and
-  its trigger are recorded in section 14.
+- Offset pagination driven by `total`. A search box sends `q` (a
+  case-insensitive partial match over display name, external id, and email,
+  resolved server-side in #68); typing is debounced (each request is audited,
+  so a keystroke-per-request search would multiply audit rows), resets to the
+  first page, and `total` reflects the filtered set.
 
 ### 7.2 Contributor summary (`/ui/contributors/:id`)
 
@@ -262,32 +267,31 @@ end to end, the UI must not truncate that.
 
 ### 7.3 Reviews due (`/ui/reviews`)
 
-- **API:** `GET /v1/admin/reviews/due?limit=` (due_at ascending -- the
-  server orders it as a work queue; the UI preserves that order).
+- **API:** `GET /v1/admin/reviews/due?limit=&offset=&contributor_id=`
+  (due_at ascending -- the server orders it as a work queue; the UI
+  preserves that order). Only `status = active` rows are returned.
 - Table: due date (with "overdue by N days" emphasis), category, signal
   (nullable), interval_days, last_outcome, contributor link
-  (`contributor_id` -> summary screen).
-- `ReviewDueOut` carries only `contributor_id`, no display name. The
-  screen resolves names by joining client-side against the cached
-  contributors-list query (paginated list calls shared through the query
-  cache) -- **never** a per-row summary call: each summary request runs
-  the full aggregate queries and writes an audit row, so a 50-row queue
-  would mean 50 audited aggregate calls per render. A contributor missing
-  from the cached pages renders as a shortened id. The durable fix
-  (identity fields on the row, or a batch lookup) is recorded in
-  section 14.
+  (`contributor_id` -> summary screen), and a dismiss action for roles that
+  hold it.
+- `ReviewDueOut` carries the contributor identity (`display_name`,
+  `provider`, `external_id`) alongside `contributor_id`, and the schedule's
+  own `id`. Resolved in #68: the server joins the contributor, so the screen
+  reads names straight off the row and the earlier client-side join against
+  the cached contributors list is gone. Fallback to `provider:external_id`
+  when the display name is null.
 - Empty state: "No reviews due" is the success state and looks like one.
-- v1 is read-only: there is no "mark reviewed" write -- schedules move when
-  the contributor's next quiz attempt is ingested, and the UI says so in
-  the empty-action footer. This is a domain gap, not only a UI choice:
-  `review_schedules` has no status column, so a row only ever leaves the
-  queue via a newer attempt, and inactive or departed contributors
-  accumulate permanently-overdue rows that due_at-ascending ordering pins
-  to the top of a limit-only page. v1 mitigates by de-emphasizing rows
-  whose contributor is inactive (via the client-side join above); the
-  real fix -- a status column plus an audited dismiss write and its
-  reopen semantics -- is a backend decision recorded in section 14, not
-  something the UI fakes.
+- Scheduling is still driven by ingestion: a row's due point moves only when
+  the contributor's next quiz attempt arrives, so there is no "mark
+  reviewed" write. Resolved in #68 is the separate problem the queue had
+  with departed contributors: `review_schedules` now has a `status` column
+  and `POST /v1/admin/reviews/{schedule_id}/dismiss` (RBAC: org_admin,
+  coach; audited at the router level like every admin route). A dismiss
+  removes the row from the queue; a newer quiz attempt reopens it (the
+  out-of-order guard is preserved, so a late-arriving historical attempt
+  does not resurrect a deliberately dismissed row). The UI shows the dismiss
+  action only to roles that hold it and gates each dismiss behind one
+  confirmation dialog.
 
 ### 7.4 Policies (`/ui/policies`)
 
@@ -314,12 +318,13 @@ end to end, the UI must not truncate that.
 
 ### 7.5 Audit logs (`/ui/audit`)
 
-- **API:** `GET /v1/admin/audit-logs?limit=&offset=` (org_admin, auditor).
+- **API:** `GET /v1/admin/audit-logs?limit=&offset=&from=&to=` (org_admin,
+  auditor). `from`/`to` are timezone-aware bounds (a naive value is 422,
+  matching the UTC-aware storage).
 - Table: created_at desc (server order), actor, action (route name),
   target_type/target_id when present.
-- The response carries no `total`: paginate forward with "next" enabled
-  while a full page returns, disabled on a short page. No count is shown
-  rather than a wrong one.
+- The response carries `total` (resolved in #68), so paging is total-driven
+  and shows the count, like Contributors.
 - Viewing this screen writes an audit row itself; the screen says so --
   auditors should see the mirror.
 
@@ -481,31 +486,33 @@ CI, plus the deployment verification in section 12 recorded in the PR.
 ## 14. API gaps observed (follow-ups, none blocking v1)
 
 Recorded here per the design rule that gaps surface as decisions, not
-silent backend patches:
+silent backend patches. All five gaps below are resolved in #68 (backend
+plus UI follow); the entries are kept for the trail from decision to fix.
 
 Runtime UI config, once listed here as the sole backend addition, is no
 longer a gap: the ui image owns `/ui/config.json` (section 6) and the
 backend ships untouched.
 
-1. **Contributor search/filter:** `GET /v1/admin/contributors` has no
-   query filter; fine below a few hundred contributors, needed beyond.
-   Trigger: first org where paging hurts.
-2. **Reviews-due pagination and per-contributor filter:** the endpoint has
-   `limit` only and no `contributor_id` filter, so the summary screen
-   cannot show "this contributor's due reviews" without over-fetching.
-   Add `offset`/`contributor_id` when the queue outgrows one page.
-3. **Audit-log total and time filter:** offset paging without `total` is
-   deliberate v1; an auditor asking "what happened last Tuesday" will need
-   `from`/`to` parameters eventually.
-4. **Reviews-due identity fields:** `ReviewDueOut` carries only
-   `contributor_id`, so the queue joins names client-side from the cached
-   contributors list (section 7.3). Add identity fields to the row (or a
-   batch contributor lookup) when that join stops scaling.
-5. **Review dismissal:** `review_schedules` has no status column, so rows
-   for inactive or departed contributors never leave the queue
-   (section 7.3). Needs a migration plus an audited dismiss/acknowledge
-   write with RBAC and reopen semantics -- a backend decision this design
-   deliberately does not fake in the UI.
+1. **Contributor search/filter (resolved in #68):** `GET
+   /v1/admin/contributors` now takes `q`, a case-insensitive partial match
+   over display_name / external_id / email; the Contributors screen has a
+   search box driving it (section 7.1).
+2. **Reviews-due pagination and per-contributor filter (resolved in #68):**
+   the endpoint now takes `offset` and `contributor_id`; ordering stays
+   `due_at` ascending (section 7.3).
+3. **Audit-log total and time filter (resolved in #68):** `GET
+   /v1/admin/audit-logs` now returns `total` and takes timezone-aware
+   `from` / `to` bounds (a naive value is 422); the screen paginates on
+   `total` (section 7.5).
+4. **Reviews-due identity fields (resolved in #68):** `ReviewDueOut` now
+   carries `display_name` / `provider` / `external_id` (and the schedule
+   `id`); the client-side join is removed (section 7.3).
+5. **Review dismissal (resolved in #68):** `review_schedules` gained a
+   `status` column plus `dismissed_at` / `dismissed_by` (Alembic migration
+   `0002`), and `POST /v1/admin/reviews/{schedule_id}/dismiss` (RBAC:
+   org_admin, coach; router-level audit) removes a row from the queue. A
+   newer quiz attempt reopens it while the out-of-order guard holds
+   (section 7.3).
 
 ## 15. Deferred
 

@@ -4,18 +4,18 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { apiFetch } from "./client";
 import {
   type AuditLogListOut,
   AuditLogListOutSchema,
-  type ContributorListOut,
   ContributorListOutSchema,
   ContributorSummaryOutSchema,
   type PolicyOut,
   PolicyOutSchema,
   type PolicySettingsPatch,
   PolicySettingsPatchSchema,
+  type ReviewDismissOut,
+  ReviewDismissOutSchema,
   ReviewDueListOutSchema,
 } from "./schemas";
 
@@ -26,19 +26,25 @@ function qs(params: Record<string, string | number>): string {
 }
 
 export const queryKeys = {
-  contributors: (limit: number, offset: number) => ["contributors", { limit, offset }] as const,
-  contributorsRoot: ["contributors"] as const,
+  contributors: (limit: number, offset: number, q: string) =>
+    ["contributors", { limit, offset, q }] as const,
   contributorSummary: (id: string) => ["contributor-summary", id] as const,
   reviewsDue: (limit: number) => ["reviews-due", { limit }] as const,
+  reviewsDueRoot: ["reviews-due"] as const,
   policies: ["policies"] as const,
   auditLogs: (limit: number, offset: number) => ["audit-logs", { limit, offset }] as const,
 };
 
-export function useContributors(limit: number, offset: number) {
+export function useContributors(limit: number, offset: number, q: string) {
   return useQuery({
-    queryKey: queryKeys.contributors(limit, offset),
+    queryKey: queryKeys.contributors(limit, offset, q),
     queryFn: () =>
-      apiFetch(`/v1/admin/contributors?${qs({ limit, offset })}`, ContributorListOutSchema),
+      apiFetch(
+        // `q` is a server-side partial match (design §14 gap 1); omit it when
+        // empty so the unfiltered list query key and URL stay stable.
+        `/v1/admin/contributors?${qs(q === "" ? { limit, offset } : { limit, offset, q })}`,
+        ContributorListOutSchema,
+      ),
   });
 }
 
@@ -58,35 +64,23 @@ export function useReviewsDue(limit: number) {
 }
 
 /**
- * Client-side join target for the reviews-due queue (design §7.3): reads
- * whatever contributor list pages happen to already be cached from visits
- * to the Contributors screen. Deliberately does NOT fetch — a per-row
- * summary/lookup call would run the full aggregate query and write an
- * audit row per row.
+ * Dismiss a review schedule (design §14 gap 5). On success the reviews-due
+ * query is invalidated so the dismissed row leaves the queue; the server hides
+ * dismissed rows and reopens them when a newer quiz attempt arrives.
  */
-export function useCachedContributorLookup(): ReadonlyMap<
-  string,
-  ContributorListOut["contributors"][number]
-> {
+export function useDismissReview() {
   const queryClient = useQueryClient();
-  // Snapshot once per mount: the contributor pages were cached (or not) by
-  // earlier navigation, and nothing refetches them while this screen is up
-  // (no active observer, refetchOnWindowFocus off) — so rebuilding the map
-  // on every render would only churn allocations.
-  return useMemo(() => {
-    const cached = queryClient.getQueriesData<ContributorListOut>({
-      queryKey: queryKeys.contributorsRoot,
-    });
-    const map = new Map<string, ContributorListOut["contributors"][number]>();
-    for (const [, data] of cached) {
-      if (data !== undefined) {
-        for (const contributor of data.contributors) {
-          map.set(contributor.id, contributor);
-        }
-      }
-    }
-    return map;
-  }, [queryClient]);
+  return useMutation({
+    mutationFn: (scheduleId: string) =>
+      apiFetch<ReviewDismissOut>(
+        `/v1/admin/reviews/${scheduleId}/dismiss`,
+        ReviewDismissOutSchema,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reviewsDueRoot });
+    },
+  });
 }
 
 export function usePolicies() {

@@ -21,8 +21,10 @@ describe("AuditLogs screen", () => {
     expect(
       screen.getByText("Viewing this screen writes an audit row of its own."),
     ).toBeInTheDocument();
-    // Design §7.5: no `total` on this endpoint — a short page (2 rows,
-    // page size 50) means no next page, never a wrong count.
+    // Design §14 gap 3: the endpoint now carries `total`, so paging is
+    // total-driven — the count shows and Next is disabled when the page holds
+    // the whole set (2 of 2).
+    expect(screen.getByText("2 total")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 });

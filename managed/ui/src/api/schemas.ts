@@ -49,7 +49,14 @@ export const ContributorSummaryOutSchema = z.object({
 export type ContributorSummaryOut = z.infer<typeof ContributorSummaryOutSchema>;
 
 export const ReviewDueOutSchema = z.object({
+  // The schedule's own id, so a row can address the dismiss write (§14 gap 5).
+  id: z.uuid(),
   contributor_id: z.uuid(),
+  // Identity carried on the row (design §14 gap 4) — the queue reads these
+  // directly instead of joining names client-side from the cached list.
+  display_name: z.string().nullable(),
+  provider: z.string(),
+  external_id: z.string(),
   category: z.string(),
   signal: z.string().nullable(),
   due_at: isoDateTime,
@@ -62,6 +69,14 @@ export const ReviewDueListOutSchema = z.object({
   due: z.array(ReviewDueOutSchema),
 });
 export type ReviewDueListOut = z.infer<typeof ReviewDueListOutSchema>;
+
+export const ReviewDismissOutSchema = z.object({
+  id: z.uuid(),
+  status: z.string(),
+  dismissed_at: isoDateTime.nullable(),
+  dismissed_by: z.string().nullable(),
+});
+export type ReviewDismissOut = z.infer<typeof ReviewDismissOutSchema>;
 
 export const PolicySettingsSchema = z.object({
   collect_enabled: z.boolean(),
@@ -99,5 +114,6 @@ export type AuditLogOut = z.infer<typeof AuditLogOutSchema>;
 
 export const AuditLogListOutSchema = z.object({
   logs: z.array(AuditLogOutSchema),
+  total: z.number().int(),
 });
 export type AuditLogListOut = z.infer<typeof AuditLogListOutSchema>;
