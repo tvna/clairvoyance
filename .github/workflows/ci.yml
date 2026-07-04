@@ -72,6 +72,13 @@ jobs:
           x=json.load(open('.codex-plugin/plugin.json'))['version'];
           sys.exit(f'manifest version drift: claude={c} codex={x}') if c!=x else print(f'ok: both manifests at {c}')"
 
+      - name: Check managed server version parity
+        # The managed product carries its version in managed/pyproject.toml and in
+        # the FastAPI app factory (managed/app/main.py). They must agree or the
+        # server advertises a version that disagrees with its package. Managed-side
+        # analogue of the plugin manifest-parity gate above (see docs/versioning.md).
+        run: python3 scripts/check_managed_version.py
+
       - name: Validate hook scripts
         run: bash scripts/check_hooks.sh
 
