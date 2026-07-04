@@ -25,8 +25,11 @@ PYPROJECT = REPO_ROOT / "managed" / "pyproject.toml"
 APP_MAIN = REPO_ROOT / "managed" / "app" / "main.py"
 
 # The version handed to ``FastAPI(..., version="X.Y.Z")``. Anchored on the
-# FastAPI constructor so an unrelated ``version=`` elsewhere cannot satisfy it.
-_APP_VERSION = re.compile(r"FastAPI\([^)]*\bversion=[\"']([^\"']+)[\"']")
+# FastAPI constructor so an unrelated ``version=`` elsewhere cannot satisfy it;
+# ``.*?`` (non-greedy, DOTALL) reaches the ``version=`` keyword across any other
+# arguments -- including a ``title`` that itself contains parentheses or newlines
+# -- while ``\b`` still keeps it from latching onto e.g. ``api_version=``.
+_APP_VERSION = re.compile(r"FastAPI\(.*?\bversion\s*=\s*[\"']([^\"']+)[\"']", re.DOTALL)
 
 
 def read_pyproject_version(path: Path) -> str:

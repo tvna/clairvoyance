@@ -37,6 +37,22 @@ def test_read_app_version_ok(tmp_path):
     assert cmv.read_app_version(p) == "4.5.6"
 
 
+def test_read_app_version_tolerates_parens_and_newlines(tmp_path):
+    # A title containing ')' before version=, and a multi-line call, must not
+    # break the match -- the version did not change, so the gate must not fail.
+    p = _write(
+        tmp_path / "main.py",
+        'app = FastAPI(\n    title="Clairvoyance Server (managed)",\n    version="7.8.9",\n)\n',
+    )
+    assert cmv.read_app_version(p) == "7.8.9"
+
+
+def test_read_app_version_ignores_unrelated_version_kwarg(tmp_path):
+    # \b keeps the match off api_version=; it must pick the real version=.
+    p = _write(tmp_path / "main.py", 'FastAPI(api_version="1", version="2.0.0")\n')
+    assert cmv.read_app_version(p) == "2.0.0"
+
+
 def test_read_app_version_missing(tmp_path):
     p = _write(tmp_path / "main.py", "app = FastAPI(title='Srv')\n")
     with pytest.raises(ValueError, match="no FastAPI"):
