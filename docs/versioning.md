@@ -24,14 +24,16 @@ then the version stays in the `0.x` range and may change freely (see the
 This is the adopted **direction**; the migration is staged so it stays reversible
 (design: issue #53). What is live today vs. staged:
 
-- **Live now:** this documentation of the product-scoped model, and the managed
-  version-parity CI gate (`scripts/check_managed_version.py`).
+- **Live now:** this documentation of the product-scoped model, the managed
+  version-parity CI gate (`scripts/check_managed_version.py`), and a commit-analyzer
+  rule so a `managed`-scoped commit cannot cut a plugin release
+  (`.releaserc.json`).
 - **Staged (later slices):** the plugin release line moving to `plugin-v` tags, the
-  plugin-scoped commit/notes filtering that keeps a managed commit from cutting a
-  plugin release, the managed release workflow, and the baseline tags. Until those
-  land, the plugin release config still uses the legacy `v${version}` tag format
-  described under [Release automation](#release-automation-semantic-release). See
-  the [rollout order](#rollout-order).
+  release-notes filtering that also drops managed commits from plugin release notes,
+  the managed release workflow, and the baseline tags. Until those land, the plugin
+  release config still uses the legacy `v${version}` tag format described under
+  [Release automation](#release-automation-semantic-release). See the
+  [rollout order](#rollout-order).
 
 ### Product boundaries
 
@@ -141,11 +143,17 @@ changelog, commits them, creates the product-prefixed git tag, and publishes a
 GitHub Release with generated notes.
 
 **plugin** (`.releaserc.json`, `.github/workflows/release.yml`) exists today and
-writes both `plugin.json` manifests and `CHANGELOG.md`. It still uses the legacy
-`v${version}` tag format and is **not yet scope-filtered**, so it is not enabled for
-independent product releases: the `plugin-v` rename together with the plugin-scoped
-commit and release-notes filtering (so a `feat(managed): ...` commit cannot cut a
-plugin release) land as one verified unit in the release-config split slice.
+writes both `plugin.json` manifests and `CHANGELOG.md`. A commit-analyzer rule
+(`{ "scope": "managed", "release": false }`) keeps any `managed`-scoped commit --
+including a breaking `feat(managed)!` / `BREAKING CHANGE` -- from cutting a plugin
+release. **Order matters:** commit-analyzer keeps the *last* matching rule's release
+when `false` competes with a real release type, so the `release: false` rule must sit
+**after** the `breaking -> minor` rule in `releaseRules`, or a breaking managed
+commit would be upgraded back to a plugin minor release. It still uses the legacy
+`v${version}` tag format, so it is not yet enabled for independent product releases:
+the `plugin-v` rename and the release-notes filtering (so managed commits also drop
+out of the plugin release notes, not just the version bump) land as one verified
+unit in the release-config split slice.
 
 **managed** (tag `managed-vX.Y.Z`, writes `managed/pyproject.toml` +
 `managed/app/main.py`, updates `managed/CHANGELOG.md`, tags the container image
@@ -158,9 +166,10 @@ boundary is governed before its automation is enabled.
 The migration is staged so it stays reversible until releases are enabled (design:
 issue #53):
 
-1. Land docs and the managed version-parity drift gate. **(this slice)**
+1. Land docs, the managed version-parity drift gate, and the commit-analyzer rule
+   that drops `managed`-scoped commits from the plugin release. **(done)**
 2. Split release configs and workflows per product: rename the plugin tag format to
-   `plugin-v`, add plugin-scoped commit/notes filtering, add the managed release
+   `plugin-v`, add plugin-scoped release-notes filtering, add the managed release
    config + workflow, and the release-config drift gates (product-prefixed tag
    formats, product-specific changelog paths).
 3. Add the managed version apply script.
