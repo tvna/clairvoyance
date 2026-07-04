@@ -1,0 +1,21 @@
+id: adaptive-coaching-type-ii-mixed-split
+name: Type II Mixed Work Split
+description: Separates the solvable technical half from the adaptive half on a mixed (Type II) recurring pattern and aims the quiz at the adaptive half only.
+tags:
+  - quality
+  - classification
+inputs:
+  prompt: |
+    Use adaptive-coaching. Retrospective please: our CI keeps flaking and I keep merging over the red gate anyway. I want to see my own pattern here, not just fix the runner.
+
+    Context:
+    - The local store reports ready (5 observations, threshold 5): mostly mislabeled-technical, plus avoidance.
+    - The flaky runner configuration has a known, documented fix; the recurring merge-over-red habit is the person's own call.
+expected:
+  output_contains:
+    - "Classification"
+    - "technical"
+    - "adaptive"
+    - "Capability Gap"
+    - "AskUserQuestion"
+    - "Next Move"
