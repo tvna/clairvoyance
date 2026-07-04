@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useContributors } from "../api/queries";
 import type { ContributorOut } from "../api/schemas";
@@ -32,13 +32,37 @@ const COLUMNS: readonly TableColumn<ContributorOut>[] = [
   },
 ];
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function Contributors() {
   const [offset, setOffset] = useState(0);
-  const query = useContributors(PAGE_SIZE, offset);
+  const [searchInput, setSearchInput] = useState("");
+  const [q, setQ] = useState("");
+  const query = useContributors(PAGE_SIZE, offset, q);
+
+  // Debounce the search box: without it, every keystroke fires a GET, and
+  // since each admin request is audited server-side, a typed query would
+  // multiply audit rows (the same cost that disables retries, design §9).
+  // Update the query term (and reset to the first page) once typing settles.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setQ(searchInput);
+      setOffset(0);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
 
   return (
     <section>
       <h1>Contributors</h1>
+      <label htmlFor="contributor-search">Search</label>
+      <input
+        id="contributor-search"
+        type="search"
+        value={searchInput}
+        placeholder="name, external id, or email"
+        onChange={(event) => setSearchInput(event.target.value)}
+      />
       <QueryBoundary query={query} capability="view contributors">
         {(data) => (
           <>
@@ -47,10 +71,14 @@ export function Contributors() {
               rows={data.contributors}
               getRowKey={(contributor) => contributor.id}
               emptyState={
-                <p>
-                  No contributors yet. Mint a collector token and point a client at this
-                  organization.
-                </p>
+                q !== "" ? (
+                  <p>No contributors match "{q}".</p>
+                ) : (
+                  <p>
+                    No contributors yet. Mint a collector token and point a client at this
+                    organization.
+                  </p>
+                )
               }
             />
             <Pagination

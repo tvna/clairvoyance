@@ -7,6 +7,7 @@ export type Role = (typeof ROLES)[number];
 // Design §2's capability table.
 export const READ_ROLES: readonly Role[] = ["org_admin", "team_manager", "coach", "auditor"];
 export const POLICY_WRITE_ROLES: readonly Role[] = ["org_admin"];
+export const REVIEW_DISMISS_ROLES: readonly Role[] = ["org_admin", "coach"];
 export const AUDIT_READ_ROLES: readonly Role[] = ["org_admin", "auditor"];
 
 /** Maps the roles claim to known roles, ignoring foreign entries (parse_roles mirror). */

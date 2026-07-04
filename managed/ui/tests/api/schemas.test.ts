@@ -29,10 +29,16 @@ describe("admin API contract schemas", () => {
     expect(calibrationSum).toBeLessThan(parsed.quiz.attempts);
   });
 
-  it("parses GET /v1/admin/reviews/due, preserving null signal", () => {
+  it("parses GET /v1/admin/reviews/due, with row identity and null signal", () => {
     const parsed = ReviewDueListOutSchema.parse(reviewsDue);
     expect(parsed.due).toHaveLength(2);
     expect(parsed.due[1]?.signal).toBeNull();
+    // Identity fields carried on the row (design §14 gap 4) and the schedule id
+    // that addresses the dismiss write (gap 5).
+    expect(parsed.due[0]?.display_name).toBe("tvna");
+    expect(parsed.due[0]?.provider).toBe("github");
+    expect(parsed.due[1]?.display_name).toBeNull();
+    expect(parsed.due[0]?.id).toBeTruthy();
   });
 
   it("parses GET /v1/admin/policies", () => {
@@ -41,10 +47,11 @@ describe("admin API contract schemas", () => {
     expect(parsed.settings.allow_context_summary).toBe(false);
   });
 
-  it("parses GET /v1/admin/audit-logs", () => {
+  it("parses GET /v1/admin/audit-logs, including total", () => {
     const parsed = AuditLogListOutSchema.parse(auditLogs);
     expect(parsed.logs).toHaveLength(2);
     expect(parsed.logs[0]?.target_type).toBeNull();
+    expect(parsed.total).toBe(2);
   });
 
   it("rejects a policy patch with a null field (mirrors reject_null_updates)", () => {
