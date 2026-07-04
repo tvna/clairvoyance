@@ -1,0 +1,5 @@
+# Test-only dependency for the stub issuer's no-Docker unit test
+# (test_signin_form.py), kept separate from requirements.txt so the runtime
+# container image (Dockerfile installs requirements.txt) stays lean. Pinned
+# for the same reproducibility/anti-drift reason as the runtime pins.
+pytest==9.1.1
