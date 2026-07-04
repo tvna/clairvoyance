@@ -38,13 +38,18 @@ source confirms a Fable model, emit the standard handoff; do not infer Fable fro
 the task alone. When it is plausibly Fable but unconfirmed, ask one question
 rather than assume.
 
-Once Fable is confirmed, optimize the handoff for it: state the goal and
-constraints and drop step-by-step prescription (Fable follows brief instructions
-and degrades on over-prescription), and prepend a short operating block that sets
-effort, scope, and progress-reporting discipline. Never tell the next session to
-echo its reasoning - on Fable that can trigger a refusal. Read
+Once Fable is confirmed, optimize the handoff for it by prepending a short
+operating block that names Fable in its heading and sets effort, scope, and
+progress-reporting discipline. Fable follows brief instructions and degrades on
+over-prescription, but Fable is not always available - a safety-classifier
+refusal falls back to Opus 4.8, and some harnesses do not offer Fable at all - so
+keep the handoff body model-agnostic rather than stripping it: the block tells
+Fable to treat the sections as constraints, not a script, and its first line
+tells a non-Fable session to ignore it. The result is one artifact, explicitly
+labeled for Fable yet still correct if it degrades. Never tell the next session
+to echo its reasoning - on Fable that can trigger a refusal. Read
 [the Fable-optimized handoff](references/fable-optimization.md) for the decision
-signals, the exact adjustments, and the paste-ready operating block.
+signals, the safe-degradation rationale, and the paste-ready operating block.
 
 ## Output
 
