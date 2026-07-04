@@ -274,10 +274,15 @@ jobs:
     # proxy doing the /ui-vs-API path split, and the stub OIDC issuer
     # (managed/ui/e2e/stub-issuer/) composed together so the browser sees
     # one origin exactly as in production. This is unconditional like the
-    # other managed-* jobs (no paths: gating); it depends on managed-ui
-    # and managed-server only so a lint/type failure doesn't spend time
-    # building four images first, not as a path-based skip.
-    needs: [managed-ui, managed-server]
+    # other managed-* jobs (no paths: gating).
+    #
+    # No `needs:` -- the job is self-contained (it checks out and builds
+    # its own compose topology; it consumes no artifacts from managed-ui or
+    # managed-server), so it starts in parallel with every other job instead
+    # of waiting ~48s for those two to finish (issue #74). That moves the
+    # slowest job off the critical-path tail. The trade-off is that a
+    # lint/type failure elsewhere no longer skips the image build here; the
+    # happy path dominates and `cancel-in-progress` bounds stacked runs.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
