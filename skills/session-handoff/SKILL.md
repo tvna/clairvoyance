@@ -27,6 +27,18 @@ session-scoped limits block the change here - reset and resume in a new session.
 
 Read [the handoff template](references/handoff-template.md) for exact section order and an example.
 
+## When the next session runs on a Fable model
+
+When you are told the next session will use a Claude Fable model
+(`claude-fable-5` or `claude-mythos-5`), optimize the handoff for it: state the
+goal and constraints and drop step-by-step prescription (Fable follows brief
+instructions and degrades on over-prescription), and prepend a short operating
+block that sets effort, scope, and progress-reporting discipline. Never tell the
+next session to echo its reasoning - on Fable that can trigger a refusal. For any
+other model, emit the standard handoff unchanged. Read
+[the Fable-optimized handoff](references/fable-optimization.md) for the exact
+adjustments and the paste-ready operating block.
+
 ## Output
 
 Deliver the handoff as a single attached Markdown file (`handoff.md`) so it copies and pastes in one piece. Portable delivery, in order of preference: attach the file when the harness supports attachments; otherwise write it to a Markdown file outside the repository (for example, a temporary directory) and give its path - never write into the repo workspace, since a handoff often fires in the blocked or low-context states where the session must avoid extra repo changes; if the harness supports neither attachments nor writing outside the repo, emit the same Markdown inline as the reply. The file (or inline block) holds one prompt with headings **Context**, **Background**, **Files to read**, **Implementation**, **Verification**, **PR creation**, **Acceptance criteria**.
