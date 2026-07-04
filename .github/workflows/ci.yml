@@ -73,6 +73,13 @@ jobs:
           x=json.load(open('.codex-plugin/plugin.json'))['version'];
           sys.exit(f'manifest version drift: claude={c} codex={x}') if c!=x else print(f'ok: both manifests at {c}')"
 
+      - name: Check ruleset required checks match CI jobs
+        # Drift gate: every required_status_checks context in
+        # .github/rulesets/main.json must name a real ci.yml job and vice versa,
+        # so a renamed/added job cannot silently dangle a required check or leave
+        # a job ungated. Stdlib-only, like the other validate-job checks.
+        run: python3 scripts/check_ruleset_contexts.py
+
       - name: Check managed server version parity
         # The managed product carries its version in managed/pyproject.toml and in
         # the FastAPI app factory (managed/app/main.py). They must agree or the

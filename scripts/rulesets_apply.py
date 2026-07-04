@@ -226,6 +226,11 @@ def _load_sot(sot_file: Path) -> dict[str, Any]:
         body = json.load(fp)
     if not isinstance(body, dict):
         raise ValueError(f"{sot_file} must contain a JSON object")
+    if not isinstance(body.get("name"), str) or not body["name"]:
+        # decide_action matches the live ruleset by name, so a missing/blank
+        # name would otherwise KeyError deep in _prepare; fail with a clear
+        # message the main() handler turns into a clean ::error:: instead.
+        raise ValueError(f"{sot_file} must set a non-empty string 'name'")
     return body
 
 
@@ -326,7 +331,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         args.func(args)
-    except ValueError as exc:
+    except (ValueError, RuntimeError) as exc:
+        # ValueError: bad SoT / non-JSON API body. RuntimeError: a non-2xx GET
+        # (e.g. an expired or under-scoped RULESETS_PAT returning 401/403).
+        # Both are operational failures, so surface a clean ::error:: and exit 1
+        # rather than let the raw traceback through.
         print(f"::error::{exc}")
         return 1
     except SystemExit as exc:

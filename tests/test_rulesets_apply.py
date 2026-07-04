@@ -352,6 +352,29 @@ class TestPlanApplyFlows:
         rc = ra.main(["plan", "--repo", "o/r", "--sot-file", str(sot), "--summary-file", str(summary)])
         assert rc == 1
 
+    def test_plan_sot_missing_name_returns_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        sot = tmp_path / "main.json"
+        sot.write_text(json.dumps({"target": "branch", "enforcement": "active"}), encoding="utf-8")
+        summary = tmp_path / "summary.md"
+        monkeypatch.setenv("GH_TOKEN", "tok")
+        rc = ra.main(["plan", "--repo", "o/r", "--sot-file", str(sot), "--summary-file", str(summary)])
+        assert rc == 1
+
+    def test_plan_http_error_returns_clean_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # A non-2xx GET (e.g. an expired / under-scoped PAT -> 403) surfaces from
+        # _request_json as RuntimeError; main() must turn it into exit 1, not a
+        # bare traceback.
+        sot = write_sot(tmp_path / "main.json", "main-protection")
+        summary = tmp_path / "summary.md"
+        monkeypatch.setenv("GH_TOKEN", "tok")
+
+        def boom(*_a: Any, **_k: Any) -> Any:
+            raise RuntimeError("GET https://api.github.com/repos/o/r/rulesets failed (HTTP 403): forbidden")
+
+        monkeypatch.setattr(ra, "fetch_live_rulesets", boom)
+        rc = ra.main(["plan", "--repo", "o/r", "--sot-file", str(sot), "--summary-file", str(summary)])
+        assert rc == 1
+
     def test_apply_posts_new_ruleset(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         sot = write_sot(tmp_path / "main.json", "main-protection")
         summary = tmp_path / "summary.md"

@@ -31,8 +31,11 @@ the default branch:
   `tests-windows`.
 
 The status-check `context` values are the CI job names exactly as they appear as
-checks. If a job is renamed in `ci.yml`, update the matching `context` here or the
-requirement silently stops matching.
+checks. A rename would otherwise silently dangle a required check, so the
+`validate` job runs `scripts/check_ruleset_contexts.py`, which fails CI unless
+this file's contexts and `ci.yml`'s job set match exactly (in both directions):
+a renamed/removed job breaks the check, and a newly added job must be added here
+or the gate flags it as an unguarded merge.
 
 ### Behavior changes to confirm before applying
 
