@@ -61,9 +61,43 @@ def canonical_projection(ruleset: dict[str, Any]) -> dict[str, Any]:
     return {key: ruleset.get(key) for key in PROJECTION_KEYS}
 
 
+# Keys GitHub adds to the GET response that the SoT never sets. Left in, they
+# make the diff show phantom changes (most notably an integration_id on every
+# required_status_checks context) so it never converges to empty even right
+# after a successful apply. Stripped from both sides before diffing/comparing.
+_SERVER_ONLY_KEYS = frozenset({"integration_id"})
+
+
+def normalize_for_diff(ruleset: dict[str, Any]) -> dict[str, Any]:
+    """Project to PROJECTION_KEYS, drop server-only keys, and order-normalize.
+
+    GitHub returns rules and status-check contexts in its own order and decorates
+    them with server-only fields; normalizing both sides lets a live ruleset that
+    already matches the SoT diff to empty."""
+    return _strip_noise(canonical_projection(ruleset))
+
+
+def _strip_noise(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _strip_noise(val) for key, val in value.items() if key not in _SERVER_ONLY_KEYS}
+    if isinstance(value, list):
+        return _sort_keyed([_strip_noise(item) for item in value])
+    return value
+
+
+def _sort_keyed(items: list[Any]) -> list[Any]:
+    # Rules and contexts are order-insensitive; sort by their identity field so
+    # GitHub's ordering does not read as a diff. Other lists keep their order.
+    if items and all(isinstance(item, dict) for item in items):
+        for key in ("type", "context"):
+            if all(key in item for item in items):
+                return sorted(items, key=lambda item: str(item[key]))
+    return items
+
+
 def render_diff_section(name: str, live_id: int, live: dict[str, Any], sot: dict[str, Any]) -> str:
-    live_text = _canonical_json_lines(canonical_projection(live))
-    sot_text = _canonical_json_lines(canonical_projection(sot))
+    live_text = _canonical_json_lines(normalize_for_diff(live))
+    sot_text = _canonical_json_lines(normalize_for_diff(sot))
     diff = "".join(difflib.unified_diff(live_text, sot_text, fromfile="live", tofile="sot"))
     return "\n".join(
         [
@@ -97,10 +131,19 @@ def render_dispatch_header(*, dry_run: bool) -> str:
 
 
 def fetch_live_rulesets(repo: str, token: str, *, opener: Any = urllib.request.urlopen) -> list[dict[str, Any]]:
-    body = _request_json(f"{API_ROOT}/repos/{repo}/rulesets", token=token, opener=opener)
-    if not isinstance(body, list):
-        raise ValueError("GET /rulesets returned non-list JSON")
-    return body
+    # Paginate: a repo with >100 rulesets would otherwise hide the one we manage
+    # on a later page, so decide_action would POST a duplicate. Walk full pages
+    # (100 is the API max) until a short page signals the end.
+    rulesets: list[dict[str, Any]] = []
+    page = 1
+    while True:
+        body = _request_json(f"{API_ROOT}/repos/{repo}/rulesets?per_page=100&page={page}", token=token, opener=opener)
+        if not isinstance(body, list):
+            raise ValueError("GET /rulesets returned non-list JSON")
+        rulesets.extend(body)
+        if len(body) < 100:
+            return rulesets
+        page += 1
 
 
 def fetch_live_ruleset(
@@ -221,6 +264,47 @@ def apply_ruleset(
     return {"name": name, "action": action, "matches": match_count, "live_id": response.get("id")}
 
 
+def drift_ruleset(
+    *,
+    repo: str,
+    sot_file: Path,
+    summary_file: Path,
+    token: str,
+    opener: Any = urllib.request.urlopen,
+) -> int:
+    """Read-only: return 1 when the live ruleset diverges from the SoT, else 0.
+
+    Used by a scheduled workflow to catch a UI edit, or a merged SoT change that
+    was never applied, without any mutation. No live ruleset of the SoT's name
+    (or several) is itself drift.
+    """
+    sot = _load_sot(sot_file)
+    name = str(sot["name"])
+    decision = decide_action(name, fetch_live_rulesets(repo, token, opener=opener))
+    action = str(decision["action"])
+    rows = ["## Ruleset drift check", "", f"- ruleset: `{name}`"]
+    if action != "PUT":
+        detail = "no live ruleset of this name (source of truth not applied)"
+        if action == "ambiguous":
+            detail = f"{decision['match_count']} live rulesets share this name"
+        rows.append(f"- status: **drift** ({detail})")
+        _append_summary(summary_file, rows)
+        print(f"::error::Ruleset drift: {detail}.")
+        return 1
+    live_id = int(decision["live_id"])
+    live = fetch_live_ruleset(repo, live_id, token, opener=opener)
+    if _canonical_json_lines(normalize_for_diff(live)) == _canonical_json_lines(normalize_for_diff(sot)):
+        rows.append("- status: in sync")
+        _append_summary(summary_file, rows)
+        print("ok: live ruleset matches the checked-in source of truth")
+        return 0
+    rows.append(render_diff_section(name, live_id, live, sot))
+    rows.append("- status: **drift** (live differs from the source of truth)")
+    _append_summary(summary_file, rows)
+    print("::error::Ruleset drift: live ruleset differs from the checked-in source of truth (see job summary).")
+    return 1
+
+
 def _load_sot(sot_file: Path) -> dict[str, Any]:
     with sot_file.open(encoding="utf-8") as fp:
         body = json.load(fp)
@@ -328,6 +412,9 @@ def main(argv: list[str] | None = None) -> int:
     apply = sub.add_parser("apply", parents=[common])
     apply.set_defaults(func=_cmd_apply)
 
+    drift = sub.add_parser("drift", parents=[common])
+    drift.set_defaults(func=_cmd_drift)
+
     args = parser.parse_args(argv)
     try:
         args.func(args)
@@ -349,6 +436,12 @@ def _cmd_plan(args: argparse.Namespace) -> None:
 
 def _cmd_apply(args: argparse.Namespace) -> None:
     apply_ruleset(repo=args.repo, sot_file=args.sot_file, summary_file=args.summary_file, token=_env_token())
+
+
+def _cmd_drift(args: argparse.Namespace) -> None:
+    rc = drift_ruleset(repo=args.repo, sot_file=args.sot_file, summary_file=args.summary_file, token=_env_token())
+    if rc != 0:
+        raise SystemExit(rc)
 
 
 if __name__ == "__main__":

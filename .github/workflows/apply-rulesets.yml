@@ -50,8 +50,10 @@ jobs:
 
       - name: Guard dispatch ref
         if: github.ref != 'refs/heads/main'
+        env:
+          REF: ${{ github.ref }}
         run: |
-          echo "::error::apply-rulesets must be dispatched against main (got ${{ github.ref }})."
+          echo "::error::apply-rulesets must be dispatched against main (got ${REF})."
           exit 1
 
       - name: Guard RULESETS_PAT

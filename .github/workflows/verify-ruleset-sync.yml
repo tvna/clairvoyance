@@ -1,0 +1,56 @@
+name: Verify ruleset sync
+
+# Read-only drift detector: fails if the live main-branch ruleset no longer
+# matches the checked-in source of truth (.github/rulesets/main.json) -- e.g. a
+# UI edit, or a merged main.json change that was never applied via the
+# apply-rulesets workflow. Runs weekly and on demand. It only GETs rulesets, so
+# it does NOT use the protected ruleset-apply environment (which would block an
+# unattended scheduled run on required-reviewer approval). See
+# docs/runbooks/rulesets.md.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"  # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.RULESETS_PAT }}
+  REPO: ${{ github.repository }}
+
+jobs:
+  drift:
+    name: "Verify ruleset sync / gate"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Guard RULESETS_PAT
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::RULESETS_PAT secret is not set. See docs/runbooks/rulesets.md (Required secret)."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Detect ruleset drift
+        run: |
+          set -euo pipefail
+          python3 scripts/rulesets_apply.py drift \
+            --repo "${REPO}" \
+            --sot-file .github/rulesets/main.json \
+            --summary-file "$GITHUB_STEP_SUMMARY"

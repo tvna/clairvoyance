@@ -397,7 +397,7 @@ class TestPlanApplyFlows:
             sleeper=lambda _s: None,
         )
         assert calls == [
-            ("GET", "https://api.github.com/repos/o/r/rulesets"),
+            ("GET", "https://api.github.com/repos/o/r/rulesets?per_page=100&page=1"),
             ("POST", "https://api.github.com/repos/o/r/rulesets"),
         ]
         text = summary.read_text(encoding="utf-8")
@@ -418,7 +418,7 @@ class TestPlanApplyFlows:
 
         def opener(request: Any) -> Response:
             method = request.get_method()
-            if method == "GET" and request.full_url.endswith("/rulesets"):
+            if method == "GET" and "/rulesets/" not in request.full_url:
                 return Response(200, [{"id": 5, "name": "main-protection"}])
             if method == "GET":
                 return Response(200, live)
@@ -475,6 +475,160 @@ class TestPlanApplyFlows:
         text = summary.read_text(encoding="utf-8")
         assert "Error applying main.json (HTTP 422)" in text
         assert "invalid ruleset" in text
+
+
+class TestPagination:
+    def test_walks_pages_until_short_page(self) -> None:
+        pages = {
+            "1": [{"id": i, "name": f"r{i}"} for i in range(100)],
+            "2": [{"id": 100, "name": "main-protection"}],
+        }
+        seen: list[str] = []
+
+        def opener(request: Any) -> Response:
+            page = request.full_url.rsplit("page=", 1)[1]
+            seen.append(page)
+            return Response(200, pages[page])
+
+        result = ra.fetch_live_rulesets("o/r", "tok", opener=opener)
+        assert seen == ["1", "2"]
+        assert len(result) == 101
+        assert result[-1]["name"] == "main-protection"
+
+    def test_single_short_page_stops(self) -> None:
+        result = ra.fetch_live_rulesets("o/r", "tok", opener=lambda _r: Response(200, [{"id": 1, "name": "x"}]))
+        assert result == [{"id": 1, "name": "x"}]
+
+    def test_non_list_page_raises(self) -> None:
+        with pytest.raises(ValueError, match="non-list JSON"):
+            ra.fetch_live_rulesets("o/r", "tok", opener=lambda _r: Response(200, {"nope": 1}))
+
+
+class TestNormalizeForDiff:
+    def test_strips_integration_id_and_orders_rules_and_contexts(self) -> None:
+        live = {
+            "name": "main-protection",
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {},
+            "bypass_actors": [],
+            "rules": [
+                {
+                    "type": "required_status_checks",
+                    "parameters": {
+                        "required_status_checks": [
+                            {"context": "tests", "integration_id": 15368},
+                            {"context": "validate", "integration_id": 15368},
+                        ]
+                    },
+                },
+                {"type": "deletion"},
+            ],
+        }
+        sot = {
+            "name": "main-protection",
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {},
+            "bypass_actors": [],
+            "rules": [
+                {"type": "deletion"},
+                {
+                    "type": "required_status_checks",
+                    "parameters": {
+                        "required_status_checks": [
+                            {"context": "validate"},
+                            {"context": "tests"},
+                        ]
+                    },
+                },
+            ],
+        }
+        # Same ruleset modulo GitHub's ordering + integration_id -> identical normal form.
+        assert ra.normalize_for_diff(live) == ra.normalize_for_diff(sot)
+
+    def test_non_keyed_lists_keep_order(self) -> None:
+        ruleset = {"conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH", "refs/heads/x"]}}}
+        assert ra.normalize_for_diff(ruleset)["conditions"]["ref_name"]["include"] == [
+            "~DEFAULT_BRANCH",
+            "refs/heads/x",
+        ]
+
+
+class TestDrift:
+    def _sot(self, tmp_path: Path) -> Path:
+        path = tmp_path / "main.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "name": "main-protection",
+                    "target": "branch",
+                    "enforcement": "active",
+                    "conditions": {},
+                    "bypass_actors": [],
+                    "rules": [{"type": "deletion"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return path
+
+    def test_in_sync_returns_zero(self, tmp_path: Path) -> None:
+        sot = self._sot(tmp_path)
+        live = json.loads(sot.read_text(encoding="utf-8")) | {"id": 5}
+
+        def opener(request: Any) -> Response:
+            if "/rulesets/" in request.full_url:
+                return Response(200, live)
+            return Response(200, [{"id": 5, "name": "main-protection"}])
+
+        rc = ra.drift_ruleset(repo="o/r", sot_file=sot, summary_file=tmp_path / "s.md", token="tok", opener=opener)
+        assert rc == 0
+        assert "in sync" in (tmp_path / "s.md").read_text(encoding="utf-8")
+
+    def test_divergence_returns_one_with_diff(self, tmp_path: Path) -> None:
+        sot = self._sot(tmp_path)
+        live = json.loads(sot.read_text(encoding="utf-8")) | {"id": 5, "enforcement": "evaluate"}
+
+        def opener(request: Any) -> Response:
+            if "/rulesets/" in request.full_url:
+                return Response(200, live)
+            return Response(200, [{"id": 5, "name": "main-protection"}])
+
+        rc = ra.drift_ruleset(repo="o/r", sot_file=sot, summary_file=tmp_path / "s.md", token="tok", opener=opener)
+        assert rc == 1
+        assert "drift" in (tmp_path / "s.md").read_text(encoding="utf-8")
+
+    def test_missing_live_is_drift(self, tmp_path: Path) -> None:
+        sot = self._sot(tmp_path)
+        rc = ra.drift_ruleset(
+            repo="o/r", sot_file=sot, summary_file=tmp_path / "s.md", token="tok", opener=lambda _r: Response(200, [])
+        )
+        assert rc == 1
+        assert "not applied" in (tmp_path / "s.md").read_text(encoding="utf-8")
+
+    def test_ambiguous_live_is_drift(self, tmp_path: Path) -> None:
+        sot = self._sot(tmp_path)
+        live = [{"name": "main-protection"}, {"name": "main-protection"}]
+        rc = ra.drift_ruleset(
+            repo="o/r", sot_file=sot, summary_file=tmp_path / "s.md", token="tok", opener=lambda _r: Response(200, live)
+        )
+        assert rc == 1
+        assert "share this name" in (tmp_path / "s.md").read_text(encoding="utf-8")
+
+    def test_drift_command_exits_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        sot = self._sot(tmp_path)
+        monkeypatch.setenv("GH_TOKEN", "tok")
+        monkeypatch.setattr(ra, "drift_ruleset", lambda **_k: 1)
+        rc = ra.main(["drift", "--repo", "o/r", "--sot-file", str(sot), "--summary-file", str(tmp_path / "s.md")])
+        assert rc == 1
+
+    def test_drift_command_in_sync_returns_zero(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        sot = self._sot(tmp_path)
+        monkeypatch.setenv("GH_TOKEN", "tok")
+        monkeypatch.setattr(ra, "drift_ruleset", lambda **_k: 0)
+        rc = ra.main(["drift", "--repo", "o/r", "--sot-file", str(sot), "--summary-file", str(tmp_path / "s.md")])
+        assert rc == 0
 
 
 class TestCliEntrypoints:

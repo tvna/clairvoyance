@@ -71,6 +71,19 @@ repository administration rights.
 The token value is never echoed. It is passed only as the `GH_TOKEN` env var to
 the apply step and sent as a bearer header to `api.github.com`.
 
+## Continuous drift detection
+
+The [`Verify ruleset sync`](../../.github/workflows/verify-ruleset-sync.yml)
+workflow runs `rulesets_apply.py drift` weekly (and on demand) and fails if the
+live ruleset no longer matches the checked-in SoT -- a UI edit, or a merged
+`main.json` change that was never applied. It is read-only (GETs only), so it
+runs with `RULESETS_PAT` directly and NOT behind the `ruleset-apply` environment
+(a required-reviewer gate would stall an unattended scheduled run). The
+comparison is over the normalized projection (server-only fields such as a
+context's `integration_id` are stripped and rules/contexts are order-normalized),
+so a ruleset that already matches the SoT reports "in sync" rather than phantom
+drift.
+
 ## Recommended: gate the `ruleset-apply` environment
 
 The workflow runs in the `ruleset-apply` GitHub Environment. Add **required
