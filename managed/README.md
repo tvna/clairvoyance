@@ -146,6 +146,72 @@ uv run python -m app.cli create-token --org-key acme --name dev
 uv run uvicorn app.main:create_app --factory --reload
 ```
 
+### Full stack with a real IdP (Keycloak)
+
+`docker-compose.dev.yml` brings up the whole stack against a real OIDC
+provider so you can exercise the flow the unit tests cannot: browser sign-in
+(Authorization Code + PKCE), refresh-token rotation, and role-shaped screens.
+It is development-only -- **not** the production compose
+(`docker-compose.coolify.yml`, which assumes each organization's own IdP) and
+**not** the CI harness (`ui/e2e/`, which uses a stub issuer). It is not started
+in CI: Docker-in-CI is expensive and the `managed-ui` e2e smoke already covers
+the composed topology.
+
+Services: `postgres`, `redis`, `api` (runs `alembic upgrade head` on start),
+`ui`, `keycloak` (imports `dev/realm.json`), and an nginx `proxy` doing the
+production `/ui`-vs-API path split. `worker`/`scheduler` are omitted (the admin
+UI does not use the retention jobs).
+
+```bash
+cd managed
+docker compose -f docker-compose.dev.yml up -d --build
+# Migrations run automatically in the api container's start command.
+# Seed the org whose key matches the token's org claim (see below):
+docker compose -f docker-compose.dev.yml exec api python -m app.cli create-org --key acme --name "Acme"
+```
+
+Then open `http://localhost:8080/ui` and sign in. Two dev users are seeded in
+`dev/realm.json` (passwords are fixed dev values, safe because the realm is
+local-only):
+
+| Username    | Password    | Role        |
+| ----------- | ----------- | ----------- |
+| `admin-dev` | `admin-dev` | `org_admin` |
+| `coach-dev` | `coach-dev` | `coach`     |
+
+Ports: the app is on `http://localhost:8080` (the proxy, one origin for
+`/ui` and the API); Keycloak is on `http://localhost:8081` (console at
+`/admin/`, bootstrap admin `admin`/`admin`). Keycloak is a **separate origin
+on purpose** -- in production the IdP is a separate origin from the app
+(design section 5), and this mirrors that.
+
+**The issuer / JWKS split.** The browser reaches Keycloak at
+`http://localhost:8081`, so every token carries
+`iss=http://localhost:8081/realms/clairvoyance-dev`. The api never reaches
+that browser origin: it validates the `iss` string against
+`CLAIRVOYANCE_OIDC_ISSUER` and fetches signing keys from
+`CLAIRVOYANCE_OIDC_JWKS_URL`, which points at the internal compose name
+`http://keycloak:8080/.../certs`. That split (browser-facing issuer +
+internal JWKS URL) is only possible because the JWKS URL is an explicit
+setting (`app/auth/oidc.py` never derives it from the issuer); `KC_HOSTNAME`
+fixes Keycloak's issuer so the two never drift. Misconfigure it and every
+admin request returns 401.
+
+**Roles and org claims.** `app/auth/rbac.parse_roles` reads a top-level
+`roles` array, but Keycloak's default is `realm_access.roles`. The realm ships
+a protocol mapper that flattens the realm roles into a top-level `roles` claim
+(so `CLAIRVOYANCE_OIDC_ROLES_CLAIM` stays the default `roles`). The `org`
+claim is hardcoded to `acme` by a client mapper -- dev has one org, and this
+avoids Keycloak 26's user-profile attribute config silently dropping the claim
+(the api rejects an empty org with 401). For a multi-org dev setup, swap it for
+a user-attribute mapper and enable unmanaged attributes on the realm.
+
+Verify the full contract in the browser: (1) `/ui` redirects to Keycloak;
+(2) `admin-dev` sees all five screens and can edit a policy; (3) `coach-dev`
+gets the 403 view on the audit-log screen; (4) after sign-out, a reload
+requires credentials again (Keycloak advertises an end-session endpoint, so
+sign-out ends the session -- design section 12).
+
 ## Admin UI
 
 `ui/` is the admin frontend (React + TypeScript + Vite SPA), its own npm

@@ -1,0 +1,111 @@
+{
+  "realm": "clairvoyance-dev",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+
+  "roles": {
+    "realm": [
+      { "name": "org_admin", "description": "Full admin over the org (dev)." },
+      { "name": "team_manager", "description": "Team manager (dev)." },
+      { "name": "coach", "description": "Coach (dev)." },
+      { "name": "auditor", "description": "Auditor: audit log read (dev)." }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "clairvoyance-ui",
+      "name": "Clairvoyance Admin UI (dev)",
+      "description": "Public SPA client: Authorization Code + PKCE (S256), no secret.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": ["http://localhost:8080/ui/callback"],
+      "webOrigins": ["http://localhost:8080"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8080/ui/"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm-roles-to-top-level-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "usermodel.realmRoleMapping.rolePrefix": ""
+          }
+        },
+        {
+          "name": "org-claim",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "org",
+            "claim.value": "acme",
+            "jsonType.label": "String",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "access.tokenResponse.claim": "false"
+          }
+        },
+        {
+          "name": "clairvoyance-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "clairvoyance-managed-dev",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+
+  "users": [
+    {
+      "username": "admin-dev",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin-dev@example.com",
+      "firstName": "Ada",
+      "lastName": "Admin",
+      "credentials": [
+        { "type": "password", "value": "admin-dev", "temporary": false }
+      ],
+      "realmRoles": ["org_admin"]
+    },
+    {
+      "username": "coach-dev",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "coach-dev@example.com",
+      "firstName": "Cora",
+      "lastName": "Coach",
+      "credentials": [
+        { "type": "password", "value": "coach-dev", "temporary": false }
+      ],
+      "realmRoles": ["coach"]
+    }
+  ]
+}
