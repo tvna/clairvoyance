@@ -8,8 +8,8 @@
       {
         "preset": "conventionalcommits",
         "releaseRules": [
-          { "scope": "managed", "release": false },
-          { "breaking": true, "release": "minor" }
+          { "breaking": true, "release": "minor" },
+          { "scope": "managed", "release": false }
         ]
       }
     ],

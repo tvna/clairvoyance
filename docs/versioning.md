@@ -144,8 +144,12 @@ GitHub Release with generated notes.
 
 **plugin** (`.releaserc.json`, `.github/workflows/release.yml`) exists today and
 writes both `plugin.json` manifests and `CHANGELOG.md`. A commit-analyzer rule
-(`{ "scope": "managed", "release": false }`) already keeps a `feat(managed): ...` /
-`fix(managed): ...` commit from cutting a plugin release. It still uses the legacy
+(`{ "scope": "managed", "release": false }`) keeps any `managed`-scoped commit --
+including a breaking `feat(managed)!` / `BREAKING CHANGE` -- from cutting a plugin
+release. **Order matters:** commit-analyzer keeps the *last* matching rule's release
+when `false` competes with a real release type, so the `release: false` rule must sit
+**after** the `breaking -> minor` rule in `releaseRules`, or a breaking managed
+commit would be upgraded back to a plugin minor release. It still uses the legacy
 `v${version}` tag format, so it is not yet enabled for independent product releases:
 the `plugin-v` rename and the release-notes filtering (so managed commits also drop
 out of the plugin release notes, not just the version bump) land as one verified
