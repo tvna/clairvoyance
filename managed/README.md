@@ -205,8 +205,8 @@ the repository's product-scoped model):
 - Use `feat(managed):` / `fix(managed):` commit scopes so a change releases the
   server and not the plugin.
 
-The managed release workflow is enabled in a later rollout slice; the parity and
-tag-format CI gates land first so the boundary is governed before automation runs.
+The managed release workflow is enabled in a later rollout slice; the version-parity
+CI gate lands first so the boundary is governed before automation runs.
 
 ## Deferred (tracked in #51)
 

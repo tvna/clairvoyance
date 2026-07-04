@@ -59,13 +59,6 @@ repos:
         pass_filenames: false
         files: ^managed/(pyproject\.toml|app/main\.py)$
 
-      - id: check-release-tag-format
-        name: release configs use product-prefixed tag formats
-        entry: python3 scripts/check_release_tag_format.py
-        language: system
-        pass_filenames: false
-        files: ^\.releaserc.*\.json$
-
       - id: waza-check
         name: waza check (skill validation)
         # waza detects the skills/ + evals/ workspace from the repo root.

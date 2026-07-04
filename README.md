@@ -109,14 +109,15 @@ tree.
 
 ## Versioning and releases
 
-The repository ships more than one product, so versions are **product-scoped**:
-the plugin bundle releases as `plugin-vX.Y.Z` and the managed server
-([`managed/`](managed/README.md)) releases independently as `managed-vX.Y.Z`. Each
-line is Semantic Versioning automated with semantic-release from Conventional
-Commits; the git tag is the source of truth. The plugin release writes the version
-into both the Claude Code and Codex `plugin.json` manifests, kept in lockstep.
-Legacy bare `vX.Y.Z` tags are historical plugin tags and are not created for new
-releases. See [docs/versioning.md](docs/versioning.md).
+The repository ships more than one product, so versions are **product-scoped**: the
+plugin bundle is versioned as `plugin-vX.Y.Z` and the managed server
+([`managed/`](managed/README.md)) independently as `managed-vX.Y.Z`. Each line is
+Semantic Versioning automated with semantic-release from Conventional Commits; the
+git tag is the source of truth. The plugin release writes the version into both the
+Claude Code and Codex `plugin.json` manifests, kept in lockstep. Legacy bare
+`vX.Y.Z` tags are historical plugin tags. This model is being rolled out in stages
+(the plugin tag rename and the managed release line are staged slices) — see
+[docs/versioning.md](docs/versioning.md) for what is live vs. staged.
 
 ## Contributing
 

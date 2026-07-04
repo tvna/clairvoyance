@@ -79,13 +79,6 @@ jobs:
         # analogue of the plugin manifest-parity gate above (see docs/versioning.md).
         run: python3 scripts/check_managed_version.py
 
-      - name: Check release configs use product-prefixed tag formats
-        # Product-scoped versioning (docs/versioning.md) namespaces every release
-        # tag by product (plugin-v.., managed-v..). A bare v${version} tagFormat
-        # would reintroduce a repo-wide release line, so fail CI on any release
-        # config whose tagFormat is not <product>-v${version}.
-        run: python3 scripts/check_release_tag_format.py
-
       - name: Validate hook scripts
         run: bash scripts/check_hooks.sh
 

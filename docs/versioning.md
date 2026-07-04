@@ -19,6 +19,20 @@ first release each product is willing to guarantee as a stable surface, so until
 then the version stays in the `0.x` range and may change freely (see the
 [SemVer §4](https://semver.org/#spec-item-4) major-version-zero clause).
 
+### Rollout status
+
+This is the adopted **direction**; the migration is staged so it stays reversible
+(design: issue #53). What is live today vs. staged:
+
+- **Live now:** this documentation of the product-scoped model, and the managed
+  version-parity CI gate (`scripts/check_managed_version.py`).
+- **Staged (later slices):** the plugin release line moving to `plugin-v` tags, the
+  plugin-scoped commit/notes filtering that keeps a managed commit from cutting a
+  plugin release, the managed release workflow, and the baseline tags. Until those
+  land, the plugin release config still uses the legacy `v${version}` tag format
+  described under [Release automation](#release-automation-semantic-release). See
+  the [rollout order](#rollout-order).
+
 ### Product boundaries
 
 A change releases the product it belongs to. Shared repository infrastructure
@@ -36,10 +50,10 @@ two releases.
 ### Legacy `vX.Y.Z` tags
 
 Bare `vX.Y.Z` tags are **legacy plugin release tags**. They are immutable history:
-they are **not rewritten or deleted**, and **no new** bare `vX.Y.Z` tag is created
-for future releases. The plugin release line continues under `plugin-vX.Y.Z`, whose
-baseline (`plugin-v0.3.0`) is cut at the same commit that the legacy `v0.3.0` plugin
-version represents.
+they are **not rewritten or deleted**. Once the plugin line moves to the `plugin-v`
+namespace (a staged slice), no new bare `vX.Y.Z` tag is created for future releases,
+and the plugin baseline (`plugin-v0.3.0`) is cut at the same commit that the legacy
+`v0.3.0` plugin version represents.
 
 ## Single source of truth: the git tag
 
@@ -48,8 +62,9 @@ no version file to hand-edit: the version is written into that product's runtime
 manifests automatically at release time, and CI parity checks keep the manifests
 from drifting.
 
-**plugin.** The release computes the next version from plugin commit history and
-creates a `plugin-v` tag. Both runtime manifests -- `.claude-plugin/plugin.json`
+**plugin.** The release computes the next version from commit history and creates
+the plugin tag (legacy `v` today, `plugin-v` after the staged rename). Both runtime
+manifests -- `.claude-plugin/plugin.json`
 and `.codex-plugin/plugin.json` -- have `$.version` written **automatically** at
 release time (`scripts/apply_version.mjs`) so the manifest each runtime reads at
 the installed ref agrees with the tag. CI fails if the two ever drift
@@ -111,37 +126,45 @@ Deterministic checks enforce each product boundary on every PR
 - **Marketplace carries no version** -- the version lives only in `plugin.json`.
 - **Managed version parity** -- `managed/pyproject.toml` and the FastAPI app
   version agree (`scripts/check_managed_version.py`).
-- **Product-prefixed tag formats** -- every `.releaserc*.json` uses a
-  `<product>-v${version}` tag format; a bare `v${version}` fails CI
-  (`scripts/check_release_tag_format.py`).
+
+The release-config gates that pair with the automation split -- product-prefixed
+tag formats and product-specific changelog paths -- land with that slice (below),
+so a gate never fails against a config that has not been migrated yet.
 
 ## Release automation (semantic-release)
 
-Each product releases from its own semantic-release config reading the
-[Conventional Commits](https://www.conventionalcommits.org/) on `main` since that
-product's last tag. On a release it computes the next semver, writes it into the
-product's version files, updates the product's changelog, commits them, creates the
-product-prefixed git tag, and publishes a GitHub Release with generated notes.
+The target is one semantic-release config per product, each reading the
+[Conventional Commits](https://www.conventionalcommits.org/) on `main` since **that
+product's** last tag, filtered to that product's scope. On a release it computes the
+next semver, writes it into the product's version files, updates the product's
+changelog, commits them, creates the product-prefixed git tag, and publishes a
+GitHub Release with generated notes.
 
-**plugin** (`.releaserc.json`, `.github/workflows/release.yml`, tag `plugin-vX.Y.Z`,
-title `plugin vX.Y.Z`) is implemented: it writes both `plugin.json` manifests and
-updates `CHANGELOG.md`.
+**plugin** (`.releaserc.json`, `.github/workflows/release.yml`) exists today and
+writes both `plugin.json` manifests and `CHANGELOG.md`. It still uses the legacy
+`v${version}` tag format and is **not yet scope-filtered**, so it is not enabled for
+independent product releases: the `plugin-v` rename together with the plugin-scoped
+commit and release-notes filtering (so a `feat(managed): ...` commit cannot cut a
+plugin release) land as one verified unit in the release-config split slice.
 
 **managed** (tag `managed-vX.Y.Z`, writes `managed/pyproject.toml` +
 `managed/app/main.py`, updates `managed/CHANGELOG.md`, tags the container image
-`managed-vX.Y.Z`) is the **next rollout slice**: its release config and workflow
-land once the plugin line is verified. The parity and tag-format gates above are in
-place first so the managed boundary is governed before its automation is enabled.
+`managed-vX.Y.Z`) is a later rollout slice: its release config and workflow land
+with the same split. The managed version-parity gate is in place first so the
+boundary is governed before its automation is enabled.
 
 ### Rollout order
 
 The migration is staged so it stays reversible until releases are enabled (design:
 issue #53):
 
-1. Land docs and CI drift gates. **(this slice)**
-2. Add `plugin-v0.3.0` and `managed-v0.1.0` baseline tags.
-3. Split release configs and workflows per product.
-4. Add the managed version apply/check scripts.
+1. Land docs and the managed version-parity drift gate. **(this slice)**
+2. Split release configs and workflows per product: rename the plugin tag format to
+   `plugin-v`, add plugin-scoped commit/notes filtering, add the managed release
+   config + workflow, and the release-config drift gates (product-prefixed tag
+   formats, product-specific changelog paths).
+3. Add the managed version apply script.
+4. Add the `plugin-v0.3.0` and `managed-v0.1.0` baseline tags.
 5. Dry-run release verification for both products.
 6. Enable scheduled/manual releases independently.
 
@@ -173,20 +196,20 @@ release would fail until the secret is set). This is why the release pipeline st
 inert until the token is issued.
 
 **One-time baseline tags.** semantic-release defaults the *first* release to `1.0.0`
-when no prior tag matches the product's `tagFormat`. To start each product in the
-`0.x` range, seed its baseline once after this lands on `main`:
+when no prior tag matches the product's `tagFormat`, so each product's baseline is
+seeded once in the release-config split slice, before its releases are enabled:
 
 ```bash
-git tag plugin-v0.3.0    # plugin tagFormat is "plugin-v${version}"
+git tag plugin-v0.3.0    # after the plugin tagFormat becomes "plugin-v${version}"
 git push origin plugin-v0.3.0
 
-git tag managed-v0.1.0   # seeded when the managed release line is enabled
+git tag managed-v0.1.0   # when the managed release line is enabled
 git push origin managed-v0.1.0
 ```
 
-`release.yml` refuses to run unless a `plugin-v` semver tag exists, so a missing or
-wrongly-formatted baseline fails the release loudly instead of silently cutting
-`1.0.0`. The next plugin release then computes from `0.3.0` (`feat:` -> `0.4.0`,
-`fix:` -> `0.3.1`).
+`release.yml` already refuses to run unless a matching semver tag exists (today
+`v[0-9]*`, `plugin-v[0-9]*` after the rename), so a missing or wrongly-formatted
+baseline fails the release loudly instead of silently cutting `1.0.0`. The next
+plugin release then computes from `0.3.0` (`feat:` -> `0.4.0`, `fix:` -> `0.3.1`).
 
 [semantic-release]: https://github.com/semantic-release/semantic-release
