@@ -12,6 +12,7 @@
 - [ ] Affected `waza run` suites pass — or noted as blocked with the reason
       (e.g. eval backend quota exhausted; see `docs/evaluations.md`)
 - [ ] CI is green (JSON manifests, version consistency, hook scripts)
+- [ ] Code-review pass run on this diff and findings addressed, or explicitly deferred with a reason
 
 ## Conventional commit
 

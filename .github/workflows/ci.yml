@@ -234,6 +234,40 @@ jobs:
       - name: Build
         run: npm run build
 
+  stub-issuer-unit:
+    # Retro #64 repair 1: the e2e stub issuer's sign-in form must POST under
+    # the /issuer proxy route; a root-absolute action bypassed it and timed
+    # out both Playwright sign-ins. This standalone, no-Docker pytest guards
+    # that with a plain in-process HTTP request. It is deliberately its own
+    # job with no `needs` and no Docker, so it runs fast and independently --
+    # a form-routing regression is caught even when the heavier managed-ui or
+    # managed-ui-e2e jobs are red or skipped (that independence is the point:
+    # the original bug slipped through precisely because the only check that
+    # exercised the proxy path was the Docker-gated e2e). The stub is kept off
+    # managed/pyproject.toml's dependency tree (see stub-issuer/app.py), so it
+    # installs its own pinned requirements into a throwaway venv.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: managed/ui/e2e/stub-issuer
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Run stub issuer sign-in form unit test
+        run: |
+          python3 -m venv /tmp/stub-issuer-venv
+          /tmp/stub-issuer-venv/bin/pip install --quiet -r requirements.txt -r requirements-test.txt
+          /tmp/stub-issuer-venv/bin/python -m pytest test_signin_form.py -q
+
   managed-ui-e2e:
     # Playwright smoke against the real service path (design doc §13,
     # step 4): the ui image, the api image, Postgres, Redis, a front
