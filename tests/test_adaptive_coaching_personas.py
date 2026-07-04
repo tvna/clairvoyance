@@ -380,6 +380,61 @@ PERSONAS = (
             _reflect(ready=False, count=0, sessions=2, by_category={}),
         ),
     ),
+    # -- Compound personas: real people cross thresholds in combination, not
+    # -- one clean category at a time. These pin what the store-level gate can
+    # -- and cannot see when threshold crossings combine (findings F6/F7, #89).
+    #
+    # Rin had a rough month: five DIFFERENT single instances, one per category.
+    # The total crosses the signal gate, so the store reports ready -- the gate
+    # is category-blind (F6) and cannot see that every candidate gap is a
+    # single instance. The contract-faithful hold ("never quiz on a single
+    # instance", SKILL.md) must come from the skill layer reading by_category:
+    # evals/adaptive-coaching/tasks/scattered-signal-hold.yaml is that check.
+    Persona(
+        name="rin-scattered-signal",
+        coach_threshold=5,
+        session_threshold=2,
+        timeline=(
+            _session(sessions=1),
+            _observe("avoidance", "hard-call-dodged", count=1),
+            _session(sessions=2),
+            _observe("loss-aversion", "legacy-kept", count=2),
+            _observe("values-conflict", "bar-lowered", count=3),
+            _observe("authority-dependence", "just-decide", count=4),
+            _observe("no-experiment", "no-spike", count=5, ready=True),
+            _reflect(
+                ready=True,  # current behaviour: total count crosses, composition invisible
+                count=5,
+                sessions=2,
+                by_category={
+                    "authority-dependence": 1,
+                    "avoidance": 1,
+                    "loss-aversion": 1,
+                    "no-experiment": 1,
+                    "values-conflict": 1,
+                },
+            ),
+        ),
+    ),
+    # Sora is past the grace period and has one terrible crunch day: three
+    # same-category observations inside a single session cross the signal gate
+    # with no across-session recurrence (F7). Unlike F6, the skill layer cannot
+    # detect this from status JSON at all -- rows carry no session linkage --
+    # so no L2 eval task exists; only a store-side change could surface it.
+    Persona(
+        name="sora-single-session-burst",
+        coach_threshold=3,
+        session_threshold=2,
+        dominant="avoidance",
+        timeline=(
+            _session(sessions=1),
+            _session(sessions=2),
+            _observe("avoidance", "crunch-dodge", count=1),
+            _observe("avoidance", "crunch-dodge", count=2),
+            _observe("avoidance", "crunch-dodge", count=3, ready=True),
+            _reflect(ready=True, count=3, sessions=2, by_category={"avoidance": 3}),
+        ),
+    ),
 )
 
 
@@ -446,6 +501,38 @@ def test_status_counts_rows_past_age_bound_until_next_record(tmp_path):
     pruned = run_store(["record", "--category", "no-experiment"], data_dir, 2, 0, env_extra)
     assert pruned["count"] == 1
     assert pruned["ready"] is False
+
+
+@needs_sqlite3
+def test_outcome_rows_alone_sustain_readiness_after_rotation(tmp_path):
+    """Pins the F4 corollary (issue #89) in its compound form: after every raw
+    observation ages past the rotation bound, the quiz-answer rows recorded in
+    the same category re-cross the threshold on their own. A person whose
+    behaviour improved (no new raw signal for months) stays quiz-ready purely
+    because they answered quizzes."""
+    data_dir = tmp_path / "store"
+    env_extra = {"CLAIRVOYANCE_MAX_AGE_DAYS": "30"}
+    for _ in range(3):
+        run_store(["record", "--category", "avoidance"], data_dir, 3, 0, env_extra)
+    assert run_store(["status"], data_dir, 3, 0, env_extra)["ready"] is True
+    # Age every raw observation past the bound; the outcome rows recorded below
+    # stay fresh, so each answer prunes the stale rows and adds itself.
+    conn = sqlite3.connect(str(data_dir / "coaching.db"))
+    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00' WHERE outcome IS NULL")
+    conn.commit()
+    conn.close()
+    answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "high"]
+    assert run_store(answer, data_dir, 3, 0, env_extra)["ready"] is False  # stale rows pruned
+    assert run_store(answer, data_dir, 3, 0, env_extra)["ready"] is False
+    third = run_store(answer, data_dir, 3, 0, env_extra)
+    assert third["count"] == 3
+    assert third["ready"] is True  # current behaviour: readiness rebuilt from answers alone
+    rows = (
+        sqlite3.connect(str(data_dir / "coaching.db"))
+        .execute("SELECT COUNT(*), SUM(outcome IS NOT NULL) FROM observations")
+        .fetchone()
+    )
+    assert rows == (3, 3)  # every remaining row is a quiz outcome, zero raw signal
 
 
 def test_missing_sqlite3_holds_not_fails(tmp_path):

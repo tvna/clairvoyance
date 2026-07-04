@@ -14,6 +14,7 @@ are reported in issue #89 and are **pinned, not fixed**, by the tests here.
 - Test layers and the automation boundary
 - Persona roster
 - Representative full timelines
+- Combined threshold crossings (compound personas)
 - Infrastructure scenarios (rotation, unavailable store)
 - Verification matrix
 - Findings pinned by these tests
@@ -90,7 +91,9 @@ running the worked example (`references/example.md`) against a seeded store:
 ## Persona roster
 
 Seven category personas (one per store category), one Type II boundary case,
-and three negative personas that must never reach a quiz. `Thresholds` is
+three negative personas that must never reach a quiz, and two compound
+personas whose threshold crossings combine (see the combined-crossings
+section). `Thresholds` is
 `coach/session`. Timeline notation: `S` session, `O` observation, `R:hold` /
 `R:ready` reflection request with the expected gate result, `A` answered quiz.
 The **Ready turn** column is the invariant to eyeball: a quiz before that turn
@@ -109,6 +112,8 @@ is a defect, and `-` means the persona must never be quizzed.
 | 9 | Itsuki | First-time user, one instance on day one (negative) | 3/3 | S O R:hold | - | Both gates short; the case the grace period exists for |
 | 10 | Jun | Veteran with a single instance (negative) | 3/2 | S S O R:hold | - | Signal gate alone holds; never quiz one occurrence |
 | 11 | Kaho | Healthy long-run user, no recurring pattern (negative) | 3/2 | S S R:hold | - | Zero signal holds; the skill must not manufacture a pattern |
+| 12 | Rin | Rough month: five DIFFERENT single instances, one per category (compound) | 5/2 | S O S O O O O R | store says ready at 7 of 8 | Gate is category-blind (F6): total crosses on scatter; the contract-faithful hold is the skill layer's job (`scattered-signal-hold.yaml`) |
+| 13 | Sora | One crunch day: three same-category observations inside a single session, grace already past (compound) | 3/2 | S S O O O R | 5 of 6, all in one session | No across-session spread requirement (F7); undetectable from status JSON — rows carry no session linkage |
 
 Every roster row is executable: `tests/test_adaptive_coaching_personas.py`
 encodes the same timelines with exact expected JSON (`ready`, `count`,
@@ -147,6 +152,35 @@ psychological safety contract in `SKILL.md` and the Heifetz moves in
 `references/practice.md` (hold the heat, give the work back, name avoidance
 gently).
 
+## Combined threshold crossings (compound personas)
+
+Real people do not present one clean category at a time, so the plan was
+re-examined against combinations of threshold-crossing cases. Two results,
+both verified live against the store CLI before being encoded as tests:
+
+**The deterministic suite stays arithmetically sound under combination.** The
+store is a monotone total counter with bounded rotation; every persona test
+runs against an isolated data dir with exact-state assertions, so combining
+categories, session shapes, and outcome rows cannot invalidate an existing
+assertion. Nothing in the single-category personas becomes wrong when
+categories co-occur (personas 4, 6, 8 already mix two categories).
+
+**What combinations break is not the arithmetic but the fairness semantics.**
+The readiness gate reads `count >= threshold` and is blind to three
+compositions that a combined reality produces, each now pinned:
+
+| Compound case | Verified behaviour | Pin (L1) | Skill-layer counterpart (L2) |
+| ------------- | ------------------ | -------- | ---------------------------- |
+| Scatter: five categories, one instance each (F6) | `ready: true`, `distinct_categories: 5`, every `by_category` value 1 | persona 12 `rin-scattered-signal` | `scattered-signal-hold.yaml` (new): the skill must hold — "never quiz on a single instance" applies to every candidate gap; `by_category` in the status JSON is the signal it can read |
+| Single-session burst crossing the signal gate (F7) | 3 observations with no intervening `record-session` flip `ready` with `sessions` unchanged | persona 13 `sora-single-session-burst` | **none possible**: status JSON carries no per-session linkage, so the skill cannot distinguish a burst from an across-session pattern; only a store-side change could expose it |
+| Quiz answers self-sustain readiness through rotation (F4 corollary) | after every raw observation ages out, 3 outcome rows alone rebuild `ready: true` (row composition 3/3 outcomes) | `test_outcome_rows_alone_sustain_readiness_after_rotation` | not expressible single-turn (requires answer turns); noted for the manual checklist |
+
+The asymmetry matters for anyone extending this plan: F6 is catchable at the
+skill layer because the evidence (`by_category`) crosses the store boundary;
+F7 and the F4 corollary are not, because the distinguishing evidence (session
+linkage, row kind) never leaves the store. A skill-layer test for those would
+assert on information the skill cannot have.
+
 ## Infrastructure scenarios (rotation, unavailable store)
 
 | Scenario | Asset (L1) | Expected |
@@ -180,6 +214,9 @@ unavailable, the skill must keep observing and must not quiz from memory.
 | Confidence calibration + spaced intervals | metadata persistence (existing quiz-metadata tests) | `confidence-calibration.yaml`, `spaced-follow-up.yaml` (existing) | `confidence-calibration.toml` | interval choice (turn two) |
 | Rotation / bounded store | 3 scenarios above | - | - | - |
 | Hold-not-fail on unavailable store | 3 scenarios above | `store-unavailable-hold.yaml` (new) | - | - |
+| Scattered singletons reach ready (F6) | persona 12 | `scattered-signal-hold.yaml` (new) | - | - |
+| Single-session burst reaches ready (F7) | persona 13 | not possible (no session linkage in status JSON) | - | - |
+| Outcome rows self-sustain readiness (F4 corollary) | `test_outcome_rows_alone_sustain_readiness_after_rotation` | not possible single-turn | - | included in soak |
 | Real SessionStart accumulation over weeks | - | - | - | **manual** soak |
 
 ## Findings pinned by these tests
@@ -202,6 +239,14 @@ consciously update the named test:
   silently dropping context-capture observations (environment-dependent;
   surfaced by the existing `test_raw_context_quotes_are_safe`, which fails on
   bash 3.2 hosts and passes on bash 4/5 — see #89 for the analysis).
+- **F6** the readiness gate is category-blind: five singleton observations in
+  five different categories cross the total-count threshold and report ready,
+  though no category recurs (pinned by persona 12 `rin-scattered-signal`;
+  skill-layer counterpart `scattered-signal-hold.yaml`).
+- **F7** the readiness gate has no across-session spread requirement: once the
+  grace period is past, a burst of same-category observations inside a single
+  session crosses the signal gate (pinned by persona 13
+  `sora-single-session-burst`; not detectable from the status JSON).
 
 ## How to run
 
