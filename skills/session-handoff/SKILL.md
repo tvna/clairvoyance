@@ -27,6 +27,30 @@ session-scoped limits block the change here - reset and resume in a new session.
 
 Read [the handoff template](references/handoff-template.md) for exact section order and an example.
 
+## When the next session runs on a Fable model
+
+First decide whether the Fable-optimized path applies. Confirm the next session's
+model from, in order: an explicit statement of which model the next session will
+use; failing that, the model identifier the harness reports for a session the
+operator is continuing on the same model (`claude-fable-5` or `claude-mythos-5`).
+Judge the *next* session's model, not this one's - they can differ. If neither
+source confirms a Fable model, emit the standard handoff; do not infer Fable from
+the task alone. When it is plausibly Fable but unconfirmed, ask one question
+rather than assume.
+
+Once Fable is confirmed, optimize the handoff for it by prepending a short
+operating block that names Fable in its heading and sets effort, scope, and
+progress-reporting discipline. Fable follows brief instructions and degrades on
+over-prescription, but Fable is not always available - a safety-classifier
+refusal falls back to Opus 4.8, and some harnesses do not offer Fable at all - so
+keep the handoff body model-agnostic rather than stripping it: the block tells
+Fable to treat the sections as constraints, not a script, and its first line
+tells a session on neither Fable nor Mythos to ignore it. The result is one artifact, explicitly
+labeled for Fable yet still correct if it degrades. Never tell the next session
+to echo its reasoning - on Fable that can trigger a refusal. Read
+[the Fable-optimized handoff](references/fable-optimization.md) for the decision
+signals, the safe-degradation rationale, and the paste-ready operating block.
+
 ## Output
 
 Deliver the handoff as a single attached Markdown file (`handoff.md`) so it copies and pastes in one piece. Portable delivery, in order of preference: attach the file when the harness supports attachments; otherwise write it to a Markdown file outside the repository (for example, a temporary directory) and give its path - never write into the repo workspace, since a handoff often fires in the blocked or low-context states where the session must avoid extra repo changes; if the harness supports neither attachments nor writing outside the repo, emit the same Markdown inline as the reply. The file (or inline block) holds one prompt with headings **Context**, **Background**, **Files to read**, **Implementation**, **Verification**, **PR creation**, **Acceptance criteria**.
