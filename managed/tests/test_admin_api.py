@@ -350,6 +350,43 @@ def test_dismiss_denied_for_non_dismiss_role_is_audited(
     assert denied[0].target_id == schedule_id
 
 
+def test_dismiss_of_other_org_schedule_is_hidden(
+    app: FastAPI,
+    client: TestClient,
+    seeded_org: SeededOrg,
+    session_factory: sessionmaker[Session],
+) -> None:
+    # Tenant isolation on the write path: a schedule that exists but belongs to
+    # another org must 404, never dismiss. Exercises the org-scope half of
+    # _get_schedule's guard, not just the nonexistent-id half.
+    past = datetime(2026, 1, 1, tzinfo=UTC)
+    with session_factory() as session:
+        other = Organization(key="other-org", name="Other")
+        session.add(other)
+        session.flush()
+        contributor = Contributor(organization_id=other.id, provider="github", external_id="777")
+        session.add(contributor)
+        session.flush()
+        schedule = ReviewSchedule(
+            organization_id=other.id,
+            contributor_id=contributor.id,
+            category="avoidance",
+            signal="",
+            due_at=past,
+            interval_days=2,
+            last_outcome="incorrect",
+            last_attempted_at=past,
+        )
+        session.add(schedule)
+        session.flush()
+        foreign_id = str(schedule.id)
+
+    admin_override(app, roles=(Role.ORG_ADMIN,))  # acting as the seeded "acme" org
+    # 404 (not 200) means the guard rejected the foreign schedule before any
+    # write -- the dismiss path never runs, so the row cannot be touched.
+    assert client.post(f"/v1/admin/reviews/{foreign_id}/dismiss").status_code == 404
+
+
 def test_dismiss_not_found_matches_contributor_semantics(
     app: FastAPI, client: TestClient, seeded_org: SeededOrg
 ) -> None:
