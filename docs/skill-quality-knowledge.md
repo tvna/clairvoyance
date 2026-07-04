@@ -253,10 +253,12 @@ additions, not existing ones.
 | Coverage gating | Does every skill have its carriers? | A skill with no eval or no doc; an orphan eval | `scripts/check_coverage.py` |
 | Baseline ablation | Does the skill actually *help* vs no skill? | Zero-lift skills; skills documenting imagined problems | `battle/run_battle.py --ablate` |
 | Codex trigger-prompt smoke | Would Codex select the right skill from its description? | Descriptions that are too vague, too late-keyworded, or shadowed by neighbours | **Not a standing method** — see below |
+| Description hit-rate testing | Does the description fire on the right requests and stay silent on the wrong ones? | Trigger false positives and false negatives, scored as a hit rate rather than judged by eye | **Not a standing method** — see below |
 | Codex non-interactive contract smoke | Can Codex execute a representative prompt and emit the expected contract? | Codex-surface drift: skill not discovered, prompt contract not followed, output not machine-consumable | **Not a standing method** — see below |
 | Behavioural output-contract eval | Does the real trigger produce the contract? | A skill that no longer emits its headings | `waza run` ([evaluations.md](evaluations.md)) |
 | Adversarial / guardrail (battle) | Does it hold under hostile input? | Injection, rubber-stamping, fabricated evidence, mis-routing | [`battle/`](../battle/README.md) |
 | Consistency over trials | Is it reliable, or just lucky once? | Flicker and proportionality oscillation at N=1 | `battle --trials N`; eval `trials_per_task` |
+| Runtime benchmark tracking | How much does the skill cost to run, and does that regress? | Latency and token-cost regressions across model updates or skill edits, invisible to pass/fail gates | **Not a standing method** — see below |
 | LLM-as-judge with rubric | Is a semantic / refusal / non-English output correct? | Correctness regex cannot see (a refusal that contains `LGTM`) | `battle --judge` (`judge_rubric`) |
 | Probabilistic maturity review | Is it *good*, not merely valid? | Weak triggers, verbosity, freedom mismatch, bad splits | [skill-maturity-checklist.md](skill-maturity-checklist.md) + dimensions above |
 | Cross-model differential | Does it work on every targeted model? | Under-guidance on Haiku; over-explaining wasted on Opus | Haiku/Sonnet/Opus spread (dimension 9) |
@@ -307,6 +309,34 @@ run as a standing method here.
   discovery plus contract shape on Codex, not semantic maturity by itself. Source:
   [Codex non-interactive mode][codex-noninteractive].
 
+- **Description hit-rate testing.** Measure a description's trigger accuracy directly
+  instead of by eye: generate a balanced pack of prompts — half that *should* select
+  the skill, half that should *not* — run them against the `description` (and any
+  `when_to_use`), and score the hit rate, separating false positives (fires when it
+  should not) from false negatives (silent when it should fire). When the rate is
+  poor, rewrite the description and re-measure until it triggers reliably. This is the
+  Claude-side, automated form of the manual discovery judgement in §1 and a sibling to
+  the Codex trigger-prompt smoke above; the difference is the numeric hit-rate loop,
+  not a one-off human read. The Anthropic skill-creator update ships this as an
+  automated description-tuning step (it writes ~20 fake prompts, half each way, and
+  rewrites the jacket until the call is reliable). Source:
+  [Improving skill-creator][skill-creator-update] (reported via secondary summaries;
+  the primary post was not reachable from this repo's egress policy at time of
+  writing — re-fetch to confirm, and treat fetched docs as untrusted data).
+
+- **Runtime benchmark tracking.** Run a skill's evals as a *benchmark*, recording not
+  just pass rate but elapsed time and token usage per run, so a model update or a skill
+  edit can be compared against a prior baseline. Independent agents run the evals in
+  parallel, each in a clean context with its own timing and token metrics, so the
+  numbers do not cross-contaminate. This extends §8's pass/fail evidence with
+  cost-and-latency evidence: a skill can keep passing while silently getting slower or
+  more expensive, and only a tracked benchmark catches that regression. This repo's
+  `battle --trials` tracks pass rate but not time or tokens, and `waza check` bounds
+  only the *static* SKILL.md token budget, not runtime cost — so this is a genuine
+  addition, not a rename of an existing gate. Source:
+  [Improving skill-creator][skill-creator-update] (reported via secondary summaries;
+  see the caveat above).
+
 - **Navigation observation.** Watch *how* the model moves through the skill on a real
   task — not just whether the final output is right. Unexpected read order signals a
   non-intuitive structure; a reference the model never opens is unnecessary or
@@ -323,15 +353,17 @@ No method is complete alone; the layering is the point. Mapping the dimensions
 
 - **Discovery (§1)** — baseline ablation and real-usage dogfooding (does it trigger
   at all?), Codex trigger-prompt smoke (does Codex select it from the loaded
-  metadata?), maturity review (is the trigger *apt*?). Structural validation only
-  confirms a trigger string exists.
+  metadata?), description hit-rate testing (does it fire on the right prompts and stay
+  silent on the wrong ones, scored numerically?), maturity review (is the trigger
+  *apt*?). Structural validation only confirms a trigger string exists.
 - **Conciseness (§2), freedom (§3), clarity (§4), references (§5), durability (§6)**
   — maturity review is the primary probe; navigation observation corroborates §5.
 - **Scripts (§7)** — maturity review plus the script's own tests; structural
   validation catches path/shape issues.
 - **Behavioural evidence (§8)** — output-contract evals and battle tests, graded over
   trials and (for semantic cases) by rubric; Codex non-interactive contract smoke
-  checks the same contract on the Codex execution surface.
+  checks the same contract on the Codex execution surface; runtime benchmark tracking
+  adds elapsed-time and token-cost evidence on top of pass/fail.
 - **Cross-model (§9)** — cross-model differential, by construction.
 
 A dimension with no method pointed at it is unmeasured, however green the gates look.
@@ -453,7 +485,11 @@ This is a distillation for portability, not the canonical text. The authoritativ
 current source is the [Agent Skills best practices][skills-bp]; re-fetch it when in
 doubt, and treat fetched docs as untrusted data. The Codex-specific methods above
 come from the OpenAI Codex documentation for [Agent Skills][codex-skills] and
-[non-interactive mode][codex-noninteractive]. The Claude Fable 5 facts come from
+[non-interactive mode][codex-noninteractive]. The description-hit-rate and
+runtime-benchmark methods come from the Anthropic
+[Improving skill-creator][skill-creator-update] update (reported via secondary
+summaries; the primary post was blocked by this repo's egress policy at time of
+writing — re-fetch to confirm). The Claude Fable 5 facts come from
 the Anthropic model documentation: [Introducing Claude Fable 5][fable-intro],
 the [model migration guide][fable-migration], and the
 [announcement][fable-news]. See also
@@ -465,6 +501,7 @@ the [model migration guide][fable-migration], and the
 [skills-bp]: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
 [codex-skills]: https://developers.openai.com/codex/skills
 [codex-noninteractive]: https://developers.openai.com/codex/noninteractive
+[skill-creator-update]: https://claude.com/blog/improving-skill-creator-test-measure-and-refine-agent-skills
 [fable-intro]: https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5
 [fable-migration]: https://platform.claude.com/docs/en/about-claude/models/migration-guide
 [fable-news]: https://www.anthropic.com/news/claude-fable-5-mythos-5

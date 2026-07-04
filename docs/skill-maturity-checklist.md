@@ -57,6 +57,10 @@ know what is already automated:
 - [ ] `name` and `description` together let Claude pick this skill over the other
       skills in `skills/` for its intended trigger, and *not* pick it for a
       neighbouring skill's trigger.
+- [ ] The trigger has been checked against a balanced set of should-trigger /
+      should-not-trigger prompts, not judged by eye alone — it fires on the former
+      and stays silent on the latter (description hit-rate testing; not yet a
+      standing gate here, so record the check or why it does not apply).
 
 ### Conciseness — every token earns its place
 
@@ -103,6 +107,11 @@ know what is already automated:
       failure/guardrail case the skill exists to prevent.
 - [ ] Behaviour has been observed on the models the skill targets (the doc-stated
       Haiku/Sonnet/Opus spread), not just one.
+- [ ] The suite's runtime cost has a recorded baseline (pass rate plus elapsed time
+      and token usage), so a later model update or skill edit can be checked for a
+      latency/token regression that a pass/fail gate would miss (runtime benchmark
+      tracking; not yet a standing gate here, so record the baseline or why it does
+      not apply).
 
 ### Scripts bundled with the skill (only if it ships code)
 
