@@ -29,15 +29,22 @@ Read [the handoff template](references/handoff-template.md) for exact section or
 
 ## When the next session runs on a Fable model
 
-When you are told the next session will use a Claude Fable model
-(`claude-fable-5` or `claude-mythos-5`), optimize the handoff for it: state the
-goal and constraints and drop step-by-step prescription (Fable follows brief
-instructions and degrades on over-prescription), and prepend a short operating
-block that sets effort, scope, and progress-reporting discipline. Never tell the
-next session to echo its reasoning - on Fable that can trigger a refusal. For any
-other model, emit the standard handoff unchanged. Read
-[the Fable-optimized handoff](references/fable-optimization.md) for the exact
-adjustments and the paste-ready operating block.
+First decide whether the Fable-optimized path applies. Confirm the next session's
+model from, in order: an explicit statement of which model the next session will
+use; failing that, the model identifier the harness reports for a session the
+operator is continuing on the same model (`claude-fable-5` or `claude-mythos-5`).
+Judge the *next* session's model, not this one's - they can differ. If neither
+source confirms a Fable model, emit the standard handoff; do not infer Fable from
+the task alone. When it is plausibly Fable but unconfirmed, ask one question
+rather than assume.
+
+Once Fable is confirmed, optimize the handoff for it: state the goal and
+constraints and drop step-by-step prescription (Fable follows brief instructions
+and degrades on over-prescription), and prepend a short operating block that sets
+effort, scope, and progress-reporting discipline. Never tell the next session to
+echo its reasoning - on Fable that can trigger a refusal. Read
+[the Fable-optimized handoff](references/fable-optimization.md) for the decision
+signals, the exact adjustments, and the paste-ready operating block.
 
 ## Output
 
