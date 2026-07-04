@@ -18,17 +18,32 @@ against an injected HTTP boundary, so it carries no live-network dependency in C
 live but missing from `main.json` is dropped on apply. Keep every rule you intend
 to enforce in the file, not just the checks you are changing.
 
-The shipped baseline enforces, on the default branch:
+The shipped baseline mirrors the tvna/claude-md governance shape and enforces, on
+the default branch:
 
-- no branch deletion, no force-push (`deletion`, `non_fast_forward`);
-- a pull request before merge, with review threads resolved and code-owner
-  review required (`pull_request`);
-- the six CI jobs as required status checks: `validate`, `tests`,
-  `managed-server`, `managed-ui`, `managed-ui-e2e`, `tests-windows`.
+- no branch deletion, no force-push, linear history, signed commits
+  (`deletion`, `non_fast_forward`, `required_linear_history`,
+  `required_signatures`);
+- a pull request before merge, squash-only, with review threads resolved and
+  code-owner review required (`pull_request`);
+- the six CI jobs as required status checks, strict (branch up to date before
+  merge): `validate`, `tests`, `managed-server`, `managed-ui`, `managed-ui-e2e`,
+  `tests-windows`.
 
 The status-check `context` values are the CI job names exactly as they appear as
 checks. If a job is renamed in `ci.yml`, update the matching `context` here or the
 requirement silently stops matching.
+
+### Behavior changes to confirm before applying
+
+This baseline is stricter than what the branch history suggests is currently
+live (merge commits exist on `main`, which `required_linear_history` +
+squash-only would forbid). Applying it therefore also switches `main` to
+**squash-only merges** and **requires every commit to be signed**. If either is
+not intended, drop `required_linear_history` / `required_signatures` and widen
+`allowed_merge_methods` in `main.json` before applying. The `plan` dry-run shows
+the exact diff against the real live ruleset, which is the ground truth -- treat
+it as the confirmation step, not this file.
 
 ## Required secret: `RULESETS_PAT`
 
