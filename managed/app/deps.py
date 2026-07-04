@@ -105,6 +105,19 @@ def get_admin_organization(principal: AdminPrincipalDep, db: DbDep) -> Organizat
 AdminOrgDep = Annotated[Organization, Depends(get_admin_organization)]
 
 
+# Path params that name an audit target, mapped to the target_type recorded
+# for them. A new route reusing one of these names is audited with its target
+# automatically; an unlisted param records no target rather than a wrong one.
+_AUDIT_TARGET_TYPES = {"contributor_id": "contributor", "schedule_id": "review_schedule"}
+
+
+def _audit_target(path_params: dict[str, str]) -> tuple[str | None, str | None]:
+    for param, target_type in _AUDIT_TARGET_TYPES.items():
+        if param in path_params:
+            return target_type, path_params[param]
+    return None, None
+
+
 def audit_admin_access(request: Request, organization: AdminOrgDep, principal: AdminPrincipalDep) -> None:
     """Router-level audit: every admin route (including 404s and role-denied
     attempts) leaves a trail, with the action derived from the route so a new
@@ -113,7 +126,7 @@ def audit_admin_access(request: Request, organization: AdminOrgDep, principal: A
     Uses its own committed session so the row survives a handler rollback.
     """
     route = request.scope["route"]
-    contributor_id = request.path_params.get("contributor_id")
+    target_type, target_id = _audit_target(request.path_params)
     session: Session = request.app.state.session_factory()
     try:
         audit.record(
@@ -121,8 +134,8 @@ def audit_admin_access(request: Request, organization: AdminOrgDep, principal: A
             organization_id=organization.id,
             actor=principal.subject,
             action=route.name,
-            target_type="contributor" if contributor_id is not None else None,
-            target_id=contributor_id,
+            target_type=target_type,
+            target_id=target_id,
         )
         session.commit()
     finally:

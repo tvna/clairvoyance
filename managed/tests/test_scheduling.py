@@ -150,3 +150,107 @@ def test_stale_attempt_does_not_overwrite_newer_schedule(db: Session) -> None:
     assert stale.last_outcome == "correct"  # unchanged
     assert stale.due_at == newer + timedelta(days=5)
     assert stale.last_attempted_at == newer
+
+
+def _dismiss(schedule: object, db: Session) -> None:
+    schedule.status = "dismissed"  # type: ignore[attr-defined]
+    schedule.dismissed_at = datetime(2026, 7, 2, 10, 0, tzinfo=UTC)  # type: ignore[attr-defined]
+    schedule.dismissed_by = "coach@example.com"  # type: ignore[attr-defined]
+    db.flush()
+
+
+def test_newer_attempt_reopens_a_dismissed_schedule(db: Session) -> None:
+    organization, contributor = _seed(db)
+    occurred = datetime(2026, 7, 2, 10, 0, tzinfo=UTC)
+    schedule = scheduling.apply_outcome(
+        db,
+        organization_id=organization.id,
+        contributor_id=contributor.id,
+        category="avoidance",
+        signal="deferred-risk-call",
+        outcome="correct",
+        confidence="medium",
+        occurred_at=occurred,
+    )
+    _dismiss(schedule, db)
+
+    reopened = scheduling.apply_outcome(
+        db,
+        organization_id=organization.id,
+        contributor_id=contributor.id,
+        category="avoidance",
+        signal="deferred-risk-call",
+        outcome="incorrect",
+        confidence=None,
+        occurred_at=occurred + timedelta(days=1),  # newer than the dismissal's attempt
+    )
+    assert reopened.id == schedule.id
+    assert reopened.status == "active"  # back in the work queue
+    assert reopened.dismissed_at is None  # dismissal metadata cleared
+    assert reopened.dismissed_by is None
+
+
+def test_stale_attempt_does_not_reopen_a_dismissed_schedule(db: Session) -> None:
+    organization, contributor = _seed(db)
+    occurred = datetime(2026, 7, 2, 10, 0, tzinfo=UTC)
+    schedule = scheduling.apply_outcome(
+        db,
+        organization_id=organization.id,
+        contributor_id=contributor.id,
+        category="avoidance",
+        signal="deferred-risk-call",
+        outcome="correct",
+        confidence="medium",
+        occurred_at=occurred,
+    )
+    _dismiss(schedule, db)
+
+    stale = scheduling.apply_outcome(
+        db,
+        organization_id=organization.id,
+        contributor_id=contributor.id,
+        category="avoidance",
+        signal="deferred-risk-call",
+        outcome="incorrect",
+        confidence=None,
+        occurred_at=occurred - timedelta(days=30),  # older than the last applied attempt
+    )
+    # The out-of-order guard wins: a late-arriving attempt must not resurrect a
+    # deliberately dismissed row.
+    assert stale.id == schedule.id
+    assert stale.status == "dismissed"
+    assert stale.dismissed_by == "coach@example.com"
+
+
+def test_equal_timestamp_attempt_does_not_reopen_a_dismissed_schedule(db: Session) -> None:
+    organization, contributor = _seed(db)
+    occurred = datetime(2026, 7, 2, 10, 0, tzinfo=UTC)
+    schedule = scheduling.apply_outcome(
+        db,
+        organization_id=organization.id,
+        contributor_id=contributor.id,
+        category="avoidance",
+        signal="deferred-risk-call",
+        outcome="correct",
+        confidence="medium",
+        occurred_at=occurred,
+    )
+    _dismiss(schedule, db)
+
+    # A distinct attempt sharing the exact occurred_at (e.g. coarse historical
+    # imports) is not strictly newer, so it must not reopen the dismissal --
+    # while its field refresh still applies (the WHERE guard is inclusive).
+    equal = scheduling.apply_outcome(
+        db,
+        organization_id=organization.id,
+        contributor_id=contributor.id,
+        category="avoidance",
+        signal="deferred-risk-call",
+        outcome="incorrect",
+        confidence="high",
+        occurred_at=occurred,
+    )
+    assert equal.id == schedule.id
+    assert equal.status == "dismissed"  # operator intent preserved
+    assert equal.dismissed_by == "coach@example.com"
+    assert equal.last_outcome == "incorrect"  # field refresh still happened

@@ -47,7 +47,15 @@ class ContributorSummaryOut(BaseModel):
 class ReviewDueOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    # The schedule's own id, so the row can address the dismiss write.
+    id: uuid.UUID
     contributor_id: uuid.UUID
+    # Identity fields carried on the row (design gap 4): the queue used to join
+    # names client-side from the cached contributors list; the server now joins
+    # the contributor so the UI reads them straight off the row.
+    display_name: str | None
+    provider: str
+    external_id: str
     category: str
     signal: str | None
     due_at: datetime
@@ -63,6 +71,17 @@ class ReviewDueOut(BaseModel):
 
 class ReviewDueListOut(BaseModel):
     due: list[ReviewDueOut]
+
+
+class ReviewDismissOut(BaseModel):
+    """Result of a dismiss write: the schedule's new dismissed state."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    status: str
+    dismissed_at: datetime | None
+    dismissed_by: str | None
 
 
 class PolicySettingsPatch(BaseModel):
@@ -103,3 +122,4 @@ class AuditLogOut(BaseModel):
 
 class AuditLogListOut(BaseModel):
     logs: list[AuditLogOut]
+    total: int

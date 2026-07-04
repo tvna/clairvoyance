@@ -15,6 +15,9 @@ class Role(StrEnum):
 READ_ROLES = (Role.ORG_ADMIN, Role.TEAM_MANAGER, Role.COACH, Role.AUDITOR)
 # Policy changes are an org_admin decision.
 POLICY_WRITE_ROLES = (Role.ORG_ADMIN,)
+# Dismissing a review is a coaching action: wider than policy writes (a coach
+# clears the queue for a departed contributor), narrower than plain reads.
+REVIEW_DISMISS_ROLES = (Role.ORG_ADMIN, Role.COACH)
 # The audit trail itself is restricted to admin and auditor.
 AUDIT_READ_ROLES = (Role.ORG_ADMIN, Role.AUDITOR)
 

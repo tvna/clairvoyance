@@ -12,7 +12,7 @@ from test_collector_api import auth, event_payload
 
 from app.auth.oidc import OIDCVerifier
 from app.auth.rbac import Role
-from app.db.models import AuditLog, Contributor, Organization
+from app.db.models import AuditLog, Contributor, Organization, ReviewSchedule
 
 
 def seed_events(client: TestClient, seeded_org: SeededOrg) -> None:
@@ -163,6 +163,123 @@ def test_reviews_due_lists_past_due_only(app: FastAPI, client: TestClient, seede
     assert due[0]["signal"] == "deferred-risk-call"
     assert due[0]["last_outcome"] == "correct"
     assert due[0]["interval_days"] == 7  # correct + high confidence (quiz.md contract)
+
+
+def test_contributor_search_matches_identity_fields(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    seed_events(client, seeded_org)  # display_name=octocat, provider=github, external_id=12345678
+    admin_override(app, roles=(Role.COACH,))
+
+    # Case-insensitive partial match on display_name, and total counts the
+    # filtered set (not every contributor).
+    hit = client.get("/v1/admin/contributors", params={"q": "OCTO"}).json()
+    assert hit["total"] == 1
+    assert hit["contributors"][0]["external_id"] == "12345678"
+
+    # Partial match on external_id too.
+    assert client.get("/v1/admin/contributors", params={"q": "1234"}).json()["total"] == 1
+
+    # A non-matching query returns an empty, correctly-counted page.
+    miss = client.get("/v1/admin/contributors", params={"q": "nobody"}).json()
+    assert miss["total"] == 0
+    assert miss["contributors"] == []
+
+
+def test_reviews_due_carries_contributor_identity(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    seed_events(client, seeded_org)
+    admin_override(app, roles=(Role.COACH,))
+    due = client.get("/v1/admin/reviews/due").json()["due"]
+    assert len(due) == 1
+    # Identity now rides on the row (no client-side join needed).
+    assert due[0]["display_name"] == "octocat"
+    assert due[0]["provider"] == "github"
+    assert due[0]["external_id"] == "12345678"
+
+
+def test_reviews_due_filters_by_contributor_and_offset(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session
+) -> None:
+    seed_events(client, seeded_org)
+    admin_override(app, roles=(Role.COACH,))
+    contributor_id = db.scalars(select(Contributor)).one().id
+
+    # A matching contributor filter keeps the row.
+    scoped = client.get("/v1/admin/reviews/due", params={"contributor_id": str(contributor_id)})
+    assert len(scoped.json()["due"]) == 1
+
+    # A foreign contributor id filters it out.
+    other = "00000000-0000-0000-0000-000000000000"
+    assert client.get("/v1/admin/reviews/due", params={"contributor_id": other}).json()["due"] == []
+
+    # Offset past the only row yields an empty page.
+    assert client.get("/v1/admin/reviews/due", params={"offset": 1}).json()["due"] == []
+
+
+def test_audit_logs_report_total_and_filter_by_time(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    assert client.get("/v1/admin/contributors").status_code == 200
+
+    body = client.get("/v1/admin/audit-logs").json()
+    assert body["total"] >= 2  # the contributors read plus this audit-logs read
+    assert body["total"] == len(body["logs"])  # small dataset fits one page
+
+    # A future lower bound excludes everything; a past upper bound too.
+    future = client.get("/v1/admin/audit-logs", params={"from": "2999-01-01T00:00:00+00:00"}).json()
+    assert future["total"] == 0
+    assert future["logs"] == []
+    assert client.get("/v1/admin/audit-logs", params={"to": "2000-01-01T00:00:00+00:00"}).json()["total"] == 0
+
+
+def test_audit_logs_reject_naive_time_bound(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    # A timezone-naive bound is ambiguous against UTC-aware storage -> 422.
+    assert client.get("/v1/admin/audit-logs", params={"from": "2026-01-01T00:00:00"}).status_code == 422
+
+
+def test_dismiss_removes_review_from_due_and_is_audited(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session
+) -> None:
+    seed_events(client, seeded_org)
+    schedule_id = str(db.scalars(select(ReviewSchedule)).one().id)
+    admin_override(app, roles=(Role.COACH,))
+    assert len(client.get("/v1/admin/reviews/due").json()["due"]) == 1
+
+    response = client.post(f"/v1/admin/reviews/{schedule_id}/dismiss")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "dismissed"
+    assert body["dismissed_by"] == "admin@example.com"
+    assert body["dismissed_at"] is not None
+
+    # The dismissed row leaves the work queue.
+    assert client.get("/v1/admin/reviews/due").json()["due"] == []
+
+    # The write is on the audit record, targeted at the schedule.
+    dismissals = db.scalars(select(AuditLog).where(AuditLog.action == "dismiss_review")).all()
+    assert any(row.target_type == "review_schedule" and row.target_id == schedule_id for row in dismissals)
+
+
+def test_dismiss_denied_for_non_dismiss_role_is_audited(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session
+) -> None:
+    seed_events(client, seeded_org)
+    schedule_id = str(db.scalars(select(ReviewSchedule)).one().id)
+    # Auditor can read but not dismiss (REVIEW_DISMISS_ROLES = org_admin, coach).
+    admin_override(app, roles=(Role.AUDITOR,))
+    assert client.post(f"/v1/admin/reviews/{schedule_id}/dismiss").status_code == 403
+
+    denied = db.scalars(select(AuditLog).where(AuditLog.action == "dismiss_review")).all()
+    assert len(denied) == 1  # the denied attempt itself is recorded
+    assert denied[0].target_type == "review_schedule"
+    assert denied[0].target_id == schedule_id
+
+
+def test_dismiss_not_found_matches_contributor_semantics(
+    app: FastAPI, client: TestClient, seeded_org: SeededOrg
+) -> None:
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    assert client.post("/v1/admin/reviews/not-a-uuid/dismiss").status_code == 404
+    missing = "00000000-0000-0000-0000-000000000000"
+    assert client.post(f"/v1/admin/reviews/{missing}/dismiss").status_code == 404
 
 
 def test_policies_roundtrip_and_audit(app: FastAPI, client: TestClient, seeded_org: SeededOrg, db: Session) -> None:
