@@ -397,7 +397,10 @@ class TestPlanApplyFlows:
             sleeper=lambda _s: None,
         )
         assert calls == [
-            ("GET", "https://api.github.com/repos/o/r/rulesets?per_page=100&page=1"),
+            (
+                "GET",
+                "https://api.github.com/repos/o/r/rulesets?per_page=100&includes_parents=false&targets=branch&page=1",
+            ),
             ("POST", "https://api.github.com/repos/o/r/rulesets"),
         ]
         text = summary.read_text(encoding="utf-8")

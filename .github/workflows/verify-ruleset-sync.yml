@@ -21,8 +21,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GH_TOKEN: ${{ secrets.RULESETS_PAT }}
   REPO: ${{ github.repository }}
+  # RULESETS_PAT is injected per-step (guard + drift), not workflow-level, so the
+  # admin token is not exposed to the third-party actions in this job.
 
 jobs:
   drift:
@@ -36,6 +37,8 @@ jobs:
           egress-policy: audit
 
       - name: Guard RULESETS_PAT
+        env:
+          GH_TOKEN: ${{ secrets.RULESETS_PAT }}
         run: |
           if [ -z "${GH_TOKEN}" ]; then
             echo "::error::RULESETS_PAT secret is not set. See docs/runbooks/rulesets.md (Required secret)."
@@ -48,6 +51,8 @@ jobs:
           persist-credentials: false
 
       - name: Detect ruleset drift
+        env:
+          GH_TOKEN: ${{ secrets.RULESETS_PAT }}
         run: |
           set -euo pipefail
           python3 scripts/rulesets_apply.py drift \

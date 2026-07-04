@@ -28,10 +28,12 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # A PAT/App token with repository Administration: write is required to read and
-  # write rulesets; GITHUB_TOKEN cannot. See docs/runbooks/rulesets.md.
-  GH_TOKEN: ${{ secrets.RULESETS_PAT }}
   REPO: ${{ github.repository }}
+  # RULESETS_PAT (repository Administration: write; GITHUB_TOKEN cannot manage
+  # rulesets) is deliberately NOT a workflow-level env: that would expose the
+  # admin token to every step, including the third-party actions below. It is
+  # injected per-step only where it is used (the guard and the plan/apply step).
+  # See docs/runbooks/rulesets.md.
 
 jobs:
   apply:
@@ -57,6 +59,8 @@ jobs:
           exit 1
 
       - name: Guard RULESETS_PAT
+        env:
+          GH_TOKEN: ${{ secrets.RULESETS_PAT }}
         run: |
           if [ -z "${GH_TOKEN}" ]; then
             echo "::error::RULESETS_PAT secret is not set. See docs/runbooks/rulesets.md (Required secret)."
@@ -73,6 +77,7 @@ jobs:
 
       - name: Plan or apply the main ruleset
         env:
+          GH_TOKEN: ${{ secrets.RULESETS_PAT }}
           MODE: ${{ inputs.dry_run && 'plan' || 'apply' }}
         run: |
           set -euo pipefail

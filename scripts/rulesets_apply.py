@@ -134,10 +134,16 @@ def fetch_live_rulesets(repo: str, token: str, *, opener: Any = urllib.request.u
     # Paginate: a repo with >100 rulesets would otherwise hide the one we manage
     # on a later page, so decide_action would POST a duplicate. Walk full pages
     # (100 is the API max) until a short page signals the end.
+    # includes_parents=false: the list API otherwise returns inherited org-level
+    # rulesets too, and one sharing this ruleset's name would make decide_action
+    # match the parent -- diffing the wrong object and PUTting a repo ruleset at
+    # the parent's id. targets=branch narrows to this SoT's target. (Both
+    # confirmed against the GitHub REST "Get all repository rulesets" docs.)
+    query = "per_page=100&includes_parents=false&targets=branch"
     rulesets: list[dict[str, Any]] = []
     page = 1
     while True:
-        body = _request_json(f"{API_ROOT}/repos/{repo}/rulesets?per_page=100&page={page}", token=token, opener=opener)
+        body = _request_json(f"{API_ROOT}/repos/{repo}/rulesets?{query}&page={page}", token=token, opener=opener)
         if not isinstance(body, list):
             raise ValueError("GET /rulesets returned non-list JSON")
         rulesets.extend(body)
