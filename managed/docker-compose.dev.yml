@@ -69,8 +69,11 @@ services:
     # The realm is imported on first boot; --import-realm reads this path.
     volumes:
       - ./dev/realm.json:/opt/keycloak/data/import/realm.json:ro
+    # Bound to loopback: this dev IdP ships hardcoded admin/admin bootstrap
+    # credentials, so a default 0.0.0.0 publish would expose its admin console
+    # to anyone on the host's network. Local-only, matching the README.
     ports:
-      - "8081:8080"
+      - "127.0.0.1:8081:8080"
     # No compose healthcheck: the Keycloak image ships without curl/wget/sh
     # utilities to script one reliably. Readiness is observed directly -- the
     # sign-in page at http://localhost:8081/realms/clairvoyance-dev/... serves
@@ -128,8 +131,11 @@ services:
 
   proxy:
     image: nginx:1.27-alpine
+    # Loopback-bound like keycloak above: the whole stack is local-only (the
+    # realm's redirect URIs are hardcoded to localhost), so nothing here needs
+    # to listen on the host's other interfaces.
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     volumes:
       - ./dev/proxy.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
