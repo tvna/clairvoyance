@@ -34,6 +34,7 @@
           { "context": "tests" },
           { "context": "managed-server" },
           { "context": "managed-ui" },
+          { "context": "stub-issuer-unit" },
           { "context": "managed-ui-e2e" },
           { "context": "tests-windows" }
         ]

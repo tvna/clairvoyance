@@ -26,9 +26,9 @@ the default branch:
   `required_signatures`);
 - a pull request before merge, squash-only, with review threads resolved and
   code-owner review required (`pull_request`);
-- the six CI jobs as required status checks, strict (branch up to date before
-  merge): `validate`, `tests`, `managed-server`, `managed-ui`, `managed-ui-e2e`,
-  `tests-windows`.
+- the seven CI jobs as required status checks, strict (branch up to date before
+  merge): `validate`, `tests`, `managed-server`, `managed-ui`, `stub-issuer-unit`,
+  `managed-ui-e2e`, `tests-windows`.
 
 The status-check `context` values are the CI job names exactly as they appear as
 checks. A rename would otherwise silently dangle a required check, so the
