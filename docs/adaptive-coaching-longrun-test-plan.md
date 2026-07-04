@@ -254,7 +254,7 @@ consciously update the named test:
 uv run --frozen pytest tests/test_adaptive_coaching_personas.py   # L1, deterministic
 waza check                                                        # static eval validation
 waza run evals/adaptive-coaching/eval.yaml                        # L2, backend-bound
-python3 battle/run_battle.py --category adaptive-coaching         # L3, local, billed
+python3 battle/run_battle.py --scenario adaptive-coaching         # L3, local, billed
 ```
 
 L1 runs in CI on ubuntu and windows with the rest of the suite. L2 and L3 are
