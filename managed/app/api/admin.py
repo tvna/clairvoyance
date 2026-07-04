@@ -129,7 +129,10 @@ def list_reviews_due(
         select(ReviewSchedule, Contributor)
         .join(Contributor, Contributor.id == ReviewSchedule.contributor_id)
         .where(*filters)
-        .order_by(ReviewSchedule.due_at)
+        # Stable secondary key: due_at ties (coarse/imported timestamps) would
+        # otherwise let offset paging duplicate or skip rows, matching the
+        # tiebreaker the contributors and audit-log endpoints already use.
+        .order_by(ReviewSchedule.due_at, ReviewSchedule.id)
         .limit(limit)
         .offset(offset)
     ).all()

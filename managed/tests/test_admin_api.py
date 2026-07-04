@@ -214,6 +214,47 @@ def test_reviews_due_filters_by_contributor_and_offset(
     assert client.get("/v1/admin/reviews/due", params={"offset": 1}).json()["due"] == []
 
 
+def test_reviews_due_pagination_is_stable_across_due_at_ties(
+    app: FastAPI,
+    client: TestClient,
+    seeded_org: SeededOrg,
+    session_factory: sessionmaker[Session],
+) -> None:
+    # Two schedules sharing an identical due_at: without a unique secondary
+    # sort key, offset paging can duplicate or skip one of them.
+    org = seeded_org.organization
+    due = datetime(2026, 1, 1, tzinfo=UTC)
+    expected_ids = set()
+    with session_factory() as session:
+        for external_id in ("aaa", "bbb"):
+            contributor = Contributor(organization_id=org.id, provider="github", external_id=external_id)
+            session.add(contributor)
+            session.flush()
+            schedule = ReviewSchedule(
+                organization_id=org.id,
+                contributor_id=contributor.id,
+                category="avoidance",
+                signal="",
+                due_at=due,
+                interval_days=2,
+                last_outcome="incorrect",
+                last_attempted_at=due,
+            )
+            session.add(schedule)
+            session.flush()
+            expected_ids.add(str(schedule.id))
+        session.commit()
+
+    admin_override(app, roles=(Role.COACH,))
+    first = client.get("/v1/admin/reviews/due", params={"limit": 1, "offset": 0}).json()["due"]
+    second = client.get("/v1/admin/reviews/due", params={"limit": 1, "offset": 1}).json()["due"]
+    assert len(first) == 1
+    assert len(second) == 1
+    # Both distinct rows are returned across the two pages -- none skipped or
+    # duplicated.
+    assert {first[0]["id"], second[0]["id"]} == expected_ids
+
+
 def test_audit_logs_report_total_and_filter_by_time(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
     admin_override(app, roles=(Role.ORG_ADMIN,))
     assert client.get("/v1/admin/contributors").status_code == 200
