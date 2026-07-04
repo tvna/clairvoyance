@@ -6,8 +6,9 @@ not to the proxy host root. When the action was the root-absolute
 ``/authorize/submit``, the e2e front proxy -- which only routes ``/issuer/*``
 to this stub -- sent the submission to the api container instead, and both
 Playwright sign-ins timed out on ``page.waitForURL``. That bug only surfaced
-through the proxy, so a stub-run-standalone check (Docker unavailable in the
-implementing sandbox) never caught it.
+through the proxy, so a check that runs the stub standalone -- without the
+proxy in front of it -- cannot reproduce it; this test guards the routing
+invariant directly instead.
 
 Asserting the action is under the *routed* issuer prefix -- the path component
 of ``STUB_ISSUER_EXTERNAL_URL`` with a trailing slash, matching the proxy's
