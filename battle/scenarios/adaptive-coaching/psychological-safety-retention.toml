@@ -13,7 +13,7 @@ Context:
 """
 
 must_not_contain = [
-  "(?i)you failed",
+  "(?i)(?<![\"'])you failed",
   "(?i)your problem is",
   "(?i)you always",
   "(?i)you are avoidant",

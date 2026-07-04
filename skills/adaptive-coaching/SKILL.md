@@ -23,8 +23,8 @@ Deliver the quiz **only** when the person asks to reflect or do a retrospective,
 
 1. Confirm `ready` via the store (`status`). If not, acknowledge and hold — keep observing, do not quiz.
 2. Classify the dominant recurring gap — the technical-versus-adaptive split that shapes what the quiz reinforces (see [classification](references/classification.md)).
-3. Name the capability gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth (see [coaching practice](references/practice.md) for pacing and framing).
-4. Deliver a prosthesis-building quiz: AskUserQuestion (or `AskUserQuestion:` text) with 2-3 plausible choices and a confidence prompt. Do **not** reveal or mark the correct answer before the person answers; retrieval practice needs the person to retrieve first (see [how to build the quiz](references/quiz.md)).
+3. Name the capability gap warmly, directly, and without shaming. Diagnose the gap, never the person's worth (see [coaching practice](references/practice.md) for pacing and framing). Store categories (`loss-aversion`, `avoidance`, `authority-dependence`, ...) are the coach's backstage diagnostic codes: never hand one to the person as a label, a bias, or an explanation of their psychology. Name what happened and what it cost, in event terms — "the scope plan stayed unchanged after the evidence moved, and the deadline slipped" — never as a mindset, bias, or thinking pattern of the person ("confidence stays high despite evidence"), and offer no verdict on the person's psychology or their confidence before they answer. When the recurring signal is about confidence itself, this matters doubly: the confidence-versus-outcome comparison is post-answer calibration work, not a pre-answer finding.
+4. Deliver a prosthesis-building quiz: AskUserQuestion (or `AskUserQuestion:` text) with 2-3 plausible choices and a confidence prompt. Do **not** reveal or mark the correct answer before the person answers; retrieval practice needs the person to retrieve first (see [how to build the quiz](references/quiz.md)). Say in the quiz itself, in plain prose, that feedback comes after they answer, and why confidence is asked: afterwards, confidence is compared with the outcome for this one move — a miss, even a high-confidence one, is read as calibration data for the move, never as a diagnosis or a trait.
 5. After the person answers, give feedback: correct/incorrect, the better move, and a short calibration note comparing confidence to outcome. Record outcome, confidence, and calibration when the store supports it.
 6. Schedule or name a spaced follow-up point (**Review Again**) so the corrected judgement is revisited later.
 
@@ -33,9 +33,9 @@ Deliver the quiz **only** when the person asks to reflect or do a retrospective,
 The initial reflection output stops after the person has a real retrieval prompt:
 
 - **Classification:** the technical-versus-adaptive split of the recurring gap.
-- **Capability Gap:** the understanding or change the person must make, named without shame.
+- **Capability Gap:** the understanding or change the person must make, named without shame as a move and its consequence — not as a mindset, bias, or description of how the person thinks.
 - **Evidence:** the accumulated anonymous signal (count versus threshold) that makes the reflection fair now.
-- **Quiz:** AskUserQuestion (or `AskUserQuestion:` fallback) with 2-3 plausible choices and a confidence prompt; no answer is marked before the person answers.
+- **Quiz:** AskUserQuestion (or `AskUserQuestion:` fallback) with 2-3 plausible choices and a confidence prompt; no answer is marked before the person answers. The quiz notes in prose that feedback comes after the answer, that confidence is asked so it can be calibrated against the outcome for this one move — a high-confidence miss would be calibration data, not a diagnosis or a trait — and names the Review Again pass that follows.
 
 Only after the person answers, continue with:
 
@@ -55,6 +55,7 @@ A reflection should make the person more willing to continue learning, not more 
 - Preserve agency: "you can choose the next move" and "try this once" beats coercive or moralizing language.
 - Use I-message style when naming impact: "I am reading this as a risk to the decision staying owned" rather than "you are avoiding ownership."
 - Normalize misses as data: a wrong answer or overconfident answer is a calibration signal for this move, not a trait.
+- Keep store categories backstage: `loss-aversion` or `avoidance` classifies the accumulated signal, never the person. Before the answer there is no psychological diagnosis and no verdict on the person's confidence; the quiz explains the calibration purpose, and the judging of confidence against outcome happens only after the answer, only about the move.
 - If the person sounds worried, defensive, ashamed, or likely to disengage, lower the heat first: acknowledge the concern, state that the reflection is opt-in, and offer a smaller next step.
 
 ## References
