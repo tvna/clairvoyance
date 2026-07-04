@@ -205,10 +205,15 @@ def list_audit_logs(
     to: Annotated[AwareDatetime | None, Query(alias="to")] = None,
 ) -> AuditLogListOut:
     filters: list[ColumnElement[bool]] = [AuditLog.organization_id == organization.id]
+    # Normalize to UTC: created_at is stored UTC, but the UTCDateTime decorator
+    # only fixes the load path, so on a dialect that drops tzinfo at compare
+    # time (sqlite) a non-UTC-offset bound would match against wall-clock
+    # components. astimezone(UTC) keeps a +09:00 bound meaning the same instant
+    # on every dialect (AwareDatetime already rejected naive values).
     if from_ is not None:
-        filters.append(AuditLog.created_at >= from_)
+        filters.append(AuditLog.created_at >= from_.astimezone(UTC))
     if to is not None:
-        filters.append(AuditLog.created_at <= to)
+        filters.append(AuditLog.created_at <= to.astimezone(UTC))
     total = db.scalar(select(func.count()).select_from(AuditLog).where(*filters))
     rows = db.scalars(
         select(AuditLog).where(*filters).order_by(AuditLog.created_at.desc(), AuditLog.id).limit(limit).offset(offset)

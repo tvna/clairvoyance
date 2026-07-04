@@ -1,6 +1,6 @@
 """Admin API: RBAC, org scoping, audit trail."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 from conftest import SeededOrg, admin_override, make_settings
@@ -268,6 +268,42 @@ def test_audit_logs_report_total_and_filter_by_time(app: FastAPI, client: TestCl
     assert future["total"] == 0
     assert future["logs"] == []
     assert client.get("/v1/admin/audit-logs", params={"to": "2000-01-01T00:00:00+00:00"}).json()["total"] == 0
+
+
+def test_audit_logs_time_filter_normalizes_non_utc_offsets(
+    app: FastAPI,
+    client: TestClient,
+    seeded_org: SeededOrg,
+    session_factory: sessionmaker[Session],
+) -> None:
+    # A bound carrying a non-UTC offset must filter by the instant it denotes,
+    # not its wall-clock components -- otherwise sqlite (which drops tzinfo at
+    # compare time) would mismatch. Seed a row at a fixed 2020 instant and
+    # bracket it with a +09:00 window; the request's own audit row is at "now"
+    # and falls outside the window, so a correct filter returns exactly the seed.
+    org = seeded_org.organization
+    with session_factory() as session:
+        session.add(
+            AuditLog(
+                organization_id=org.id,
+                actor="x",
+                action="seed_marker",
+                created_at=datetime(2020, 1, 1, 0, 0, tzinfo=UTC),
+            )
+        )
+        session.commit()
+
+    admin_override(app, roles=(Role.ORG_ADMIN,))
+    jst = timezone(timedelta(hours=9))
+    body = client.get(
+        "/v1/admin/audit-logs",
+        params={
+            "from": datetime(2020, 1, 1, 8, 0, tzinfo=jst).isoformat(),  # 2019-12-31T23:00Z
+            "to": datetime(2020, 1, 1, 10, 0, tzinfo=jst).isoformat(),  # 2020-01-01T01:00Z
+        },
+    ).json()
+    assert body["total"] == 1
+    assert body["logs"][0]["action"] == "seed_marker"
 
 
 def test_audit_logs_reject_naive_time_bound(app: FastAPI, client: TestClient, seeded_org: SeededOrg) -> None:
