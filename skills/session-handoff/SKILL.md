@@ -45,7 +45,7 @@ over-prescription, but Fable is not always available - a safety-classifier
 refusal falls back to Opus 4.8, and some harnesses do not offer Fable at all - so
 keep the handoff body model-agnostic rather than stripping it: the block tells
 Fable to treat the sections as constraints, not a script, and its first line
-tells a non-Fable session to ignore it. The result is one artifact, explicitly
+tells a session on neither Fable nor Mythos to ignore it. The result is one artifact, explicitly
 labeled for Fable yet still correct if it degrades. Never tell the next session
 to echo its reasoning - on Fable that can trigger a refusal. Read
 [the Fable-optimized handoff](references/fable-optimization.md) for the decision

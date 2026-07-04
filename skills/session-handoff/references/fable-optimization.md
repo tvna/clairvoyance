@@ -38,7 +38,7 @@ explicitly labeled for Fable yet still works if it degrades:
   needs the fuller prescription that prior models prefer. Stripping the body
   optimizes for Fable but breaks the degraded path.
 - **Make the operating block self-guarded** (below): its first line tells a
-  non-Fable session to ignore it, so degradation costs nothing.
+  session on neither Fable nor Mythos to ignore it, so degradation costs nothing.
 
 ## Why the handoff changes
 
@@ -65,10 +65,10 @@ written.
 ## Operating block (paste verbatim)
 
 ```
-## Operating mode (Claude Fable 5)
+## Operating mode (Claude Fable 5 or Mythos 5)
 
-If this session is not running on a Claude Fable model, ignore this block; the
-handoff below stands on its own.
+If this session is not running on a Claude Fable or Mythos model, ignore this
+block; the handoff below stands on its own.
 
 Run this session at `high` effort (`xhigh` only if the change proves
 capability-sensitive; `medium` for routine edits).
