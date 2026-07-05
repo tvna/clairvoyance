@@ -29,38 +29,19 @@ import dataclasses
 import json
 import os
 import pathlib
-import shutil
-import sqlite3
 import subprocess
 
 import pytest
-
-REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-STORE_SH = REPO_ROOT / "hooks" / "adaptive-store.sh"
-
-
-def _resolve_bash():
-    """A POSIX bash for running the bundled .sh (same logic as test_adaptive_store).
-
-    ``CLAIRVOYANCE_TEST_BASH`` overrides the resolved interpreter -- see
-    ``test_adaptive_store.py`` for why (issue #89, finding F5).
-    """
-    if override := os.environ.get("CLAIRVOYANCE_TEST_BASH"):
-        return override
-    if os.name == "nt":
-        for candidate in (
-            r"C:\Program Files\Git\bin\bash.exe",
-            r"C:\Program Files\Git\usr\bin\bash.exe",
-        ):
-            if pathlib.Path(candidate).exists():
-                return candidate
-    return shutil.which("bash") or "bash"
-
-
-BASH = _resolve_bash()
-
-HAS_SQLITE3 = shutil.which("sqlite3") is not None
-needs_sqlite3 = pytest.mark.skipif(not HAS_SQLITE3, reason="sqlite3 CLI not installed")
+from conftest import (
+    BASH,
+    CLAIRVOYANCE_ENV_KEYS,
+    STORE_SH,
+    execute_write,
+    fetch_latest_quiz_metadata,
+    fetch_one,
+    needs_sqlite3,
+    run_store,
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -81,7 +62,6 @@ class Step:
     ready: bool | None = None
     count: int | None = None
     sessions: int | None = None
-    available: bool | None = None
     by_category: dict[str, int] | None = None
 
 
@@ -99,11 +79,8 @@ def _reflect(
     count: int | None = None,
     sessions: int | None = None,
     by_category: dict[str, int] | None = None,
-    available: bool = True,
 ) -> Step:
-    return Step(
-        kind="reflect", ready=ready, count=count, sessions=sessions, by_category=by_category, available=available
-    )
+    return Step(kind="reflect", ready=ready, count=count, sessions=sessions, by_category=by_category)
 
 
 def _answer(
@@ -130,34 +107,6 @@ class Persona:
     timeline: tuple[Step, ...]
     dominant: str | None = None  # expected dominant category at the ready reflection
     env_extra: dict[str, str] | None = None
-
-
-def run_store(
-    args: list[str],
-    data_dir: pathlib.Path,
-    coach_threshold: int,
-    session_threshold: int,
-    env_extra: dict[str, str] | None = None,
-) -> dict[str, object]:
-    """Invoke the store CLI with an isolated data dir and parse its JSON reply."""
-    env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(data_dir)}
-    for key in (
-        "LOCALAPPDATA",
-        "XDG_DATA_HOME",
-        "CLAIRVOYANCE_COACH_THRESHOLD",
-        "CLAIRVOYANCE_SESSION_THRESHOLD",
-        "CLAIRVOYANCE_STORE_CONTEXT",
-        "CLAIRVOYANCE_MAX_OBSERVATIONS",
-        "CLAIRVOYANCE_MAX_AGE_DAYS",
-    ):
-        env.pop(key, None)
-    env["CLAIRVOYANCE_COACH_THRESHOLD"] = str(coach_threshold)
-    env["CLAIRVOYANCE_SESSION_THRESHOLD"] = str(session_threshold)
-    if env_extra:
-        env.update(env_extra)
-    result = subprocess.run([BASH, STORE_SH.as_posix(), *args], capture_output=True, text=True, env=env, input="")
-    assert result.returncode == 0, result.stderr
-    return json.loads(result.stdout)
 
 
 def _step_args(step: Step) -> list[str]:
@@ -190,7 +139,7 @@ def play(persona: Persona, data_dir: pathlib.Path) -> None:
         out = run_store(
             _step_args(step), data_dir, persona.coach_threshold, persona.session_threshold, persona.env_extra
         )
-        for field in ("ready", "count", "sessions", "available", "by_category"):
+        for field in ("ready", "count", "sessions", "by_category"):
             expected = getattr(step, field)
             if expected is not None:
                 actual = out.get(field)
@@ -198,8 +147,20 @@ def play(persona: Persona, data_dir: pathlib.Path) -> None:
                     f"{persona.name} turn {turn} ({step.kind}): {field}={actual!r}, expected {expected!r}"
                 )
         if step.kind == "reflect" and step.ready and persona.dominant is not None and step.by_category:
-            top = max(step.by_category.items(), key=lambda kv: kv[1])
-            assert top[0] == persona.dominant, f"{persona.name}: timeline spec dominant mismatch"
+            actual_by_category = out.get("by_category")
+            assert isinstance(actual_by_category, dict) and actual_by_category, (
+                f"{persona.name} turn {turn}: expected a non-empty by_category, got {actual_by_category!r}"
+            )
+            top = max(actual_by_category.items(), key=lambda kv: kv[1])
+            assert top[0] == persona.dominant, (
+                f"{persona.name} turn {turn}: dominant category was {top[0]!r}, expected {persona.dominant!r}"
+            )
+        if step.kind == "answer":
+            row = fetch_latest_quiz_metadata(data_dir / "coaching.db")
+            assert row == (step.outcome, step.confidence, step.calibration, 1), (
+                f"{persona.name} turn {turn}: stored answer metadata {row!r}, expected "
+                f"{(step.outcome, step.confidence, step.calibration, 1)!r}"
+            )
 
 
 # One persona per store category, a Type II boundary case, and three negative
@@ -543,10 +504,7 @@ def test_status_prunes_rows_past_age_bound_before_computing_readiness(tmp_path):
     env_extra = {"CLAIRVOYANCE_MAX_AGE_DAYS": "30"}
     run_store(["record", "--category", "avoidance"], data_dir, 2, 0, env_extra)
     run_store(["record", "--category", "avoidance"], data_dir, 2, 0, env_extra)
-    conn = sqlite3.connect(str(data_dir / "coaching.db"))
-    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
-    conn.commit()
-    conn.close()
+    execute_write(data_dir / "coaching.db", "UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
     status = run_store(["status"], data_dir, 2, 0, env_extra)
     assert status["count"] == 0
     assert status["ready"] is False
@@ -567,20 +525,15 @@ def test_outcome_rows_do_not_sustain_readiness_after_rotation(tmp_path):
     assert run_store(["status"], data_dir, 3, 0, env_extra)["ready"] is True
     # Age every raw observation past the bound; the outcome rows recorded below
     # stay fresh and are still stored, but never count toward readiness.
-    conn = sqlite3.connect(str(data_dir / "coaching.db"))
-    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00' WHERE outcome IS NULL")
-    conn.commit()
-    conn.close()
+    execute_write(
+        data_dir / "coaching.db", "UPDATE observations SET ts = '2000-01-01T00:00:00+00:00' WHERE outcome IS NULL"
+    )
     answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "high"]
     for _ in range(3):
         out = run_store(answer, data_dir, 3, 0, env_extra)
         assert out["count"] == 0  # raw signal only; the stale raw rows are pruned
         assert out["ready"] is False
-    rows = (
-        sqlite3.connect(str(data_dir / "coaching.db"))
-        .execute("SELECT COUNT(*), SUM(outcome IS NOT NULL) FROM observations")
-        .fetchone()
-    )
+    rows = fetch_one(data_dir / "coaching.db", "SELECT COUNT(*), SUM(outcome IS NOT NULL) FROM observations")
     assert rows == (3, 3)  # the outcome trail is retained even while not ready
 
 
@@ -599,10 +552,7 @@ def test_readiness_rearms_after_improvement_and_relapse(tmp_path):
     answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "medium"]
     run_store(answer, data_dir, 3, 0, env_extra)
     # Months pass with no new signal: every row (raw and outcome) ages out.
-    conn = sqlite3.connect(str(data_dir / "coaching.db"))
-    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
-    conn.commit()
-    conn.close()
+    execute_write(data_dir / "coaching.db", "UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
     # Relapse into a different pattern: the first record prunes the old cycle,
     # so the mid-relapse reflection correctly holds (improvement stuck).
     first = run_store(["record", "--category", "no-experiment"], data_dir, 3, 0, env_extra)
@@ -624,6 +574,8 @@ def test_missing_sqlite3_holds_not_fails(tmp_path):
     empty_bin.mkdir()
     env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(tmp_path / "store"), "PATH": str(empty_bin)}
     env.pop("BASH_ENV", None)
+    for key in CLAIRVOYANCE_ENV_KEYS:
+        env.pop(key, None)
     for args in (["status"], ["record", "--category", "avoidance"]):
         result = subprocess.run([BASH, STORE_SH.as_posix(), *args], capture_output=True, text=True, env=env, input="")
         assert result.returncode == 0, result.stderr

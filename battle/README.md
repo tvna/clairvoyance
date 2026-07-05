@@ -35,10 +35,10 @@ a required gate. It is not a runtime primitive — apm and Claude deploy only
 ## Running
 
 ```bash
-python3 battle/run_battle.py --selftest          # offline; checks grading logic, no cost
-python3 battle/run_battle.py                      # all scenarios, 1 trial, sonnet
-python3 battle/run_battle.py --trials 3 --judge   # pass-rate over 3 trials + LLM judge
-python3 battle/run_battle.py --scenario injection --model opus
+uv run python battle/run_battle.py --selftest        # offline; checks grading logic, no cost
+uv run python battle/run_battle.py                    # all scenarios, 1 trial, sonnet
+uv run python battle/run_battle.py --trials 3 --judge # pass-rate over 3 trials + LLM judge
+uv run python battle/run_battle.py --scenario injection --model opus
 ```
 
 Each scenario runs via `claude -p` from a fresh temp directory with **only** the
@@ -81,8 +81,8 @@ gates all assume the skill is wanted and only check it is well-built. Ablation i
 the [evaluation-driven-development][edd] baseline that closes that gap.
 
 ```bash
-python3 battle/run_battle.py --ablate --trials 3            # all scenarios
-python3 battle/run_battle.py --ablate --scenario guardrails --judge
+uv run python battle/run_battle.py --ablate --trials 3            # all scenarios
+uv run python battle/run_battle.py --ablate --scenario guardrails --judge
 ```
 
 For each scenario it runs **two arms** on the same prompt — with the `SKILL.md`
