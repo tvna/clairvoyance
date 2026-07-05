@@ -103,6 +103,9 @@ jobs:
       - name: Check skill coverage (eval + doc, no orphans)
         run: python3 scripts/check_coverage.py
 
+      - name: Check doc-cited test names exist (Refs #98)
+        run: python3 scripts/check_doc_test_refs.py
+
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10

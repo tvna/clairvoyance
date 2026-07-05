@@ -38,6 +38,13 @@ repos:
         pass_filenames: false
         files: ^hooks/
 
+      - id: check-doc-test-refs
+        name: doc-cited test names exist in tests/
+        entry: python3 scripts/check_doc_test_refs.py
+        language: system
+        pass_filenames: false
+        files: ^(docs/|tests/)
+
       - id: check-skills
         name: skill best-practice checks
         entry: python3 scripts/check_skills.py
