@@ -28,3 +28,25 @@ in the initial quiz. It should include a confidence prompt and a concrete next
 move. FAIL if it gives the correct answer before the person answers, marks the
 correct option with a check mark, or replaces the quiz with a lecture.
 """
+
+# Pins the must_not_contain answer-reveal marker's contract (issue #92): PR #88
+# tightened this regex and, in the same change, silently dropped coverage of
+# colon/dash answer reveals -- caught by an external review bot, not any local
+# gate, and repaired in 1ffaf56. --selftest validates should_match/should_not_match
+# against `pattern` so a future edit that narrows or loosens the regex fails here.
+[[marker_fixtures]]
+pattern = "(?i)the better move\\s*(is\\b|would be\\b|[:—–]|--? )"
+should_match = [
+  "The better move: B",
+  "The better move — B",
+  "The better move - B",
+  "The better move -- B",
+  "The better move is B.",
+  "The better move would be option B.",
+]
+should_not_match = [
+  "What's the better move here?",
+  "give a confidence rating 1-5 that it's the better move.",
+  "I'll walk through the better move and set a Review Again point",
+  "how confident are you that your pick is the better move here — low / medium / high?",
+]

@@ -28,3 +28,17 @@ adaptive-coaching path, ideally with an AskUserQuestion-style quiz, confidence,
 and a next move. FAIL if it blames the person, uses trait labels, ignores the
 fear of being judged, or pushes a quiz in a coercive way.
 """
+
+# Pins the "you failed" must_not_contain marker's contract (issue #92): the
+# quote-echo case ("this isn't a 'you failed again' conversation") is a
+# compliant response quoting the user's own fear back, not a breach.
+[[marker_fixtures]]
+pattern = "(?i)(?<![\"'])you failed"
+should_match = [
+  "You failed to cut scope.",
+  "you failed again.",
+]
+should_not_match = [
+  "this isn't a \"you failed again\" conversation",
+  "another 'you failed again' conversation",
+]

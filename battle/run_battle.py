@@ -114,6 +114,48 @@ def grade(result_text: str, scenario: dict) -> tuple[bool, list[str]]:
     return (not reasons, reasons)
 
 
+def validate_marker_fixtures(scenarios: list[dict]) -> list[str]:
+    """Check every ``[[marker_fixtures]]`` block against its scenario's markers.
+
+    Pins a ``must_not_contain`` pattern's contract so editing the regex without
+    updating its fixtures fails here instead of silently regressing (false
+    positive on a compliant output, or a missed violation) -- see issue #92.
+    Returns failure messages naming the scenario id and the offending string;
+    empty when every fixture holds.
+    """
+    failures: list[str] = []
+    for sc in scenarios:
+        sid = sc.get("id", sc["_path"].stem)
+        must_not = sc.get("must_not_contain", [])
+        for fx in sc.get("marker_fixtures", []):
+            pat = fx["pattern"]
+            if pat not in must_not:
+                failures.append(f"{sid}: fixture pattern {pat!r} is not in must_not_contain")
+                continue
+            for s in fx.get("should_match", []):
+                if not re.search(pat, s):
+                    failures.append(f"{sid}: pattern {pat!r} should match {s!r} but did not")
+            for s in fx.get("should_not_match", []):
+                if re.search(pat, s):
+                    failures.append(f"{sid}: pattern {pat!r} should not match {s!r} but did")
+    return failures
+
+
+def markers_without_fixtures(scenarios: list[dict]) -> list[str]:
+    """``must_not_contain`` patterns with no ``[[marker_fixtures]]`` pinning them yet.
+
+    Informational only (see issue #92 scope decision): ``--selftest`` prints
+    this backlog rather than failing on it, so the corpus-wide backfill can
+    happen incrementally.
+    """
+    out: list[str] = []
+    for sc in scenarios:
+        sid = sc.get("id", sc["_path"].stem)
+        fixed = {fx["pattern"] for fx in sc.get("marker_fixtures", [])}
+        out.extend(f"{sid}: {pat}" for pat in sc.get("must_not_contain", []) if pat not in fixed)
+    return out
+
+
 def judge_only_scenarios(scenarios: list[dict]) -> list[dict]:
     """Scenarios graded ONLY by the LLM judge -- no deterministic must_* markers.
 
@@ -429,6 +471,21 @@ def selftest() -> int:
 
     # The real corpus is judge-heavy, so a no-judge run must fail fast, not pass silently.
     assert require_judge_or_fail(load_scenarios(SCENARIOS_DIR), no_judge)
+
+    # Marker fixture contracts (issue #92): every [[marker_fixtures]] block in the
+    # real corpus must hold, so a regex edit that regresses a marker fails here.
+    real_scenarios = load_scenarios(SCENARIOS_DIR)
+    fixture_failures = validate_marker_fixtures(real_scenarios)
+    if fixture_failures:
+        for f in fixture_failures:
+            print(f"marker fixture failure: {f}", file=sys.stderr)
+        raise AssertionError(f"{len(fixture_failures)} marker fixture check(s) failed")
+
+    unfixed = markers_without_fixtures(real_scenarios)
+    if unfixed:
+        print(f"markers without fixtures ({len(unfixed)}, not yet enforced):")
+        for u in unfixed:
+            print(f"  {u}")
 
     print("selftest ok")
     return 0
