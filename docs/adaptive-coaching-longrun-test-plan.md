@@ -175,7 +175,7 @@ compositions that a combined reality produces, each now pinned:
 | ------------- | ------------------ | -------- | ---------------------------- |
 | Scatter: five categories, one instance each (F6) | `ready: true`, `distinct_categories: 5`, every `by_category` value 1 | persona 12 `rin-scattered-signal` | `scattered-signal-hold.yaml` (new): the skill must hold — "never quiz on a single instance" applies to every candidate gap; `by_category` in the status JSON is the signal it can read |
 | Single-session burst crossing the signal gate (F7) | 3 observations with no intervening `record-session` flip `ready` with `sessions` unchanged | persona 13 `sora-single-session-burst` | **none possible**: status JSON carries no per-session linkage, so the skill cannot distinguish a burst from an across-session pattern; only a store-side change could expose it |
-| Quiz answers self-sustain readiness through rotation (F4 corollary, fixed) | outcome rows are stored but excluded from `count`/`by_category`, so after every raw observation ages out, answers alone keep `ready: false` (row composition still 3/3 outcomes) | `test_outcome_rows_do_not_sustain_readiness_after_rotation` (was `test_outcome_rows_alone_sustain_readiness_after_rotation`, which pinned the pre-decision behaviour) | not expressible single-turn (requires answer turns); noted for the manual checklist |
+| Quiz answers self-sustain readiness through rotation (F4 corollary, fixed) | outcome rows are stored but excluded from `count`/`by_category`, so after every raw observation ages out, answers alone keep `ready: false` (row composition still 3/3 outcomes) | `test_outcome_rows_do_not_sustain_readiness_after_rotation` (was `test_outcome_rows_alone_sustain_readiness_after_rotation`, which pinned the pre-decision behaviour) | not expressible single-turn (requires answer turns); noted for the manual checklist <!-- former-test-name --> |
 
 The asymmetry matters for anyone extending this plan: F6 is catchable at the
 skill layer because the evidence (`by_category`) crosses the store boundary;
@@ -260,7 +260,7 @@ consciously update the named test:
   rotation as `record` (best-effort: a read-only store still serves its
   readable counts with a stderr warning); the corrected behaviour is asserted
   by `test_status_prunes_rows_past_age_bound_before_computing_readiness`
-  (renamed from `test_status_counts_rows_past_age_bound_until_next_record`,
+  (renamed from `test_status_counts_rows_past_age_bound_until_next_record`, <!-- former-test-name -->
   which pinned the pre-fix behaviour).
 - **F2** `MAX_OBSERVATIONS < COACH_THRESHOLD` disables coaching forever
   (pinned by `test_max_observations_below_threshold_never_ready`); the store
