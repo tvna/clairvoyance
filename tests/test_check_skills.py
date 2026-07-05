@@ -227,6 +227,67 @@ def test_drifted_language_rule_in_reference_is_flagged(tmp_path):
     assert any("language rule drifts" in m for _, m in _errors(tmp_path))
 
 
+def test_canonical_heat_lowering_trigger_passes(tmp_path):
+    _skill(
+        tmp_path,
+        "ok",
+        body=(
+            "Act when the person sounds worried, defensive, ashamed, or likely to "
+            "disengage — including when they voice this directly.\n"
+        ),
+    )
+    assert _errors(tmp_path) == []
+
+
+def test_drifted_heat_lowering_trigger_is_flagged(tmp_path):
+    _skill(
+        tmp_path,
+        "ok",
+        body="Act when the person seems likely to disengage from the conversation.\n",
+    )
+    assert any("language rule drifts" in m for _, m in _errors(tmp_path))
+
+
+def test_drifted_heat_lowering_trigger_wrapped_across_lines_is_flagged(tmp_path):
+    # A per-line scan would miss this: the anchor and its drifted tail are
+    # split across a hard-wrapped Markdown line, so neither line alone
+    # contains the full anchor+canonical text.
+    _skill(
+        tmp_path,
+        "ok",
+        body="Act when the person seems likely to\ndisengage from the conversation.\n",
+    )
+    assert any("language rule drifts" in m for _, m in _errors(tmp_path))
+
+
+def test_canonical_heat_lowering_trigger_wrapped_across_lines_passes(tmp_path):
+    _skill(
+        tmp_path,
+        "ok",
+        body=(
+            "Act when the person sounds worried, defensive, ashamed, or\n"
+            "likely to disengage — including when they voice this directly.\n"
+        ),
+    )
+    assert _errors(tmp_path) == []
+
+
+def test_two_occurrences_in_separate_paragraphs_both_checked(tmp_path):
+    # Paragraph-scoped scanning must not let a canonical occurrence in one
+    # paragraph mask a drifted occurrence in another paragraph of the same file.
+    _skill(
+        tmp_path,
+        "ok",
+        body=(
+            "First mention: sounds worried, defensive, ashamed, or likely to "
+            "disengage — including when they voice this directly.\n"
+            "\n"
+            "Second mention: seems likely to disengage from the room.\n"
+        ),
+    )
+    assert any("language rule drifts" in m for _, m in _errors(tmp_path))
+
+
 def _ref(tmp_path, dirname, refname, content):
     refs = tmp_path / "skills" / dirname / "references"
     refs.mkdir(parents=True, exist_ok=True)
