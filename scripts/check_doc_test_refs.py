@@ -17,11 +17,14 @@ excluded: ``skills/session-handoff/references/handoff-template.md`` cites a
 fictional ``test_cache_expiry`` as a template example, and that must not fail
 this gate.
 
-A doc line that intentionally cites a retired name (e.g. "renamed from
-``test_old_name``") is exempted by appending the literal marker
-``<!-- former-test-name -->`` to that line; the marker was chosen over
-rewording away from backticks or a "renamed from" text heuristic because it
-is explicit and deterministic.
+A citation that intentionally names a retired test (e.g. "renamed from
+``test_old_name``") is exempted by placing the literal marker
+``<!-- former-test-name -->`` anywhere later on the same line, with no other
+backticked span in between -- so the exemption attaches to that one
+citation, not to every citation on the line (a line can carry both the live
+name and the retired one it replaced). The marker was chosen over rewording
+away from backticks or a "renamed from" text heuristic because it is
+explicit and deterministic.
 
 Stdlib only, so this runs in the CI ``validate`` job's system ``python3``.
 """
@@ -36,10 +39,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
 TESTS_DIR = REPO_ROOT / "tests"
 
-_FORMER_TEST_NAME_MARKER = "<!-- former-test-name -->"
 _BACKTICK_SPAN = re.compile(r"`[^`]*test_[a-z0-9_]+[^`]*`")
 _TEST_TOKEN = re.compile(r"test_[a-z0-9_]+")
 _TEST_DEF = re.compile(r"^\s*def (test_[a-z0-9_]+)")
+# Ties the `<!-- former-test-name -->` marker to the single backtick span
+# immediately before it (no other backtick in between), not the whole line.
+_FORMER_SPAN = re.compile(r"(`[^`]*test_[a-z0-9_]+[^`]*`)(?:(?!`).)*<!-- former-test-name -->")
 
 
 def known_test_names(tests_dir: Path) -> set[str]:
@@ -55,13 +60,19 @@ def known_test_names(tests_dir: Path) -> set[str]:
 
 
 def cited_names(doc_path: Path) -> list[tuple[int, str]]:
-    """Return (line number, cited test name) for every backticked citation."""
+    """Return (line number, cited test name) for every backticked citation.
+
+    A citation whose span is exempted by an adjacent `<!-- former-test-name
+    -->` marker is skipped; other citations on the same line are still
+    checked.
+    """
     citations: list[tuple[int, str]] = []
     for lineno, line in enumerate(doc_path.read_text(encoding="utf-8").splitlines(), start=1):
-        if _FORMER_TEST_NAME_MARKER in line:
-            continue
-        for span in _BACKTICK_SPAN.findall(line):
-            citations.extend((lineno, token) for token in _TEST_TOKEN.findall(span))
+        exempt_starts = {match.start(1) for match in _FORMER_SPAN.finditer(line)}
+        for span in _BACKTICK_SPAN.finditer(line):
+            if span.start() in exempt_starts:
+                continue
+            citations.extend((lineno, token) for token in _TEST_TOKEN.findall(span.group()))
     return citations
 
 

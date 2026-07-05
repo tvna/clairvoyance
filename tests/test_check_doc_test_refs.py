@@ -54,12 +54,22 @@ class TestCitedNames:
         doc = write(tmp_path / "plan.md", "see `test_alpha` and `test_beta` too.\n")
         assert cdtr.cited_names(doc) == [(1, "test_alpha"), (1, "test_beta")]
 
-    def test_marked_line_is_skipped(self, tmp_path: Path) -> None:
+    def test_marked_citation_is_skipped(self, tmp_path: Path) -> None:
         doc = write(
             tmp_path / "plan.md",
             "renamed from `test_old_name` <!-- former-test-name -->\n",
         )
         assert cdtr.cited_names(doc) == []
+
+    def test_marker_exempts_only_its_own_span_not_the_live_citation(self, tmp_path: Path) -> None:
+        # A line legitimately carries both the live name and the retired one
+        # it replaced (e.g. "new (was old)"); only the retired citation is
+        # exempt, so the live one must still be checked.
+        doc = write(
+            tmp_path / "plan.md",
+            "`test_live_name` (was `test_old_name`) <!-- former-test-name -->\n",
+        )
+        assert cdtr.cited_names(doc) == [(1, "test_live_name")]
 
     def test_line_without_backticks_is_ignored(self, tmp_path: Path) -> None:
         doc = write(tmp_path / "plan.md", "no citation here at all.\n")
