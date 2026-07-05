@@ -2,8 +2,8 @@
 """Managed-server version-parity drift gate.
 
 The managed coaching server carries its version in two places that must always
-agree: the package manifest ``managed/pyproject.toml`` (`[project].version`) and
-the FastAPI application factory in ``managed/app/main.py`` (the ``version=``
+agree: the package manifest ``managed/server/pyproject.toml`` (`[project].version`) and
+the FastAPI application factory in ``managed/server/app/main.py`` (the ``version=``
 argument the running server reports at ``/openapi.json`` and ``/docs``). A hand
 edit to one without the other ships a server whose advertised version disagrees
 with its package, so this check fails CI when they drift.
@@ -21,8 +21,8 @@ import tomllib
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PYPROJECT = REPO_ROOT / "managed" / "pyproject.toml"
-APP_MAIN = REPO_ROOT / "managed" / "app" / "main.py"
+PYPROJECT = REPO_ROOT / "managed" / "server" / "pyproject.toml"
+APP_MAIN = REPO_ROOT / "managed" / "server" / "app" / "main.py"
 
 # The version handed to ``FastAPI(..., version="X.Y.Z")``. Anchored on the
 # FastAPI constructor so an unrelated ``version=`` elsewhere cannot satisfy it;

@@ -20,7 +20,7 @@ so the right one releases and only its changelog is touched:
 | Scope | Product | Releases | Owns |
 |-------|---------|----------|------|
 | `(plugin)` | plugin bundle | `plugin-vX.Y.Z` | `skills/`, `hooks/`, `*/plugin.json` |
-| `(managed)` | managed server | `managed-vX.Y.Z` | `managed/app/`, `managed/alembic/`, `managed/pyproject.toml` |
+| `(managed)` | managed server | `managed-vX.Y.Z` | `managed/server/app/`, `managed/server/alembic/`, `managed/server/pyproject.toml` |
 
 For example `feat(plugin): ...`, `fix(managed): ...`. Infrastructure-only commits
 (`ci:`, `chore:`) do not release unless they alter a shipped artifact; if one PR

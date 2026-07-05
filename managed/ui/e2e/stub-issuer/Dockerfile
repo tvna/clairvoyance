@@ -1,5 +1,5 @@
 # Throwaway E2E fixture image (design doc §13) -- standalone from
-# managed/pyproject.toml on purpose, so the real backend's dependency
+# managed/server/pyproject.toml on purpose, so the real backend's dependency
 # tree never sees this.
 FROM python:3.12-slim
 WORKDIR /app

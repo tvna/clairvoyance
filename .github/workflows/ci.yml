@@ -81,8 +81,8 @@ jobs:
         run: python3 scripts/check_ruleset_contexts.py
 
       - name: Check managed server version parity
-        # The managed product carries its version in managed/pyproject.toml and in
-        # the FastAPI app factory (managed/app/main.py). They must agree or the
+        # The managed product carries its version in managed/server/pyproject.toml and in
+        # the FastAPI app factory (managed/server/app/main.py). They must agree or the
         # server advertises a version that disagrees with its package. Managed-side
         # analogue of the plugin manifest-parity gate above (see docs/versioning.md).
         run: python3 scripts/check_managed_version.py
@@ -164,7 +164,7 @@ jobs:
           use_oidc: true
 
   managed-server:
-    # The managed coaching server (managed/) is a separate uv project with its
+    # The managed coaching server (managed/server/) is a separate uv project with its
     # own lockfile and gates; its tests are SQLite-backed and need no services.
     # Root ruff already lints managed/ (per-directory config), but mypy and
     # pytest there only run through this job.
@@ -172,7 +172,7 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: managed
+        working-directory: managed/server
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
@@ -255,7 +255,7 @@ jobs:
     # managed-ui-e2e jobs are red or skipped (that independence is the point:
     # the original bug slipped through precisely because the only check that
     # exercised the proxy path was the Docker-gated e2e). The stub is kept off
-    # managed/pyproject.toml's dependency tree (see stub-issuer/app.py), so it
+    # managed/server/pyproject.toml's dependency tree (see stub-issuer/app.py), so it
     # installs its own pinned requirements into a throwaway venv.
     runs-on: ubuntu-latest
     timeout-minutes: 5

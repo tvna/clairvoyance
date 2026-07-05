@@ -21,9 +21,9 @@ import {
   ValidationError,
 } from "./errors";
 
-// Mirrors of the literal `detail` strings raised in managed/app/deps.py
+// Mirrors of the literal `detail` strings raised in managed/server/app/deps.py
 // (get_admin_principal). The pairing is enforced by a drift gate:
-// managed/tests/test_admin_api.py asserts the backend emits exactly these
+// managed/server/tests/test_admin_api.py asserts the backend emits exactly these
 // strings, so a backend rewording fails backend CI instead of silently
 // degrading both 503s to UnexpectedApiError here.
 const OIDC_NOT_CONFIGURED_DETAIL = "admin OIDC is not configured";

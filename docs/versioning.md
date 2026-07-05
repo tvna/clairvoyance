@@ -12,7 +12,7 @@ plugin.
 | Product | Scope | Tag format | Version files | Changelog |
 |---------|-------|------------|---------------|-----------|
 | **plugin** | Claude Code / Codex plugin bundle at the repo root | `plugin-vX.Y.Z` | `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json` | `CHANGELOG.md` |
-| **managed** | managed coaching server under `managed/` | `managed-vX.Y.Z` | `managed/pyproject.toml`, `managed/app/main.py` (FastAPI `version=`) | `managed/CHANGELOG.md` |
+| **managed** | managed coaching server under `managed/server/` | `managed-vX.Y.Z` | `managed/server/pyproject.toml`, `managed/server/app/main.py` (FastAPI `version=`) | `managed/CHANGELOG.md` |
 
 Both products are in **initial development** (`0.x.x`). `1.0.0` is reserved for the
 first release each product is willing to guarantee as a stable surface, so until
@@ -45,8 +45,9 @@ two releases.
 - **plugin** owns: `skills/`, `hooks/`, `.claude-plugin/plugin.json`,
   `.codex-plugin/plugin.json`, and the plugin-facing docs/evals when they change
   shipped plugin behavior.
-- **managed** owns: `managed/app/`, `managed/alembic/`, `managed/Dockerfile`,
-  `managed/docker-compose.coolify.yml`, `managed/pyproject.toml`, and the managed
+- **managed** owns: `managed/server/app/`, `managed/server/alembic/`,
+  `managed/server/Dockerfile`, `managed/docker-compose.coolify.yml`,
+  `managed/server/pyproject.toml`, and the managed
   API / worker / scheduler / migration behavior.
 
 ### Legacy `vX.Y.Z` tags
@@ -76,8 +77,8 @@ carries **no** `version`: Claude Code
 `plugin.json` first and warns against setting it in both places, so CI fails if a
 `version` is ever re-added.
 
-**managed.** The managed server carries its version in `managed/pyproject.toml`
-(`[project].version`) and in the FastAPI app factory (`managed/app/main.py`, the
+**managed.** The managed server carries its version in `managed/server/pyproject.toml`
+(`[project].version`) and in the FastAPI app factory (`managed/server/app/main.py`, the
 `version=` the running server advertises at `/openapi.json`). These must agree;
 `scripts/check_managed_version.py` fails CI on any drift.
 
@@ -126,7 +127,7 @@ Deterministic checks enforce each product boundary on every PR
 - **Plugin manifest parity** -- `.claude-plugin/plugin.json` and
   `.codex-plugin/plugin.json` carry the same version.
 - **Marketplace carries no version** -- the version lives only in `plugin.json`.
-- **Managed version parity** -- `managed/pyproject.toml` and the FastAPI app
+- **Managed version parity** -- `managed/server/pyproject.toml` and the FastAPI app
   version agree (`scripts/check_managed_version.py`).
 
 The release-config gates that pair with the automation split -- product-prefixed
@@ -155,8 +156,8 @@ the `plugin-v` rename and the release-notes filtering (so managed commits also d
 out of the plugin release notes, not just the version bump) land as one verified
 unit in the release-config split slice.
 
-**managed** (tag `managed-vX.Y.Z`, writes `managed/pyproject.toml` +
-`managed/app/main.py`, updates `managed/CHANGELOG.md`, tags the container image
+**managed** (tag `managed-vX.Y.Z`, writes `managed/server/pyproject.toml` +
+`managed/server/app/main.py`, updates `managed/CHANGELOG.md`, tags the container image
 `managed-vX.Y.Z`) is a later rollout slice: its release config and workflow land
 with the same split. The managed version-parity gate is in place first so the
 boundary is governed before its automation is enabled.
