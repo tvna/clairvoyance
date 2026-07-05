@@ -426,9 +426,11 @@ jobs:
 
       - name: Run store tests on Windows (bash scripts via Git Bash)
         # Confirms the bundled adaptive-store.sh runs under Windows Git Bash.
+        # Also runs the persona long-run suite (#94): it shares the same
+        # Git-Bash/sqlite3-CLI dependencies and was previously Windows-blind.
         # Coverage (--cov-fail-under=100) is enforced by the Linux job, so disable
         # it here — this run is about cross-platform execution, not coverage.
-        run: uv run --frozen pytest tests/test_adaptive_store.py --no-cov
+        run: uv run --frozen pytest tests/test_adaptive_store.py tests/test_adaptive_coaching_personas.py --no-cov
         shell: bash
 
   tests-macos-bash32:
