@@ -13,7 +13,10 @@ the session threshold to 0 to isolate the signal gate.
 """
 
 import os
+import sqlite3
 import subprocess
+import threading
+import time
 
 import pytest
 from conftest import (
@@ -192,6 +195,51 @@ def test_status_on_readonly_store_serves_readable_data(tmp_path):
     assert out["available"] is True
     assert out["count"] == 1
     assert out["ready"] is True
+
+
+@needs_sqlite3
+def test_record_waits_out_a_concurrent_writer(tmp_path):
+    """A concurrent writer holding the SQLite write lock does not fail a
+    record call: the store's busy_timeout (2000ms) makes it wait, per the
+    volatility contract in docs/hooks.md (issue #98, gate 2)."""
+    data_dir = tmp_path / "store"
+    run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)  # creates schema
+    db = data_dir / "coaching.db"
+
+    hold_seconds = 1.0  # well under the store's 2s busy_timeout
+    lock_acquired = threading.Event()
+    release_lock = threading.Event()
+
+    def hold_write_lock() -> None:
+        conn = sqlite3.connect(str(db), timeout=5, isolation_level=None)
+        conn.execute("BEGIN IMMEDIATE;")
+        conn.execute("INSERT INTO observations (ts, category) VALUES (datetime('now'), 'lock-holder');")
+        lock_acquired.set()
+        release_lock.wait(hold_seconds + 10)
+        conn.execute("ROLLBACK;")
+        conn.close()
+
+    locker = threading.Thread(target=hold_write_lock)
+    locker.start()
+    assert lock_acquired.wait(5), "lock holder never acquired the write lock"
+
+    def release_after_delay() -> None:
+        time.sleep(hold_seconds)
+        release_lock.set()
+
+    releaser = threading.Thread(target=release_after_delay)
+    releaser.start()
+
+    start = time.monotonic()
+    out = run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
+    elapsed = time.monotonic() - start
+    releaser.join()
+    locker.join()
+
+    assert out["available"] is True
+    assert out["recorded"] is True
+    # Proves the call actually waited on the lock rather than passing by luck.
+    assert elapsed >= hold_seconds * 0.8
 
 
 def test_record_requires_category(tmp_path):
