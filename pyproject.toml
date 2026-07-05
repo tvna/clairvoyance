@@ -43,6 +43,10 @@ exclude_lines = [
 # target-version matches requires-python's lower bound.
 target-version = "py312"
 line-length = 120
+# The managed UI's E2E stub issuer is a standalone fixture with its own pytest
+# config and dependency pins; it is intentionally outside both the root tooling
+# project and the managed server project.
+extend-exclude = ["managed/ui/e2e/stub-issuer"]
 
 [tool.ruff.lint]
 # A narrow, high-signal subset of the upstream tvna/claude-md selection,

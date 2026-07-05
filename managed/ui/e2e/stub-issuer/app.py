@@ -5,7 +5,7 @@ PKCE (S256) flow with an HTML form so Playwright drives an actual browser
 redirect, not a mocked one.
 
 Deliberately standalone (own requirements.txt/Dockerfile): it must never
-touch managed/pyproject.toml, so the real backend's dependency tree stays
+touch managed/server/pyproject.toml, so the real backend's dependency tree stays
 exactly what it was before this issue -- zero backend change.
 """
 

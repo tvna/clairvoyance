@@ -1,6 +1,6 @@
 # Two-stage build (design §11): node builds the static bundle, nginx
 # serves it under /ui with a boot-time entrypoint rendering runtime
-# config from env. managed/Dockerfile (the api image) is untouched by
+# config from env. managed/server/Dockerfile (the api image) is untouched by
 # this file -- zero backend change.
 
 FROM node:22-alpine AS build

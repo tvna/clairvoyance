@@ -402,7 +402,7 @@ managed/
 ```
 
 The UI gets its own `managed/ui/Dockerfile`; the existing
-`managed/Dockerfile` is untouched. Build stages mirror the caching
+`managed/server/Dockerfile` is untouched. Build stages mirror the caching
 discipline of the Python image (dependency layer first, so source edits
 do not re-download node_modules):
 

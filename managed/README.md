@@ -127,7 +127,7 @@ collector token; rotate by re-minting tokens, not by editing hashes.
 ## Development
 
 ```bash
-cd managed
+cd managed/server
 uv sync
 uv run ruff check && uv run ruff format --check
 uv run mypy
@@ -263,8 +263,8 @@ the repository's product-scoped model):
   never apply to the server).
 - **Version sources** `pyproject.toml` (`[project].version`) and the FastAPI app
   factory in `app/main.py` (the `version=` the server advertises at
-  `/openapi.json`). They must stay in step; `scripts/check_managed_version.py`
-  fails CI on drift.
+  `/openapi.json`) under `server/`. They must stay in step;
+  `scripts/check_managed_version.py` fails CI on drift.
 - **Container image** the release tags the server image `managed-vX.Y.Z` so a
   deployed image maps to an exact source revision and changelog entry.
 - **Changelog** `managed/CHANGELOG.md` (a plugin release never touches it, and a
