@@ -13,7 +13,10 @@ the session threshold to 0 to isolate the signal gate.
 """
 
 import os
+import sqlite3
 import subprocess
+import threading
+import time
 
 import pytest
 from conftest import (
@@ -192,6 +195,64 @@ def test_status_on_readonly_store_serves_readable_data(tmp_path):
     assert out["available"] is True
     assert out["count"] == 1
     assert out["ready"] is True
+
+
+@needs_sqlite3
+def test_record_waits_out_a_concurrent_writer(tmp_path):
+    """A concurrent writer holding the SQLite write lock does not fail a
+    record call: the store's busy_timeout (2000ms) makes it wait, per the
+    volatility contract in docs/hooks.md (issue #98, gate 2)."""
+    data_dir = tmp_path / "store"
+    # The first record creates the schema and, timed, calibrates the proof
+    # window below to this runner's real speed. An uncontended record reaches
+    # its INSERT in strictly less than its full runtime, so holding the lock
+    # for one whole baseline guarantees the contended record has reached and
+    # blocked on its INSERT before we release -- no fixed scheduling guess.
+    baseline_start = time.monotonic()
+    run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
+    baseline = time.monotonic() - baseline_start
+    db = data_dir / "coaching.db"
+
+    lock_acquired = threading.Event()
+    release_lock = threading.Event()
+
+    def hold_write_lock() -> None:
+        conn = sqlite3.connect(str(db), timeout=5, isolation_level=None)
+        conn.execute("BEGIN IMMEDIATE;")  # takes the RESERVED write lock at once
+        lock_acquired.set()
+        release_lock.wait(10)
+        conn.execute("ROLLBACK;")
+        conn.close()
+
+    locker = threading.Thread(target=hold_write_lock)
+    locker.start()
+    assert lock_acquired.wait(5), "lock holder never acquired the write lock"
+
+    result: dict[str, dict[str, object]] = {}
+
+    def do_record() -> None:
+        result["out"] = run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
+
+    recorder = threading.Thread(target=do_record)
+    recorder.start()
+
+    # Anchor the release to observed contention, not a timer started before the
+    # subprocess even spawns: wait one uncontended baseline (kept under the 2s
+    # busy_timeout), by which point the contended record must be blocked on the
+    # held lock. Still running here proves it waited; a broken/removed
+    # busy_timeout would instead fail its INSERT fast and finish inside the
+    # window, so is_alive() would be False and the test would catch it (#98).
+    proof_window = min(max(baseline, 0.3), 1.5)
+    recorder.join(proof_window)
+    assert recorder.is_alive(), "record did not block on the held write lock (busy_timeout not honored?)"
+
+    release_lock.set()
+    recorder.join(5)
+    locker.join()
+
+    assert not recorder.is_alive(), "record never completed after the lock was released"
+    assert result["out"]["available"] is True
+    assert result["out"]["recorded"] is True
 
 
 def test_record_requires_category(tmp_path):
