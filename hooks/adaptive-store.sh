@@ -317,17 +317,26 @@ prune_observations() {
       "DELETE FROM observations WHERE julianday(ts) < julianday('now', '-${max_age} days');" 2>/dev/null || return 1
   fi
   if [ "${max_obs}" -gt 0 ]; then
+    # Keep the newest ${max_obs} rows, preferring raw signal over quiz
+    # outcomes when the budget is tight: outcome rows no longer count toward
+    # readiness (issue #89, F4), so letting them evict raw rows would silently
+    # drop readiness with no raw signal having aged out. Raw rows are only
+    # ever displaced by newer raw rows; the outcome trail absorbs the squeeze.
     sqlite3 "${busy_opts[@]}" "${db}" \
-      "DELETE FROM observations WHERE id NOT IN (SELECT id FROM observations ORDER BY id DESC LIMIT ${max_obs});" 2>/dev/null || return 1
+      "DELETE FROM observations WHERE id NOT IN (SELECT id FROM observations ORDER BY (outcome IS NULL) DESC, id DESC LIMIT ${max_obs});" 2>/dev/null || return 1
   fi
   return 0
 }
 
 summary_json() {
   # Echoes: <total> <distinct> <by_category-json-body> on three lines, or fails.
+  # Readiness counts only raw signal: quiz-outcome rows (outcome IS NOT NULL)
+  # are stored for feedback/calibration history but are excluded from count and
+  # by_category, so answering quizzes cannot keep a category quiz-ready after
+  # the underlying behaviour improved (issue #89, finding F4, option B chosen).
   local total rows pairs="" distinct=0 cat cnt
-  total="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "SELECT COUNT(*) FROM observations;" 2>/dev/null)" || return 1
-  rows="$(sqlite3 "${busy_opts[@]}" -noheader -separator '|' "${db}" "SELECT category, COUNT(*) FROM observations GROUP BY category ORDER BY category;" 2>/dev/null)" || return 1
+  total="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "SELECT COUNT(*) FROM observations WHERE outcome IS NULL;" 2>/dev/null)" || return 1
+  rows="$(sqlite3 "${busy_opts[@]}" -noheader -separator '|' "${db}" "SELECT category, COUNT(*) FROM observations WHERE outcome IS NULL GROUP BY category ORDER BY category;" 2>/dev/null)" || return 1
   while IFS='|' read -r cat cnt; do
     [ -z "${cat}" ] && continue
     [ -n "${pairs}" ] && pairs="${pairs}, "

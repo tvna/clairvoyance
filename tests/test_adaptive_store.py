@@ -110,16 +110,24 @@ def test_status_on_empty_store_is_not_ready(tmp_path):
 
 @needs_sqlite3
 def test_record_accumulates_until_threshold(tmp_path):
-    """With the grace gate disabled, readiness follows the adaptive-signal gate."""
+    """With the grace gate disabled, readiness follows the adaptive-signal gate.
+
+    Only raw observations count: a quiz-outcome record is stored (its metadata
+    persists, see the quiz-metadata tests) but never adds readiness signal
+    (issue #89, finding F4, option B)."""
     data_dir = tmp_path / "store"
     first = run(["record", "--category", "avoidance"], data_dir, threshold=2)
     assert first["recorded"] is True
     assert first["count"] == 1
     assert first["ready"] is False
 
-    second = run(["record", "--category", "loss-aversion", "--outcome", "incorrect"], data_dir, threshold=2)
+    second = run(["record", "--category", "loss-aversion"], data_dir, threshold=2)
     assert second["count"] == 2
     assert second["ready"] is True
+
+    answered = run(["record", "--category", "loss-aversion", "--outcome", "incorrect"], data_dir, threshold=2)
+    assert answered["recorded"] is True
+    assert answered["count"] == 2  # outcome rows do not count toward readiness
 
     status = run(["status"], data_dir, threshold=2)
     assert status == {
@@ -366,6 +374,29 @@ def test_rotation_by_age_drops_old(tmp_path):
     assert out["count"] == 1
     cats = sqlite3.connect(str(data_dir / "coaching.db")).execute("SELECT category FROM observations").fetchall()
     assert cats == [("loss-aversion",)]
+
+
+@needs_sqlite3
+def test_outcome_rows_do_not_evict_raw_signal_on_count_rotation(tmp_path):
+    """When the count bound is tight, quiz-outcome rows are evicted before raw
+    observations: outcome rows no longer count toward readiness (issue #89,
+    F4), so letting them consume the retention budget would silently drop
+    readiness with no raw signal having aged out."""
+    data_dir = tmp_path / "store"
+    env_extra = {"CLAIRVOYANCE_MAX_OBSERVATIONS": "5"}
+    for _ in range(3):
+        run(["record", "--category", "avoidance"], data_dir, threshold=3, env_extra=env_extra)
+    answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "high"]
+    for _ in range(3):
+        out = run(answer, data_dir, threshold=3, env_extra=env_extra)
+        assert out["count"] == 3  # raw signal intact despite the tight budget
+        assert out["ready"] is True
+    kinds = (
+        sqlite3.connect(str(data_dir / "coaching.db"))
+        .execute("SELECT SUM(outcome IS NULL), SUM(outcome IS NOT NULL) FROM observations")
+        .fetchone()
+    )
+    assert kinds == (3, 2)  # budget 5: all raw rows kept, the oldest outcome evicted
 
 
 @needs_sqlite3

@@ -136,7 +136,7 @@ Aoi (thresholds 3/3) — the archetype positive path:
 | 6 | S | record-session | sessions 3 | none |
 | 7 | O avoidance | record | count 3, ready **true** | still record only — readiness alone never triggers a quiz |
 | 8 | R | status | count 3, sessions 3, ready true, {avoidance: 3} | quiz: Classification -> Capability Gap -> Evidence (3/3) -> Quiz (2-3 options + confidence, answer unmarked) |
-| 9 | A | record --outcome incorrect --confidence high --calibration overconfident --due-days 1 | count 4 | Feedback -> Calibration (overconfidence named as a signal for this move, not a trait) -> Review Again (1 day) -> Next Move |
+| 9 | A | record --outcome incorrect --confidence high --calibration overconfident --due-days 1 | count 3 (outcome rows are stored but do not count toward readiness) | Feedback -> Calibration (overconfidence named as a signal for this move, not a trait) -> Review Again (1 day) -> Next Move |
 
 Kaho (thresholds 3/2) — the archetype negative path:
 
@@ -175,13 +175,15 @@ compositions that a combined reality produces, each now pinned:
 | ------------- | ------------------ | -------- | ---------------------------- |
 | Scatter: five categories, one instance each (F6) | `ready: true`, `distinct_categories: 5`, every `by_category` value 1 | persona 12 `rin-scattered-signal` | `scattered-signal-hold.yaml` (new): the skill must hold — "never quiz on a single instance" applies to every candidate gap; `by_category` in the status JSON is the signal it can read |
 | Single-session burst crossing the signal gate (F7) | 3 observations with no intervening `record-session` flip `ready` with `sessions` unchanged | persona 13 `sora-single-session-burst` | **none possible**: status JSON carries no per-session linkage, so the skill cannot distinguish a burst from an across-session pattern; only a store-side change could expose it |
-| Quiz answers self-sustain readiness through rotation (F4 corollary) | after every raw observation ages out, 3 outcome rows alone rebuild `ready: true` (row composition 3/3 outcomes) | `test_outcome_rows_alone_sustain_readiness_after_rotation` | not expressible single-turn (requires answer turns); noted for the manual checklist |
+| Quiz answers self-sustain readiness through rotation (F4 corollary, fixed) | outcome rows are stored but excluded from `count`/`by_category`, so after every raw observation ages out, answers alone keep `ready: false` (row composition still 3/3 outcomes) | `test_outcome_rows_do_not_sustain_readiness_after_rotation` (was `test_outcome_rows_alone_sustain_readiness_after_rotation`, which pinned the pre-decision behaviour) | not expressible single-turn (requires answer turns); noted for the manual checklist |
 
 The asymmetry matters for anyone extending this plan: F6 is catchable at the
 skill layer because the evidence (`by_category`) crosses the store boundary;
-F7 and the F4 corollary are not, because the distinguishing evidence (session
-linkage, row kind) never leaves the store. A skill-layer test for those would
-assert on information the skill cannot have.
+F7 is not, because the distinguishing evidence (session linkage) never leaves
+the store. The F4 corollary sat in the same bucket (row kind never crossed
+the boundary) until it was fixed store-side: readiness now excludes outcome
+rows, so no layer needs to compensate. A skill-layer test for F7 would assert
+on information the skill cannot have.
 
 **Compound compositions that are correct behaviour, not defects.** Three more
 realistic combinations were added for coverage; unlike the table above they
@@ -203,8 +205,9 @@ pins): store loss re-arming the grace period (mechanically identical to the
 existing empty-store negatives — volatility is documented as tolerated);
 context capture inside persona timelines (unit-covered in
 `test_adaptive_store.py`; contributes nothing to readiness arithmetic); mixed
-raw-plus-outcome rows re-crossing the threshold (subsumed by the F4-corollary
-pin).
+raw-plus-outcome rows re-crossing the threshold (moot since the F4 fix:
+outcome rows no longer enter the readiness arithmetic, pinned by
+`test_outcome_rows_do_not_sustain_readiness_after_rotation`).
 
 ## Infrastructure scenarios (rotation, unavailable store)
 
@@ -241,7 +244,7 @@ unavailable, the skill must keep observing and must not quiz from memory.
 | Hold-not-fail on unavailable store | 3 scenarios above | `store-unavailable-hold.yaml` (new) | - | - |
 | Scattered singletons reach ready (F6) | persona 12 | `scattered-signal-hold.yaml` (new) | - | - |
 | Single-session burst reaches ready (F7) | persona 13 | not possible (no session linkage in status JSON) | - | - |
-| Outcome rows self-sustain readiness (F4 corollary) | `test_outcome_rows_alone_sustain_readiness_after_rotation` | not possible single-turn | - | included in soak |
+| Outcome rows excluded from readiness (F4, fixed) | `test_outcome_rows_do_not_sustain_readiness_after_rotation` | not possible single-turn | - | included in soak |
 | Tied co-dominant categories still quiz | persona 14 | `tie-recurring-quiz.yaml` (new) | - | - |
 | Singleton noise does not displace the dominant | persona 15 | - (prose-brittle at L2) | - | - |
 | Readiness re-arms after improvement and relapse | `test_readiness_rearms_after_improvement_and_relapse` | not possible single-turn | - | included in soak |
@@ -267,8 +270,12 @@ consciously update the named test:
   validly disables the grace gate (existing
   `test_invalid_threshold_falls_back_to_default` pins the behaviour); the
   fallback now warns on stderr and both reference docs document the asymmetry.
-- **F4** quiz outcome records count toward readiness in the same category they
-  score (visible in personas 1, 3, 6: `count` rises on `A` turns).
+- **F4** *(fixed, option B)* quiz outcome records previously counted toward
+  readiness in the same category they score. Outcome rows are now stored for
+  feedback/calibration history but excluded from `count`/`by_category`
+  (visible in personas 1, 3, 6: `count` no longer rises on `A` turns; the
+  corollary pin is now
+  `test_outcome_rows_do_not_sustain_readiness_after_rotation`).
 - **F5** *(fixed)* `sql_text` quote-doubling previously broke under bash 3.2
   (stock macOS), silently dropping context-capture observations. The doubling
   is now `sed`-based (bash-version-independent) and the `tests-macos-bash32`

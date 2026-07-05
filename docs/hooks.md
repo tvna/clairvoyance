@@ -52,7 +52,9 @@ can additionally store an abstracted, secret-redacted scenario summary.
   stores an abstracted, secret-redacted summary (read from stdin via
   `--context-stdin`) so a later reflection can reproduce the moment. Rotation keeps
   the store bounded:
-  `CLAIRVOYANCE_MAX_OBSERVATIONS` (default 500, newest kept) and
+  `CLAIRVOYANCE_MAX_OBSERVATIONS` (default 500, newest kept; when the budget is
+  tight, quiz-outcome rows are evicted before raw observations so answers never
+  displace readiness signal) and
   `CLAIRVOYANCE_MAX_AGE_DAYS` (default 180); `0` disables either bound. Rotation
   runs on both `record` and `status`, so a reflection request never computes
   `ready` over rows already past the bound (issue #89, finding F1). On `status`
@@ -137,9 +139,10 @@ procedure, so operators can judge the privacy/utility balance:
 2. **`signal` is optional and un-vocabularised**, so distinct patterns in one
    category collapse together; the lever that could keep them apart (anonymously)
    goes unused.
-3. **Outcome rows are not linked to the observation they score** and also count
-   toward `count`, so the readiness gate conflates observations with quiz
-   scorings, and "is this habit fading?" is only a category-level trend.
+3. **Outcome rows are not linked to the observation they score.** They no
+   longer count toward `count`/`by_category` (issue #89, F4: readiness reads
+   raw signal only), but "is this habit fading?" remains a category-level
+   trend, not a per-observation one.
 4. **The sanitiser enforces charset and length, not semantic anonymity** — a
    careless `signal` can still encode identifying specifics.
 5. **Volatility vs. where work happens.** Remote or ephemeral sessions do not

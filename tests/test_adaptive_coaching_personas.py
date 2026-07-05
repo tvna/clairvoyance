@@ -223,7 +223,8 @@ PERSONAS = (
             _session(sessions=3),
             _observe("avoidance", "slip-left-unsaid", count=3, ready=True),
             _reflect(ready=True, count=3, sessions=3, by_category={"avoidance": 3}),
-            _answer("avoidance", "incorrect", "high", "overconfident", 1, count=4),
+            # Outcome rows are stored but do not count toward readiness (F4/B).
+            _answer("avoidance", "incorrect", "high", "overconfident", 1, count=3),
         ),
     ),
     # Ben reframes an owner judgement as a tooling problem twice in his very
@@ -259,7 +260,7 @@ PERSONAS = (
             _reflect(ready=False, count=2, sessions=0),
             _observe("loss-aversion", "legacy-module-kept", count=3, ready=True),
             _reflect(ready=True, count=3, by_category={"loss-aversion": 3}),
-            _answer("loss-aversion", "correct", "medium", "accurate", 5, count=4),
+            _answer("loss-aversion", "correct", "medium", "accurate", 5, count=3),
         ),
     ),
     # Dai knows the quality bar he stands for and ships below it anyway; a
@@ -312,7 +313,7 @@ PERSONAS = (
             _session(sessions=4),
             _observe("avoidance", "cutover-stalled", count=5, ready=True),
             _reflect(ready=True, count=5, sessions=4, by_category={"authority-dependence": 3, "avoidance": 2}),
-            _answer("authority-dependence", "correct", "medium", "accurate", 5, count=6),
+            _answer("authority-dependence", "correct", "medium", "accurate", 5, count=5),
         ),
     ),
     # Gen's recurring pattern fits no named category: unlisted labels must fold
@@ -552,35 +553,35 @@ def test_status_prunes_rows_past_age_bound_before_computing_readiness(tmp_path):
 
 
 @needs_sqlite3
-def test_outcome_rows_alone_sustain_readiness_after_rotation(tmp_path):
-    """Pins the F4 corollary (issue #89) in its compound form: after every raw
-    observation ages past the rotation bound, the quiz-answer rows recorded in
-    the same category re-cross the threshold on their own. A person whose
-    behaviour improved (no new raw signal for months) stays quiz-ready purely
-    because they answered quizzes."""
+def test_outcome_rows_do_not_sustain_readiness_after_rotation(tmp_path):
+    """Fix for the F4 corollary (issue #89, option B): quiz-answer rows are
+    stored for feedback/calibration history but no longer count toward
+    readiness, so after every raw observation ages past the rotation bound a
+    person whose behaviour improved is not kept quiz-ready by their answers.
+    Was: test_outcome_rows_alone_sustain_readiness_after_rotation, which
+    pinned the opposite (pre-decision) behaviour."""
     data_dir = tmp_path / "store"
     env_extra = {"CLAIRVOYANCE_MAX_AGE_DAYS": "30"}
     for _ in range(3):
         run_store(["record", "--category", "avoidance"], data_dir, 3, 0, env_extra)
     assert run_store(["status"], data_dir, 3, 0, env_extra)["ready"] is True
     # Age every raw observation past the bound; the outcome rows recorded below
-    # stay fresh, so each answer prunes the stale rows and adds itself.
+    # stay fresh and are still stored, but never count toward readiness.
     conn = sqlite3.connect(str(data_dir / "coaching.db"))
     conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00' WHERE outcome IS NULL")
     conn.commit()
     conn.close()
     answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "high"]
-    assert run_store(answer, data_dir, 3, 0, env_extra)["ready"] is False  # stale rows pruned
-    assert run_store(answer, data_dir, 3, 0, env_extra)["ready"] is False
-    third = run_store(answer, data_dir, 3, 0, env_extra)
-    assert third["count"] == 3
-    assert third["ready"] is True  # current behaviour: readiness rebuilt from answers alone
+    for _ in range(3):
+        out = run_store(answer, data_dir, 3, 0, env_extra)
+        assert out["count"] == 0  # raw signal only; the stale raw rows are pruned
+        assert out["ready"] is False
     rows = (
         sqlite3.connect(str(data_dir / "coaching.db"))
         .execute("SELECT COUNT(*), SUM(outcome IS NOT NULL) FROM observations")
         .fetchone()
     )
-    assert rows == (3, 3)  # every remaining row is a quiz outcome, zero raw signal
+    assert rows == (3, 3)  # the outcome trail is retained even while not ready
 
 
 @needs_sqlite3
