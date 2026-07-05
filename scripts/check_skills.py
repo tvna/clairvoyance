@@ -131,12 +131,21 @@ def _scan_links(text: str, rel: pathlib.PurePath, base: pathlib.Path) -> list[tu
 
 def _scan_drift_rules(text: str, rel: pathlib.PurePath) -> list[tuple[str, str]]:
     """Return drift violations for each pinned (anchor, canonical) pair in
-    ``DRIFT_RULES``: any line carrying an anchor must carry its full canonical
-    phrase, so deliberate repeated copies cannot silently diverge."""
+    ``DRIFT_RULES``: any paragraph carrying an anchor must carry its full
+    canonical phrase, so deliberate repeated copies cannot silently diverge.
+
+    Scans per paragraph (a blank-line-separated block, whitespace normalized)
+    rather than per raw line: a per-line scan would let an anchor and its
+    canonical tail split across a hard-wrapped Markdown line silently bypass
+    the check. Scoping to the paragraph, not the whole file, still catches a
+    drifted restatement that sits alongside other, correct occurrences
+    elsewhere in the same file.
+    """
     errors: list[tuple[str, str]] = []
-    for line in text.splitlines():
+    for block in re.split(r"\n\s*\n", text):
+        normalized = " ".join(block.split())
         for anchor, canonical in DRIFT_RULES:
-            if anchor in line and canonical not in line:
+            if anchor in normalized and canonical not in normalized:
                 errors.append(
                     (
                         "error",
