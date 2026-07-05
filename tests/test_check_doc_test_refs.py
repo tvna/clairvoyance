@@ -29,6 +29,17 @@ class TestKnownTestNames:
         write(tests_dir / "conftest.py", "def test_hidden():\n    pass\n")
         assert cdtr.known_test_names(tests_dir) == set()
 
+    def test_collects_class_based_test_methods(self, tmp_path: Path) -> None:
+        # This repo mixes module-level test functions with class-based ones
+        # (e.g. tests/test_check_ruleset_contexts.py), so both must resolve.
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+        write(
+            tests_dir / "test_store.py",
+            "class TestThing:\n    def test_method(self) -> None:\n        pass\n",
+        )
+        assert cdtr.known_test_names(tests_dir) == {"test_store", "test_method"}
+
 
 class TestCitedNames:
     def test_extracts_backticked_test_names(self, tmp_path: Path) -> None:

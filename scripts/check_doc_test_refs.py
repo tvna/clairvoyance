@@ -39,7 +39,7 @@ TESTS_DIR = REPO_ROOT / "tests"
 _FORMER_TEST_NAME_MARKER = "<!-- former-test-name -->"
 _BACKTICK_SPAN = re.compile(r"`[^`]*test_[a-z0-9_]+[^`]*`")
 _TEST_TOKEN = re.compile(r"test_[a-z0-9_]+")
-_TEST_DEF = re.compile(r"^def (test_[a-z0-9_]+)")
+_TEST_DEF = re.compile(r"^\s*def (test_[a-z0-9_]+)")
 
 
 def known_test_names(tests_dir: Path) -> set[str]:
