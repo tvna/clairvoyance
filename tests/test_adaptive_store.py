@@ -12,48 +12,27 @@ period and accumulated adaptive signal -- so the observation-focused tests set
 the session threshold to 0 to isolate the signal gate.
 """
 
-import json
 import os
-import sqlite3
 import subprocess
 
 import pytest
-from conftest import BASH, CLAIRVOYANCE_ENV_KEYS, STORE_SH, needs_sqlite3
-
-
-def run_raw(args, data_dir, threshold=None, session_threshold=0, env_extra=None, stdin_text=""):
-    """Invoke the store with an isolated data dir; return the CompletedProcess.
-
-    ``session_threshold`` defaults to 0 (grace disabled) so signal-gate tests are
-    not blocked by it; pass ``None`` to leave it unset and exercise the default.
-    ``env_extra`` sets extra environment variables (e.g. raw capture or rotation
-    bounds); all store-specific vars are cleared from the ambient env first so
-    tests are deterministic. ``stdin_text`` feeds stdin, used by ``--context-stdin``
-    so raw context never travels through argv.
-    """
-    env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(data_dir)}
-    for key in CLAIRVOYANCE_ENV_KEYS:
-        env.pop(key, None)
-    if threshold is not None:
-        env["CLAIRVOYANCE_COACH_THRESHOLD"] = str(threshold)
-    if session_threshold is not None:
-        env["CLAIRVOYANCE_SESSION_THRESHOLD"] = str(session_threshold)
-    if env_extra:
-        env.update({k: str(v) for k, v in env_extra.items()})
-    return subprocess.run([BASH, STORE_SH.as_posix(), *args], capture_output=True, text=True, env=env, input=stdin_text)
-
-
-def run(args, data_dir, threshold=None, session_threshold=0, env_extra=None, stdin_text=""):
-    """Invoke the store and parse its JSON, asserting a clean exit."""
-    result = run_raw(args, data_dir, threshold, session_threshold, env_extra, stdin_text)
-    assert result.returncode == 0, result.stderr
-    return json.loads(result.stdout)
+from conftest import (
+    BASH,
+    STORE_SH,
+    execute_write,
+    fetch_all,
+    fetch_latest_quiz_metadata,
+    fetch_one,
+    needs_sqlite3,
+)
+from conftest import run_store as run
+from conftest import run_store_raw as run_raw
 
 
 @needs_sqlite3
 def test_status_on_empty_store_is_not_ready(tmp_path):
     """A fresh workstation has no data, so coaching must not trigger."""
-    out = run(["status"], tmp_path / "store", threshold=3)
+    out = run(["status"], tmp_path / "store", coach_threshold=3)
     assert out == {
         "available": False,
         "count": 0,
@@ -72,20 +51,20 @@ def test_record_accumulates_until_threshold(tmp_path):
     persists, see the quiz-metadata tests) but never adds readiness signal
     (issue #89, finding F4, option B)."""
     data_dir = tmp_path / "store"
-    first = run(["record", "--category", "avoidance"], data_dir, threshold=2)
+    first = run(["record", "--category", "avoidance"], data_dir, coach_threshold=2)
     assert first["recorded"] is True
     assert first["count"] == 1
     assert first["ready"] is False
 
-    second = run(["record", "--category", "loss-aversion"], data_dir, threshold=2)
+    second = run(["record", "--category", "loss-aversion"], data_dir, coach_threshold=2)
     assert second["count"] == 2
     assert second["ready"] is True
 
-    answered = run(["record", "--category", "loss-aversion", "--outcome", "incorrect"], data_dir, threshold=2)
+    answered = run(["record", "--category", "loss-aversion", "--outcome", "incorrect"], data_dir, coach_threshold=2)
     assert answered["recorded"] is True
     assert answered["count"] == 2  # outcome rows do not count toward readiness
 
-    status = run(["status"], data_dir, threshold=2)
+    status = run(["status"], data_dir, coach_threshold=2)
     assert status == {
         "available": True,
         "count": 2,
@@ -103,17 +82,17 @@ def test_session_grace_blocks_until_threshold(tmp_path):
     """Even with signal met, coaching waits out the session grace period."""
     data_dir = tmp_path / "store"
     # Signal gate satisfied immediately (threshold 1), but grace needs 2 sessions.
-    recorded = run(["record", "--category", "avoidance"], data_dir, threshold=1, session_threshold=2)
+    recorded = run(["record", "--category", "avoidance"], data_dir, coach_threshold=1, session_threshold=2)
     assert recorded["count"] == 1
     assert recorded["ready"] is False  # sessions 0 < 2
 
     run(["record-session"], data_dir, session_threshold=2)
-    blocked = run(["status"], data_dir, threshold=1, session_threshold=2)
+    blocked = run(["status"], data_dir, coach_threshold=1, session_threshold=2)
     assert blocked["sessions"] == 1
     assert blocked["ready"] is False  # sessions 1 < 2
 
     run(["record-session"], data_dir, session_threshold=2)
-    ready = run(["status"], data_dir, threshold=1, session_threshold=2)
+    ready = run(["status"], data_dir, coach_threshold=1, session_threshold=2)
     assert ready["sessions"] == 2
     assert ready["ready"] is True  # sessions 2 >= 2 and count 1 >= 1
 
@@ -123,7 +102,7 @@ def test_sessions_without_signal_are_not_ready(tmp_path):
     """Reaching the session count alone does not trigger coaching without signal."""
     data_dir = tmp_path / "store"
     run(["record-session"], data_dir, session_threshold=1)
-    out = run(["status"], data_dir, threshold=5, session_threshold=1)
+    out = run(["status"], data_dir, coach_threshold=5, session_threshold=1)
     assert out["sessions"] == 1
     assert out["count"] == 0
     assert out["ready"] is False
@@ -153,7 +132,7 @@ def test_default_session_threshold_is_50(tmp_path):
 @needs_sqlite3
 def test_unknown_category_is_folded_to_other(tmp_path):
     """Free-text categories never persist; they collapse to the coded 'other'."""
-    out = run(["record", "--category", "some free text leak"], tmp_path / "store", threshold=5)
+    out = run(["record", "--category", "some free text leak"], tmp_path / "store", coach_threshold=5)
     assert out["by_category"] == {"other": 1}
 
 
@@ -164,7 +143,7 @@ def test_signal_is_coded_and_truncated(tmp_path):
     run(["record", "--category", "avoidance", "--signal", "Skipped The Hard Call!!"], data_dir)
     db = data_dir / "coaching.db"
     assert db.exists()
-    rows = sqlite3.connect(str(db)).execute("SELECT signal FROM observations").fetchall()
+    rows = fetch_all(db, "SELECT signal FROM observations")
     assert rows == [("skipped-the-hard-call",)]
 
 
@@ -178,8 +157,8 @@ def test_default_threshold_applies_when_unset(tmp_path):
 @needs_sqlite3
 def test_invalid_threshold_falls_back_to_default(tmp_path):
     """A non-numeric or non-positive threshold degrades to the default."""
-    assert run(["status"], tmp_path / "store", threshold="0")["threshold"] == 5
-    assert run(["status"], tmp_path / "store", threshold="not-a-number")["threshold"] == 5
+    assert run(["status"], tmp_path / "store", coach_threshold="0")["threshold"] == 5
+    assert run(["status"], tmp_path / "store", coach_threshold="not-a-number")["threshold"] == 5
 
 
 @needs_sqlite3
@@ -201,12 +180,12 @@ def test_status_on_readonly_store_serves_readable_data(tmp_path):
     serve the readable counts, not degrade to unavailable: its rotation prune is
     best-effort, and the DELETEs fail with SQLITE_READONLY even matching nothing."""
     data_dir = tmp_path / "store"
-    run(["record", "--category", "avoidance"], data_dir, threshold=1)
+    run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
     db = data_dir / "coaching.db"
     db.chmod(0o444)
     data_dir.chmod(0o555)
     try:
-        out = run(["status"], data_dir, threshold=1)
+        out = run(["status"], data_dir, coach_threshold=1)
     finally:
         data_dir.chmod(0o755)
         db.chmod(0o644)
@@ -242,9 +221,7 @@ def test_home_fallback_dir_is_dotted(tmp_path):
 def _contexts(data_dir):
     """The stored context column for every observation, oldest first."""
     db = data_dir / "coaching.db"
-    return [
-        row[0] for row in sqlite3.connect(str(db)).execute("SELECT context FROM observations ORDER BY id").fetchall()
-    ]
+    return [row[0] for row in fetch_all(db, "SELECT context FROM observations ORDER BY id")]
 
 
 @needs_sqlite3
@@ -322,13 +299,10 @@ def test_rotation_by_age_drops_old(tmp_path):
     data_dir = tmp_path / "store"
     run(["record", "--category", "avoidance"], data_dir)
     # Backdate the existing row well past any window, then record under a 1-day bound.
-    conn = sqlite3.connect(str(data_dir / "coaching.db"))
-    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
-    conn.commit()
-    conn.close()
+    execute_write(data_dir / "coaching.db", "UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
     out = run(["record", "--category", "loss-aversion"], data_dir, env_extra={"CLAIRVOYANCE_MAX_AGE_DAYS": "1"})
     assert out["count"] == 1
-    cats = sqlite3.connect(str(data_dir / "coaching.db")).execute("SELECT category FROM observations").fetchall()
+    cats = fetch_all(data_dir / "coaching.db", "SELECT category FROM observations")
     assert cats == [("loss-aversion",)]
 
 
@@ -341,16 +315,14 @@ def test_outcome_rows_do_not_evict_raw_signal_on_count_rotation(tmp_path):
     data_dir = tmp_path / "store"
     env_extra = {"CLAIRVOYANCE_MAX_OBSERVATIONS": "5"}
     for _ in range(3):
-        run(["record", "--category", "avoidance"], data_dir, threshold=3, env_extra=env_extra)
+        run(["record", "--category", "avoidance"], data_dir, coach_threshold=3, env_extra=env_extra)
     answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "high"]
     for _ in range(3):
-        out = run(answer, data_dir, threshold=3, env_extra=env_extra)
+        out = run(answer, data_dir, coach_threshold=3, env_extra=env_extra)
         assert out["count"] == 3  # raw signal intact despite the tight budget
         assert out["ready"] is True
-    kinds = (
-        sqlite3.connect(str(data_dir / "coaching.db"))
-        .execute("SELECT SUM(outcome IS NULL), SUM(outcome IS NOT NULL) FROM observations")
-        .fetchone()
+    kinds = fetch_one(
+        data_dir / "coaching.db", "SELECT SUM(outcome IS NULL), SUM(outcome IS NOT NULL) FROM observations"
     )
     assert kinds == (3, 2)  # budget 5: all raw rows kept, the oldest outcome evicted
 
@@ -388,11 +360,7 @@ def test_quiz_metadata_is_recorded_when_present(tmp_path):
         ],
         data_dir,
     )
-    row = (
-        sqlite3.connect(str(data_dir / "coaching.db"))
-        .execute("SELECT outcome, confidence, calibration, due_at IS NOT NULL FROM observations")
-        .fetchone()
-    )
+    row = fetch_latest_quiz_metadata(data_dir / "coaching.db")
     assert row == ("incorrect", "high", "overconfident", 1)
 
 
@@ -416,9 +384,5 @@ def test_invalid_quiz_metadata_is_folded_to_unknown_or_null(tmp_path):
         ],
         data_dir,
     )
-    row = (
-        sqlite3.connect(str(data_dir / "coaching.db"))
-        .execute("SELECT confidence, calibration, due_at FROM observations")
-        .fetchone()
-    )
+    row = fetch_one(data_dir / "coaching.db", "SELECT confidence, calibration, due_at FROM observations")
     assert row == (None, "unknown", None)

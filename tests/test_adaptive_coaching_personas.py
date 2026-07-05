@@ -29,11 +29,19 @@ import dataclasses
 import json
 import os
 import pathlib
-import sqlite3
 import subprocess
 
 import pytest
-from conftest import BASH, CLAIRVOYANCE_ENV_KEYS, STORE_SH, needs_sqlite3
+from conftest import (
+    BASH,
+    CLAIRVOYANCE_ENV_KEYS,
+    STORE_SH,
+    execute_write,
+    fetch_latest_quiz_metadata,
+    fetch_one,
+    needs_sqlite3,
+    run_store,
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -101,26 +109,6 @@ class Persona:
     env_extra: dict[str, str] | None = None
 
 
-def run_store(
-    args: list[str],
-    data_dir: pathlib.Path,
-    coach_threshold: int,
-    session_threshold: int,
-    env_extra: dict[str, str] | None = None,
-) -> dict[str, object]:
-    """Invoke the store CLI with an isolated data dir and parse its JSON reply."""
-    env = {**os.environ, "CLAIRVOYANCE_DATA_DIR": str(data_dir)}
-    for key in CLAIRVOYANCE_ENV_KEYS:
-        env.pop(key, None)
-    env["CLAIRVOYANCE_COACH_THRESHOLD"] = str(coach_threshold)
-    env["CLAIRVOYANCE_SESSION_THRESHOLD"] = str(session_threshold)
-    if env_extra:
-        env.update(env_extra)
-    result = subprocess.run([BASH, STORE_SH.as_posix(), *args], capture_output=True, text=True, env=env, input="")
-    assert result.returncode == 0, result.stderr
-    return json.loads(result.stdout)
-
-
 def _step_args(step: Step) -> list[str]:
     if step.kind == "session":
         return ["record-session"]
@@ -168,11 +156,7 @@ def play(persona: Persona, data_dir: pathlib.Path) -> None:
                 f"{persona.name} turn {turn}: dominant category was {top[0]!r}, expected {persona.dominant!r}"
             )
         if step.kind == "answer":
-            conn = sqlite3.connect(str(data_dir / "coaching.db"))
-            row = conn.execute(
-                "SELECT outcome, confidence, calibration, due_at IS NOT NULL FROM observations ORDER BY id DESC LIMIT 1"
-            ).fetchone()
-            conn.close()
+            row = fetch_latest_quiz_metadata(data_dir / "coaching.db")
             assert row == (step.outcome, step.confidence, step.calibration, 1), (
                 f"{persona.name} turn {turn}: stored answer metadata {row!r}, expected "
                 f"{(step.outcome, step.confidence, step.calibration, 1)!r}"
@@ -520,10 +504,7 @@ def test_status_prunes_rows_past_age_bound_before_computing_readiness(tmp_path):
     env_extra = {"CLAIRVOYANCE_MAX_AGE_DAYS": "30"}
     run_store(["record", "--category", "avoidance"], data_dir, 2, 0, env_extra)
     run_store(["record", "--category", "avoidance"], data_dir, 2, 0, env_extra)
-    conn = sqlite3.connect(str(data_dir / "coaching.db"))
-    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
-    conn.commit()
-    conn.close()
+    execute_write(data_dir / "coaching.db", "UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
     status = run_store(["status"], data_dir, 2, 0, env_extra)
     assert status["count"] == 0
     assert status["ready"] is False
@@ -544,18 +525,15 @@ def test_outcome_rows_do_not_sustain_readiness_after_rotation(tmp_path):
     assert run_store(["status"], data_dir, 3, 0, env_extra)["ready"] is True
     # Age every raw observation past the bound; the outcome rows recorded below
     # stay fresh and are still stored, but never count toward readiness.
-    conn = sqlite3.connect(str(data_dir / "coaching.db"))
-    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00' WHERE outcome IS NULL")
-    conn.commit()
-    conn.close()
+    execute_write(
+        data_dir / "coaching.db", "UPDATE observations SET ts = '2000-01-01T00:00:00+00:00' WHERE outcome IS NULL"
+    )
     answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "high"]
     for _ in range(3):
         out = run_store(answer, data_dir, 3, 0, env_extra)
         assert out["count"] == 0  # raw signal only; the stale raw rows are pruned
         assert out["ready"] is False
-    conn = sqlite3.connect(str(data_dir / "coaching.db"))
-    rows = conn.execute("SELECT COUNT(*), SUM(outcome IS NOT NULL) FROM observations").fetchone()
-    conn.close()
+    rows = fetch_one(data_dir / "coaching.db", "SELECT COUNT(*), SUM(outcome IS NOT NULL) FROM observations")
     assert rows == (3, 3)  # the outcome trail is retained even while not ready
 
 
@@ -574,10 +552,7 @@ def test_readiness_rearms_after_improvement_and_relapse(tmp_path):
     answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "medium"]
     run_store(answer, data_dir, 3, 0, env_extra)
     # Months pass with no new signal: every row (raw and outcome) ages out.
-    conn = sqlite3.connect(str(data_dir / "coaching.db"))
-    conn.execute("UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
-    conn.commit()
-    conn.close()
+    execute_write(data_dir / "coaching.db", "UPDATE observations SET ts = '2000-01-01T00:00:00+00:00'")
     # Relapse into a different pattern: the first record prunes the old cycle,
     # so the mid-relapse reflection correctly holds (improvement stuck).
     first = run_store(["record", "--category", "no-experiment"], data_dir, 3, 0, env_extra)
