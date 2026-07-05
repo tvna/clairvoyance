@@ -417,7 +417,12 @@ case "${cmd}" in
     # Apply the same rotation as record (issue #89, finding F1): without this, a
     # reflection request could compute readiness over rows already past the
     # age/count bound, ready before the next record prunes them back down.
-    prune_observations || emit "$(unavailable_json)"
+    # Best-effort only: on a readable-but-unwritable store (read-only mount,
+    # snapshot) the DELETEs fail with SQLITE_READONLY even when they match
+    # nothing, and a reflection check must still serve the readable data
+    # rather than degrade to unavailable -- so warn and fall through to the
+    # read path (counts may then include rows past the rotation bounds).
+    prune_observations || printf 'adaptive-store.sh: status could not prune (store not writable?); counts may include rows past rotation bounds\n' >&2
     if ! out="$(summary_json)"; then emit "$(unavailable_json)"; fi
     total="$(printf '%s' "${out}" | sed -n '1p')"
     distinct="$(printf '%s' "${out}" | sed -n '2p')"

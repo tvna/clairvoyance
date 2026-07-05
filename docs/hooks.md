@@ -55,7 +55,10 @@ can additionally store an abstracted, secret-redacted scenario summary.
   `CLAIRVOYANCE_MAX_OBSERVATIONS` (default 500, newest kept) and
   `CLAIRVOYANCE_MAX_AGE_DAYS` (default 180); `0` disables either bound. Rotation
   runs on both `record` and `status`, so a reflection request never computes
-  `ready` over rows already past the bound (issue #89, finding F1).
+  `ready` over rows already past the bound (issue #89, finding F1). On `status`
+  the prune is best-effort: a readable-but-unwritable store (read-only mount,
+  snapshot) still serves its readable counts — with a stderr warning that they
+  may include rows past the bounds — instead of degrading to unavailable.
 
 ### Backend (SQLite CLI, no Python)
 

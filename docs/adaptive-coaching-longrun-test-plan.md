@@ -212,7 +212,7 @@ pin).
 | -------- | ---------- | -------- |
 | Count rotation shifts the dominant category | `test_rotation_count_shifts_dominant_category` | With `MAX_OBSERVATIONS=3`, three old `avoidance` rows age out as three `no-experiment` rows arrive: readiness stays true, dominant follows the *recent* pattern |
 | Rotation bound below the threshold | `test_max_observations_below_threshold_never_ready` | `MAX_OBSERVATIONS=3` with threshold 5: ready is **permanently false** — pins finding F2 (#89) |
-| Reflection on expired rows | `test_status_counts_rows_past_age_bound_until_next_record` | `status` reports ready on rows past `MAX_AGE_DAYS`; the next `record` prunes and readiness drops — pins finding F1 (#89), current behaviour |
+| Reflection on expired rows | `test_status_prunes_rows_past_age_bound_before_computing_readiness` | `status` prunes rows past `MAX_AGE_DAYS` before computing readiness, so expired rows never report ready — finding F1 (#89), fixed; test asserts the corrected behaviour |
 | sqlite3 CLI missing | `test_missing_sqlite3_holds_not_fails` | `status`/`record` emit `available: false, ready: false`, exit 0 — hold, not fail |
 | Data dir unwritable | existing `test_unwritable_data_dir_degrades_gracefully` | same hold-not-fail contract |
 | Store absent on reflection | existing `test_status_on_empty_store_is_not_ready` | `available: false`, never ready |
@@ -252,21 +252,29 @@ unavailable, the skill must keep observing and must not quiz from memory.
 Reported in issue #89, current behaviour pinned so a future fix must
 consciously update the named test:
 
-- **F1** `status` does not prune, so readiness can be computed on rows already
-  past the age bound (pinned by
-  `test_status_counts_rows_past_age_bound_until_next_record`).
-- **F2** `MAX_OBSERVATIONS < COACH_THRESHOLD` silently disables coaching
-  forever (pinned by `test_max_observations_below_threshold_never_ready`).
-- **F3** `COACH_THRESHOLD=0` silently falls back to 5 while
-  `SESSION_THRESHOLD=0` validly disables the grace gate — documented only for
-  the session side (doc gap; existing
-  `test_invalid_threshold_falls_back_to_default` already pins the behaviour).
+- **F1** *(fixed)* `status` previously did not prune, so readiness could be
+  computed on rows already past the age bound. `status` now applies the same
+  rotation as `record` (best-effort: a read-only store still serves its
+  readable counts with a stderr warning); the corrected behaviour is asserted
+  by `test_status_prunes_rows_past_age_bound_before_computing_readiness`
+  (renamed from `test_status_counts_rows_past_age_bound_until_next_record`,
+  which pinned the pre-fix behaviour).
+- **F2** `MAX_OBSERVATIONS < COACH_THRESHOLD` disables coaching forever
+  (pinned by `test_max_observations_below_threshold_never_ready`); the store
+  now warns on stderr when it detects the misconfiguration, behaviour
+  otherwise unchanged.
+- **F3** `COACH_THRESHOLD=0` falls back to 5 while `SESSION_THRESHOLD=0`
+  validly disables the grace gate (existing
+  `test_invalid_threshold_falls_back_to_default` pins the behaviour); the
+  fallback now warns on stderr and both reference docs document the asymmetry.
 - **F4** quiz outcome records count toward readiness in the same category they
   score (visible in personas 1, 3, 6: `count` rises on `A` turns).
-- **F5** `sql_text` quote-doubling breaks under bash 3.2 (stock macOS),
-  silently dropping context-capture observations (environment-dependent;
-  surfaced by the existing `test_raw_context_quotes_are_safe`, which fails on
-  bash 3.2 hosts and passes on bash 4/5 — see #89 for the analysis).
+- **F5** *(fixed)* `sql_text` quote-doubling previously broke under bash 3.2
+  (stock macOS), silently dropping context-capture observations. The doubling
+  is now `sed`-based (bash-version-independent) and the `tests-macos-bash32`
+  CI job runs the store suite under the real `/bin/bash` 3.2 as a required
+  merge gate (surfaced by `test_raw_context_quotes_are_safe` — see #89 for
+  the analysis).
 - **F6** the readiness gate is category-blind: five singleton observations in
   five different categories cross the total-count threshold and report ready,
   though no category recurs (pinned by persona 12 `rin-scattered-signal`;
