@@ -1,3 +1,53 @@
+## [0.4.0](https://github.com/tvna/clairvoyance/compare/v0.3.0...v0.4.0) (2026-07-05)
+
+### Features
+
+* **battle:** classify CLI infra errors separately from content failures ([#101](https://github.com/tvna/clairvoyance/issues/101)) ([#104](https://github.com/tvna/clairvoyance/issues/104)) ([e9f003b](https://github.com/tvna/clairvoyance/commit/e9f003b86088a238bf6d701bda2cbc3848b81de4))
+* **managed:** add local dev compose with Keycloak IdP ([e483d6b](https://github.com/tvna/clairvoyance/commit/e483d6b4d6e41a30d5df83c13725ef05228255ea)), closes [#77](https://github.com/tvna/clairvoyance/issues/77)
+* **managed:** add search, paging, time filter, and review dismissal to admin API ([cfa6c0e](https://github.com/tvna/clairvoyance/commit/cfa6c0ecd6c4acfab1c63c1445ba316ead1f9128)), closes [#68](https://github.com/tvna/clairvoyance/issues/68)
+* **managed:** add the admin API zod contract layer and fetch client ([7ef0c96](https://github.com/tvna/clairvoyance/commit/7ef0c9629f49dc4a8c16a72c5cce92f3ba6966b7)), closes [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **managed:** add the E2E harness and managed-ui-e2e CI smoke job ([d7ccca2](https://github.com/tvna/clairvoyance/commit/d7ccca205d74ddbd566a7d91dfc6be2b23d62bef)), closes [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **managed:** build the 5 admin screens, layout, and shared components ([4914dbf](https://github.com/tvna/clairvoyance/commit/4914dbf8b94e358a249ce87df9b3e4d8ce55c098)), closes [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **managed:** build the ui image and add its compose service ([4829897](https://github.com/tvna/clairvoyance/commit/48298973bae084f8581bc59b6e198abfa11562c7)), closes [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **managed:** initial managed coaching server refs [#51](https://github.com/tvna/clairvoyance/issues/51) ([c10cee4](https://github.com/tvna/clairvoyance/commit/c10cee45a874d1921956882c90406feaa76109f4))
+* **managed:** replace admin UI gap workarounds with the new API surface ([8e68d7d](https://github.com/tvna/clairvoyance/commit/8e68d7d08896185a8472c6716b779fcc82a9b4e0)), closes [#68](https://github.com/tvna/clairvoyance/issues/68)
+* **managed:** scaffold the admin UI npm project and CI gates ([02cf99d](https://github.com/tvna/clairvoyance/commit/02cf99dcac991ab2f77a4795965b4d4998ff8edf)), closes [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **managed:** wire OIDC authentication for the admin UI ([33461d8](https://github.com/tvna/clairvoyance/commit/33461d82df346696a1205c5ab13c93cb4ece4456)), closes [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **scripts:** ban the Claude Code rules lane deterministically refs [#57](https://github.com/tvna/clairvoyance/issues/57) ([cb45ab2](https://github.com/tvna/clairvoyance/commit/cb45ab26828d30447dd807e92da00fd2f71cd6ae))
+* **scripts:** gate README listings and language-rule wording refs [#57](https://github.com/tvna/clairvoyance/issues/57) ([cdab4e2](https://github.com/tvna/clairvoyance/commit/cdab4e2b18ee4da0fcef63ed7b32d79c601e8763))
+* **session-handoff:** decide whether the Fable-optimized path applies ([c6863f9](https://github.com/tvna/clairvoyance/commit/c6863f94cdd1820314a1dbbee444f3a9802a1185)), closes [#81](https://github.com/tvna/clairvoyance/issues/81)
+* **session-handoff:** emit a Fable-optimized handoff for Fable sessions ([0e9cff3](https://github.com/tvna/clairvoyance/commit/0e9cff3819f1025531f0cb5a7bba9bd287c19a88)), closes [#81](https://github.com/tvna/clairvoyance/issues/81)
+* **session-handoff:** label the Fable handoff and degrade safely to Opus ([237a764](https://github.com/tvna/clairvoyance/commit/237a764620dbb315cca4439e26b75a870bb5963a)), closes [#81](https://github.com/tvna/clairvoyance/issues/81)
+* **visual-handoff:** add opt-in visualization skill refs [#44](https://github.com/tvna/clairvoyance/issues/44) ([e472bf1](https://github.com/tvna/clairvoyance/commit/e472bf11054419c40b6a40ae88c6f871c563bd51))
+
+### Bug Fixes
+
+* **adaptive-coaching:** align trigger wording and restore smaller-next-step option ([#99](https://github.com/tvna/clairvoyance/issues/99)) ([3632c7b](https://github.com/tvna/clairvoyance/commit/3632c7bd69fb2fe9581390d9fb5e583e66909230))
+* **adaptive-coaching:** keep trait labels and confidence verdicts out of pre-answer output ([6eddd2f](https://github.com/tvna/clairvoyance/commit/6eddd2f91dfa7a8b1d74a541ab1f140e27981b2c)), closes [#69](https://github.com/tvna/clairvoyance/issues/69)
+* **adaptive-coaching:** open with heat-lowering when the person fears judgement ([#99](https://github.com/tvna/clairvoyance/issues/99)) ([9dc1f6f](https://github.com/tvna/clairvoyance/commit/9dc1f6fa47bd77209adaaed076720f2caf57cfeb))
+* **adaptive-store:** bash-3.2-safe quoting, prune on status, warn on misconfig ([583e0c2](https://github.com/tvna/clairvoyance/commit/583e0c2b8dd3aafc8b1a68f90e7f6662a93e4ef6)), closes [#89](https://github.com/tvna/clairvoyance/issues/89) [#89](https://github.com/tvna/clairvoyance/issues/89)
+* **adaptive-store:** evict outcome rows before raw signal on count rotation ([63eeec3](https://github.com/tvna/clairvoyance/commit/63eeec330bdec0e8c32f256aab479c0f599b6073)), closes [#102](https://github.com/tvna/clairvoyance/issues/102) [#89](https://github.com/tvna/clairvoyance/issues/89)
+* **adaptive-store:** exclude quiz-outcome rows from readiness (F4, option B) ([62897b6](https://github.com/tvna/clairvoyance/commit/62897b6e63d35d1e5214466aac3f98760c36340d)), closes [#89](https://github.com/tvna/clairvoyance/issues/89) [#89](https://github.com/tvna/clairvoyance/issues/89)
+* **adaptive-store:** serve readable data when status cannot prune ([4de1f8c](https://github.com/tvna/clairvoyance/commit/4de1f8cbd2f4ac99ea5bfe1f9a17af8d200f3a75)), closes [#93](https://github.com/tvna/clairvoyance/issues/93)
+* **managed:** add a stable tiebreaker to reviews/due pagination ([d860137](https://github.com/tvna/clairvoyance/commit/d8601373da0b35ad968d0990eb507922c37a7947))
+* **managed:** address review feedback refs [#51](https://github.com/tvna/clairvoyance/issues/51) ([3ac0b1b](https://github.com/tvna/clairvoyance/commit/3ac0b1b9c436b4e52fb56bda2a412fe086b7bb55))
+* **managed:** apply code-review findings to the admin UI ([6552c31](https://github.com/tvna/clairvoyance/commit/6552c314db22e00627dc513dccc3516775542d34)), closes [#61](https://github.com/tvna/clairvoyance/issues/61) [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **managed:** apply self-review findings before PR refs [#51](https://github.com/tvna/clairvoyance/issues/51) ([df38b31](https://github.com/tvna/clairvoyance/commit/df38b316e4b831e9b843605a64e8ea9f560fbd0c))
+* **managed:** bind dev compose ports to loopback ([3dd19ce](https://github.com/tvna/clairvoyance/commit/3dd19ce3ae28a2ee7214f46769029f9a0e5019ec)), closes [#77](https://github.com/tvna/clairvoyance/issues/77)
+* **managed:** clear the query cache when a session ends ([ec14e29](https://github.com/tvna/clairvoyance/commit/ec14e299a1a138addfd5da0fb1f8b5bfa96517b1)), closes [#63](https://github.com/tvna/clairvoyance/issues/63) [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **managed:** correct dev compose review findings ([f5054a3](https://github.com/tvna/clairvoyance/commit/f5054a3da8420cf53e7359302248c4643be85600)), closes [#77](https://github.com/tvna/clairvoyance/issues/77)
+* **managed:** fix E2E sign-in redirect and discovery-absent overrides ([80a230e](https://github.com/tvna/clairvoyance/commit/80a230e80e23a6af1b99dfc6282c98e8926dc2b7)), closes [#61](https://github.com/tvna/clairvoyance/issues/61) [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **managed:** harden the managed version regex against parens in FastAPI args ([5d4bf83](https://github.com/tvna/clairvoyance/commit/5d4bf83c85d10dc325610be6f0afebbfeb08f0f6))
+* **managed:** normalize audit-log time bounds to UTC ([0b02e71](https://github.com/tvna/clairvoyance/commit/0b02e719b5619e9f0244c1699657eff7932c3d26))
+* **managed:** return to the originally requested route after sign-in ([e3af39f](https://github.com/tvna/clairvoyance/commit/e3af39f916289708f8dbf57d112f1e62c05af130)), closes [#59](https://github.com/tvna/clairvoyance/issues/59)
+* **release:** order the managed no-release rule after the breaking rule ([3292111](https://github.com/tvna/clairvoyance/commit/3292111696c045a58f717ee6c650e00f3ed0e8c6)), closes [#71](https://github.com/tvna/clairvoyance/issues/71)
+* **scripts:** match the exact README skill-table row, not a substring refs [#57](https://github.com/tvna/clairvoyance/issues/57) ([b9ab7d2](https://github.com/tvna/clairvoyance/commit/b9ab7d232ca5bdcc844d4c5279299642fcfdc764))
+* **session-handoff:** include Mythos in the operating-block self-guard ([45429ba](https://github.com/tvna/clairvoyance/commit/45429baac09da6ede47d7d94e863cb38835b50e5)), closes [#81](https://github.com/tvna/clairvoyance/issues/81)
+* **skills:** add diagram labels to the localization enumeration refs [#57](https://github.com/tvna/clairvoyance/issues/57) ([5d7e40e](https://github.com/tvna/clairvoyance/commit/5d7e40e98881d21d15a60cb9ecf8bd6807dc05eb))
+* **skills:** close routing gaps surfaced by the maturity review refs [#57](https://github.com/tvna/clairvoyance/issues/57) ([eeda03f](https://github.com/tvna/clairvoyance/commit/eeda03f9418ddade8700ea1da0adb9651985f060))
+* **skills:** localize question bullet titles; make the hook the language rule's single carrier refs [#57](https://github.com/tvna/clairvoyance/issues/57) ([894e83d](https://github.com/tvna/clairvoyance/commit/894e83d4b91ab2c47ece0f8e825a5802d095401e))
+* **visual-handoff:** layer visuals on the routed skill, not instead of it refs [#44](https://github.com/tvna/clairvoyance/issues/44) ([b3a7c77](https://github.com/tvna/clairvoyance/commit/b3a7c77fc860928bff362387b6bcb27b750248de)), closes [#45](https://github.com/tvna/clairvoyance/issues/45)
+
 ## [0.3.0](https://github.com/tvna/clairvoyance/compare/v0.2.0...v0.3.0) (2026-07-01)
 
 ### Features
