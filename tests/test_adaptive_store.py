@@ -208,6 +208,7 @@ def test_record_waits_out_a_concurrent_writer(tmp_path):
 
     hold_seconds = 1.0  # well under the store's 2s busy_timeout
     lock_acquired = threading.Event()
+    record_contending = threading.Event()
     release_lock = threading.Event()
 
     def hold_write_lock() -> None:
@@ -223,7 +224,14 @@ def test_record_waits_out_a_concurrent_writer(tmp_path):
     locker.start()
     assert lock_acquired.wait(5), "lock holder never acquired the write lock"
 
+    # Gate the release countdown on the record launch point, not on
+    # releaser.start(): otherwise a scheduler pause between starting the
+    # releaser and invoking record could release the lock before record ever
+    # contends, so it would run the fast uncontended path and flake the
+    # elapsed assertion. Tying the countdown to record_contending keeps the
+    # lock held until start + hold_seconds regardless of scheduling (#98).
     def release_after_delay() -> None:
+        record_contending.wait(10)
         time.sleep(hold_seconds)
         release_lock.set()
 
@@ -231,6 +239,7 @@ def test_record_waits_out_a_concurrent_writer(tmp_path):
     releaser.start()
 
     start = time.monotonic()
+    record_contending.set()
     out = run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
     elapsed = time.monotonic() - start
     releaser.join()
