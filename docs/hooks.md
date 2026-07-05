@@ -175,7 +175,11 @@ Codex reads its own `SessionStart` manifest, `hooks/codex-hooks.json`
 **same** `run-hook.cmd` wrapper. The only difference is the plugin-root variable:
 Claude Code substitutes `${CLAUDE_PLUGIN_ROOT}` and Codex substitutes
 `${PLUGIN_ROOT}`. Keeping a separate manifest per runtime avoids that variable
-clash in a single shared file while reusing one hook implementation.
+clash in a single shared file while reusing one hook implementation. Claude
+Code's `hooks/hooks.json` additionally registers `user-prompt-language.sh` on
+`UserPromptSubmit` (see "Operator language" below); `codex-hooks.json` does not
+carry the equivalent registration, since Codex's support for a per-turn
+prompt-submit event is unverified.
 
 ### Operator language
 
@@ -184,15 +188,31 @@ language is fixed by **one** source: the `CLAIRVOYANCE_OPERATOR_LANGUAGE`
 environment variable, set in the operator's own environment configuration. There
 is **no** git-identity lookup and **no** committed per-contributor mapping.
 
-The hook's injection is also the **single carrier** of the language rule: the
-skills carry no per-skill language step (removed as a multi-runtime hedge; this
-plugin optimizes for Claude Code, where the hook always fires). The injection
-covers every operator-facing string — prose, section headings, question bullet
-titles, and `AskUserQuestion` questions, header chips, and choice labels — so
-structured question output localizes along with the prose; the English heading
-names in the skill files are canonical identifiers, not display strings.
-`scripts/check_skills.py` keeps any reintroduced language sentence pinned to the
-canonical wording so copies cannot drift.
+`SessionStart` is the **authoritative** carrier of the language rule: the skills
+carry no per-skill language step (removed as a multi-runtime hedge; this plugin
+optimizes for Claude Code, where the hook always fires). The injection covers
+every operator-facing string — prose, section headings, question bullet titles,
+and `AskUserQuestion` questions, header chips, and choice labels — so structured
+question output localizes along with the prose; the English heading names in the
+skill files are canonical identifiers, not display strings. `scripts/check_skills.py`
+keeps any reintroduced language sentence pinned to the canonical wording so
+copies cannot drift.
+
+**Per-turn reinforcement (`UserPromptSubmit`).** `SessionStart` fires once, at
+session start/clear/compact, and relies on the model's instruction-following to
+carry that one injection across every subsequent turn. A long, tool-call-heavy
+session (issue #116) showed this can drift: after a correct `SessionStart`
+injection, in-progress status narration drifted back into English well into the
+session while only the final line of each turn stayed correct. `hooks/user-prompt-language.sh`
+registers a `UserPromptSubmit` hook that re-injects a short reminder on **every**
+turn — cheap (no skill-file reload, no store write, no added LLM call), since it
+fires far more often than `SessionStart`. It only reinforces adherence; `SessionStart`
+remains the sole source that *establishes* the language (including the
+unrecorded-path `AskUserQuestion` handoff below) — the per-turn hook cannot ask
+that question itself, since `CLAIRVOYANCE_OPERATOR_LANGUAGE` is the only state it
+can see. Codex parity is deliberately deferred: it is unverified whether Codex's
+plugin hook system has a `UserPromptSubmit`-equivalent event, so `hooks/codex-hooks.json`
+does not register it rather than guessing.
 
 **Why env-var-only (the fix).** The previous design also keyed a *committed*
 `<project>/.clairvoyance/contributor-languages.txt` mapping by the session's git
