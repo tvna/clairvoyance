@@ -357,11 +357,24 @@ def run(args: argparse.Namespace) -> int:
     return 0 if all_passed or not args.strict else 1
 
 
-def make_ablation_record(sc: dict, model: str, passes_with: int, passes_without: int, trials: int) -> dict:
+def make_ablation_record(
+    sc: dict,
+    model: str,
+    passes_with: int,
+    passes_without: int,
+    trials: int,
+    infra_with: int = 0,
+    infra_without: int = 0,
+) -> dict:
     """A result row for one ablation cell: the skill arm vs the no-skill baseline.
 
     ``lift`` is the skill's contribution in passes -- positive means it beats the
     bare model, negative means it scores below it (a regression worth fixing).
+
+    ``infra_with``/``infra_without`` (see issue #101) count CLI infra hiccups in
+    each arm. If either arm has no remaining non-infra trials, ``lift`` compares
+    noise to noise (or noise to a real score) and is not a genuine regression or
+    lift; ``ablation_tag`` reports that case as ``INFRA-ERROR`` instead.
     """
     return {
         "mode": "ablation",
@@ -372,6 +385,8 @@ def make_ablation_record(sc: dict, model: str, passes_with: int, passes_without:
         "trials": trials,
         "passes_with": passes_with,
         "passes_without": passes_without,
+        "infra_with": infra_with,
+        "infra_without": infra_without,
         "lift": passes_with - passes_without,
         "known_gap": bool(sc.get("known_gap", False)),
     }
@@ -380,11 +395,15 @@ def make_ablation_record(sc: dict, model: str, passes_with: int, passes_without:
 def ablation_tag(rec: dict) -> str:
     """Console label for one ablation cell.
 
-    LIFT       skill beats the no-skill baseline -- it earns its place here.
-    REGRESSION skill scores BELOW baseline -- it actively hurts (red flag).
-    REDUNDANT  baseline already passes every trial -- the bare model needs no skill.
-    NO-LIFT    neither arm reliably passes -- the skill does not close the gap.
+    INFRA-ERROR either arm had no remaining non-infra trials -- the lift figure
+                is noise, not a verdict on the skill.
+    LIFT        skill beats the no-skill baseline -- it earns its place here.
+    REGRESSION  skill scores BELOW baseline -- it actively hurts (red flag).
+    REDUNDANT   baseline already passes every trial -- the bare model needs no skill.
+    NO-LIFT     neither arm reliably passes -- the skill does not close the gap.
     """
+    if rec["trials"] - rec.get("infra_with", 0) <= 0 or rec["trials"] - rec.get("infra_without", 0) <= 0:
+        return "INFRA-ERROR"
     if rec["lift"] > 0:
         return "LIFT"
     if rec["lift"] < 0:
@@ -407,10 +426,10 @@ def run_ablation(args: argparse.Namespace) -> int:
     records: list[dict] = []
     for sc in scenarios:
         for model in models:
-            pw, _, cw, _ = trial_passes(sc["skill"], sc, model, args)
-            pb, _, cb, _ = trial_passes(None, sc, model, args)
+            pw, _, cw, iw = trial_passes(sc["skill"], sc, model, args)
+            pb, _, cb, ib = trial_passes(None, sc, model, args)
             total_cost += cw + cb
-            rec = make_ablation_record(sc, model, pw, pb, args.trials)
+            rec = make_ablation_record(sc, model, pw, pb, args.trials, iw, ib)
             records.append(rec)
             tag = f"{rec['id']} ({rec['category']}/{rec['skill']}@{model})"
             sign = f"{rec['lift']:+d}"
@@ -434,7 +453,11 @@ def run_ablation(args: argparse.Namespace) -> int:
 
     # A regression (skill scores below baseline) on a non-known_gap scenario is a
     # genuine red flag; known gaps are expected to underperform and are exempt.
-    regressions = [r for r in records if r["lift"] < 0 and not r["known_gap"]]
+    # A cell that was entirely infra noise (see issue #101) is excluded too --
+    # the lift figure there reflects a CLI hiccup, not the skill.
+    regressions = [
+        r for r in records if r["lift"] < 0 and not r["known_gap"] and ablation_tag(r) != "INFRA-ERROR"
+    ]
     head = "no regressions" if not regressions else f"{len(regressions)} regression(s) below baseline"
     print(f"\nsummary: {head}; est. cost ${total_cost:.3f}")
     return 0 if not regressions or not args.strict else 1
@@ -507,6 +530,12 @@ def selftest() -> int:
     assert ablation_tag(make_ablation_record(sc, "m", 1, 3, 3)) == "REGRESSION"
     assert ablation_tag(make_ablation_record(sc, "m", 3, 3, 3)) == "REDUNDANT"
     assert ablation_tag(make_ablation_record(sc, "m", 1, 1, 3)) == "NO-LIFT"
+
+    # Issue #101: a with-skill arm that was entirely infra noise, against a
+    # baseline arm that genuinely passed, must not render as a false REGRESSION.
+    infra_ablation = make_ablation_record(sc, "m", 0, 3, 3, infra_with=3, infra_without=0)
+    assert infra_ablation["lift"] == -3
+    assert ablation_tag(infra_ablation) == "INFRA-ERROR"
 
     assert positive_int("3") == 3
     for bad in ("0", "-1"):
