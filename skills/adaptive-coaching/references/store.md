@@ -108,6 +108,9 @@ token so no free text persists.
 - **Rotation.** The store is bounded so it never grows without limit:
   `CLAIRVOYANCE_MAX_OBSERVATIONS` (default 500) keeps the newest N rows and
   `CLAIRVOYANCE_MAX_AGE_DAYS` (default 180) drops older rows; `0` disables either.
+  When the count bound bites, quiz-outcome rows are evicted before raw
+  observations, so answering quizzes never pushes live readiness signal out of
+  the window.
 
 ## Storage and volatility
 

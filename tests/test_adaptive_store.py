@@ -377,6 +377,29 @@ def test_rotation_by_age_drops_old(tmp_path):
 
 
 @needs_sqlite3
+def test_outcome_rows_do_not_evict_raw_signal_on_count_rotation(tmp_path):
+    """When the count bound is tight, quiz-outcome rows are evicted before raw
+    observations: outcome rows no longer count toward readiness (issue #89,
+    F4), so letting them consume the retention budget would silently drop
+    readiness with no raw signal having aged out."""
+    data_dir = tmp_path / "store"
+    env_extra = {"CLAIRVOYANCE_MAX_OBSERVATIONS": "5"}
+    for _ in range(3):
+        run(["record", "--category", "avoidance"], data_dir, threshold=3, env_extra=env_extra)
+    answer = ["record", "--category", "avoidance", "--outcome", "correct", "--confidence", "high"]
+    for _ in range(3):
+        out = run(answer, data_dir, threshold=3, env_extra=env_extra)
+        assert out["count"] == 3  # raw signal intact despite the tight budget
+        assert out["ready"] is True
+    kinds = (
+        sqlite3.connect(str(data_dir / "coaching.db"))
+        .execute("SELECT SUM(outcome IS NULL), SUM(outcome IS NOT NULL) FROM observations")
+        .fetchone()
+    )
+    assert kinds == (3, 2)  # budget 5: all raw rows kept, the oldest outcome evicted
+
+
+@needs_sqlite3
 def test_rotation_zero_disables_bounds(tmp_path):
     """A 0 bound disables that rotation, so nothing is pruned."""
     data_dir = tmp_path / "store"

@@ -317,8 +317,13 @@ prune_observations() {
       "DELETE FROM observations WHERE julianday(ts) < julianday('now', '-${max_age} days');" 2>/dev/null || return 1
   fi
   if [ "${max_obs}" -gt 0 ]; then
+    # Keep the newest ${max_obs} rows, preferring raw signal over quiz
+    # outcomes when the budget is tight: outcome rows no longer count toward
+    # readiness (issue #89, F4), so letting them evict raw rows would silently
+    # drop readiness with no raw signal having aged out. Raw rows are only
+    # ever displaced by newer raw rows; the outcome trail absorbs the squeeze.
     sqlite3 "${busy_opts[@]}" "${db}" \
-      "DELETE FROM observations WHERE id NOT IN (SELECT id FROM observations ORDER BY id DESC LIMIT ${max_obs});" 2>/dev/null || return 1
+      "DELETE FROM observations WHERE id NOT IN (SELECT id FROM observations ORDER BY (outcome IS NULL) DESC, id DESC LIMIT ${max_obs});" 2>/dev/null || return 1
   fi
   return 0
 }

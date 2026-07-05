@@ -52,7 +52,9 @@ can additionally store an abstracted, secret-redacted scenario summary.
   stores an abstracted, secret-redacted summary (read from stdin via
   `--context-stdin`) so a later reflection can reproduce the moment. Rotation keeps
   the store bounded:
-  `CLAIRVOYANCE_MAX_OBSERVATIONS` (default 500, newest kept) and
+  `CLAIRVOYANCE_MAX_OBSERVATIONS` (default 500, newest kept; when the budget is
+  tight, quiz-outcome rows are evicted before raw observations so answers never
+  displace readiness signal) and
   `CLAIRVOYANCE_MAX_AGE_DAYS` (default 180); `0` disables either bound. Rotation
   runs on both `record` and `status`, so a reflection request never computes
   `ready` over rows already past the bound (issue #89, finding F1). On `status`
