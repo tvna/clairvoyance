@@ -70,7 +70,10 @@ so a first-time user with thin data is never quizzed:
 - **Session grace:** at least `$CLAIRVOYANCE_SESSION_THRESHOLD` chat sessions
   have elapsed (default 50; 0 disables the grace period).
 - **Adaptive signal:** at least `$CLAIRVOYANCE_COACH_THRESHOLD` observations have
-  accumulated (default 5).
+  accumulated (default 5). Only **raw** observations count: quiz-outcome rows
+  are stored for feedback and calibration history but are excluded from
+  `count` and `by_category`, so answering quizzes does not keep a category
+  quiz-ready after the underlying behaviour improved (issue #89, F4).
 
 `status` reports `sessions`, `session_threshold`, `count`, and `threshold`
 alongside `ready` so the split is visible.

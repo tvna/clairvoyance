@@ -325,9 +325,13 @@ prune_observations() {
 
 summary_json() {
   # Echoes: <total> <distinct> <by_category-json-body> on three lines, or fails.
+  # Readiness counts only raw signal: quiz-outcome rows (outcome IS NOT NULL)
+  # are stored for feedback/calibration history but are excluded from count and
+  # by_category, so answering quizzes cannot keep a category quiz-ready after
+  # the underlying behaviour improved (issue #89, finding F4, option B chosen).
   local total rows pairs="" distinct=0 cat cnt
-  total="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "SELECT COUNT(*) FROM observations;" 2>/dev/null)" || return 1
-  rows="$(sqlite3 "${busy_opts[@]}" -noheader -separator '|' "${db}" "SELECT category, COUNT(*) FROM observations GROUP BY category ORDER BY category;" 2>/dev/null)" || return 1
+  total="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "SELECT COUNT(*) FROM observations WHERE outcome IS NULL;" 2>/dev/null)" || return 1
+  rows="$(sqlite3 "${busy_opts[@]}" -noheader -separator '|' "${db}" "SELECT category, COUNT(*) FROM observations WHERE outcome IS NULL GROUP BY category ORDER BY category;" 2>/dev/null)" || return 1
   while IFS='|' read -r cat cnt; do
     [ -z "${cat}" ] && continue
     [ -n "${pairs}" ] && pairs="${pairs}, "

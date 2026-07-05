@@ -137,9 +137,10 @@ procedure, so operators can judge the privacy/utility balance:
 2. **`signal` is optional and un-vocabularised**, so distinct patterns in one
    category collapse together; the lever that could keep them apart (anonymously)
    goes unused.
-3. **Outcome rows are not linked to the observation they score** and also count
-   toward `count`, so the readiness gate conflates observations with quiz
-   scorings, and "is this habit fading?" is only a category-level trend.
+3. **Outcome rows are not linked to the observation they score.** They no
+   longer count toward `count`/`by_category` (issue #89, F4: readiness reads
+   raw signal only), but "is this habit fading?" remains a category-level
+   trend, not a per-observation one.
 4. **The sanitiser enforces charset and length, not semantic anonymity** — a
    careless `signal` can still encode identifying specifics.
 5. **Volatility vs. where work happens.** Remote or ephemeral sessions do not

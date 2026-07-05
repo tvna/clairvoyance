@@ -110,16 +110,24 @@ def test_status_on_empty_store_is_not_ready(tmp_path):
 
 @needs_sqlite3
 def test_record_accumulates_until_threshold(tmp_path):
-    """With the grace gate disabled, readiness follows the adaptive-signal gate."""
+    """With the grace gate disabled, readiness follows the adaptive-signal gate.
+
+    Only raw observations count: a quiz-outcome record is stored (its metadata
+    persists, see the quiz-metadata tests) but never adds readiness signal
+    (issue #89, finding F4, option B)."""
     data_dir = tmp_path / "store"
     first = run(["record", "--category", "avoidance"], data_dir, threshold=2)
     assert first["recorded"] is True
     assert first["count"] == 1
     assert first["ready"] is False
 
-    second = run(["record", "--category", "loss-aversion", "--outcome", "incorrect"], data_dir, threshold=2)
+    second = run(["record", "--category", "loss-aversion"], data_dir, threshold=2)
     assert second["count"] == 2
     assert second["ready"] is True
+
+    answered = run(["record", "--category", "loss-aversion", "--outcome", "incorrect"], data_dir, threshold=2)
+    assert answered["recorded"] is True
+    assert answered["count"] == 2  # outcome rows do not count toward readiness
 
     status = run(["status"], data_dir, threshold=2)
     assert status == {
