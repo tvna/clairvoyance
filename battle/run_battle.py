@@ -104,9 +104,15 @@ def strip_to_json(raw: str) -> str:
 
 # A CLI infra hiccup (session/rate limit), not a real rubric or marker failure
 # -- see issue #101, where a session-limit message printed as an indistinguishable
-# [FAIL] next to genuine content failures. Extend as new infra phrasings are
-# actually observed; do not guess at an exhaustive list up front.
-INFRA_ERROR_RE = re.compile(r"(?i)session limit|rate limit")
+# [FAIL] next to genuine content failures. Matches the error-banner phrasing
+# actually observed ("hit ... limit", "limit exceeded/reached"), not a bare
+# "session limit"/"rate limit" substring -- a scenario whose legitimate content
+# discusses rate limiting or session handling as a topic must not be swept in.
+# Extend as new infra phrasings are actually observed; do not guess at an
+# exhaustive list up front.
+INFRA_ERROR_RE = re.compile(
+    r"(?i)\bhit (?:your|the) (?:session|rate) limit\b|\b(?:session|rate) limit (?:exceeded|reached)\b"
+)
 
 
 def is_infra_error(text: str) -> bool:
@@ -281,6 +287,16 @@ def write_out(path: str, records: list[dict]) -> None:
             fh.write(json.dumps({"ts": stamp, **rec}) + "\n")
 
 
+def _effective_trials(trials: int, *infra_counts: int) -> int:
+    """Trials left to judge after excluding infra-error counts (see issue #101).
+
+    Shared by ``make_record``, ``status_tag``, and ``ablation_tag`` so "no
+    non-infra trials remain" is one definition, not three independently typed
+    comparisons that could drift out of sync if the threshold rule changes.
+    """
+    return trials - sum(infra_counts)
+
+
 def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[str], infra_errors: int = 0) -> dict:
     """A machine-readable result row for one (scenario, model) cell.
 
@@ -294,7 +310,7 @@ def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[st
     remaining trials to judge (``passed`` is ``False``); ``status_tag`` reports
     that case as ``INFRA-ERROR`` rather than a real failure.
     """
-    effective_trials = trials - infra_errors
+    effective_trials = _effective_trials(trials, infra_errors)
     return {
         "id": sc.get("id", sc["_path"].stem),
         "skill": sc["skill"],
@@ -311,7 +327,7 @@ def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[st
 
 def status_tag(rec: dict) -> str:
     """Console label: distinguish infra noise, documented gaps, and real pass/fail."""
-    if rec["trials"] - rec.get("infra_errors", 0) <= 0:
+    if _effective_trials(rec["trials"], rec.get("infra_errors", 0)) <= 0:
         return "INFRA-ERROR"
     if rec["known_gap"]:
         return "FIXED?" if rec["passed"] else "KNOWN-GAP"
@@ -402,7 +418,10 @@ def ablation_tag(rec: dict) -> str:
     REDUNDANT   baseline already passes every trial -- the bare model needs no skill.
     NO-LIFT     neither arm reliably passes -- the skill does not close the gap.
     """
-    if rec["trials"] - rec.get("infra_with", 0) <= 0 or rec["trials"] - rec.get("infra_without", 0) <= 0:
+    if (
+        _effective_trials(rec["trials"], rec.get("infra_with", 0)) <= 0
+        or _effective_trials(rec["trials"], rec.get("infra_without", 0)) <= 0
+    ):
         return "INFRA-ERROR"
     if rec["lift"] > 0:
         return "LIFT"
@@ -512,6 +531,11 @@ def selftest() -> int:
     # register as a content PASS, and must be labeled distinctly from a real FAIL.
     assert is_infra_error("You've hit your session limit - resets 6:30am (UTC)") is True
     assert is_infra_error("FAIL: the response blames the person for missing the deadline") is False
+    # A bare topic mention of rate/session limits in legitimate judge or executor
+    # content must NOT be swept in as infra noise (code review on #104 found the
+    # original bare-substring regex would have discarded a real PASS here).
+    assert is_infra_error("PASS: the response correctly explains rate limit backoff strategy") is False
+    assert is_infra_error("The auth design uses a 30-minute session limit for tokens.") is False
     # All 3 trials were infra noise: excluded from passes/trials, tagged INFRA-ERROR,
     # not a silent PASS and not conflated with a genuine content FAIL.
     all_infra = make_record(sc, "m", 0, 3, ["infra error: session limit"], infra_errors=3)
