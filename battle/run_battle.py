@@ -211,7 +211,7 @@ class ClaudeCliError(Exception):
     """
 
 
-def _claude(prompt: str, model: str, extra: list[str], max_budget: float) -> dict:
+def _claude(prompt: str, model: str, extra: list[str], max_budget: float, timeout_s: float) -> dict:
     cmd = ["claude", "-p", "--output-format", "json", "--model", model, *extra]
     if max_budget:
         cmd += ["--max-budget-usd", str(max_budget)]
@@ -219,16 +219,19 @@ def _claude(prompt: str, model: str, extra: list[str], max_budget: float) -> dic
     try:
         with tempfile.TemporaryDirectory() as tmp:
             proc = subprocess.run(
-                cmd, cwd=tmp, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT_S
+                cmd, cwd=tmp, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout_s
             )
+        if proc.returncode != 0:
+            stderr = proc.stderr[:200] if proc.stderr else "(no stderr)"
+            raise ClaudeCliError(f"claude CLI exited {proc.returncode}: {stderr}")
         return json.loads(strip_to_json(proc.stdout))
     except subprocess.TimeoutExpired as e:
-        raise ClaudeCliError(f"claude CLI timed out after {CLAUDE_TIMEOUT_S}s") from e
+        raise ClaudeCliError(f"claude CLI timed out after {timeout_s}s") from e
     except ValueError as e:
         raise ClaudeCliError(f"claude CLI produced unparsable output: {e}") from e
 
 
-def run_executor(skill: str | None, prompt: str, model: str, max_budget: float) -> tuple[str, float]:
+def run_executor(skill: str | None, prompt: str, model: str, max_budget: float, timeout_s: float) -> tuple[str, float]:
     """Run one prompt and return (output, cost_usd).
 
     ``skill`` names the SKILL.md to inject via ``--append-system-prompt-file``;
@@ -236,11 +239,11 @@ def run_executor(skill: str | None, prompt: str, model: str, max_budget: float) 
     prompt with nothing injected, measuring what the bare model already does.
     """
     extra = ["--append-system-prompt-file", str(SKILLS_DIR / skill / "SKILL.md")] if skill else []
-    data = _claude(prompt, model, extra, max_budget)
+    data = _claude(prompt, model, extra, max_budget, timeout_s)
     return data.get("result", ""), data.get("total_cost_usd", 0.0) or 0.0
 
 
-def run_judge(result_text: str, rubric: str, model: str, max_budget: float) -> tuple[bool, str]:
+def run_judge(result_text: str, rubric: str, model: str, max_budget: float, timeout_s: float) -> tuple[bool, str]:
     """Ask an LLM judge whether the output satisfies the rubric.
 
     Returns the raw verdict text (not just its first line) so callers can
@@ -252,7 +255,7 @@ def run_judge(result_text: str, rubric: str, model: str, max_budget: float) -> t
         "exactly PASS or FAIL as the first word, then one sentence explaining why.\n\n"
         f"RUBRIC:\n{rubric}\n\nRESPONSE:\n{result_text}\n"
     )
-    verdict = _claude(prompt, model, [], max_budget).get("result", "").strip()
+    verdict = _claude(prompt, model, [], max_budget, timeout_s).get("result", "").strip()
     passed = verdict.upper().startswith("PASS")
     return passed, verdict if verdict else "(empty judge reply)"
 
@@ -277,7 +280,7 @@ def trial_passes(
     cost = 0.0
     for _ in range(args.trials):
         try:
-            output, c = run_executor(skill, sc["prompt"], model, args.max_budget_usd)
+            output, c = run_executor(skill, sc["prompt"], model, args.max_budget_usd, args.timeout_s)
         except ClaudeCliError as e:
             infra_errors += 1
             last_reasons = [f"infra error: {e}"]
@@ -290,7 +293,9 @@ def trial_passes(
         ok, reasons = grade(output, sc)
         if ok and args.judge and sc.get("judge_rubric"):
             try:
-                jok, jverdict = run_judge(output, sc["judge_rubric"], args.judge_model, args.max_budget_usd)
+                jok, jverdict = run_judge(
+                    output, sc["judge_rubric"], args.judge_model, args.max_budget_usd, args.timeout_s
+                )
             except ClaudeCliError as e:
                 infra_errors += 1
                 last_reasons = [f"infra error: {e}"]
@@ -521,7 +526,7 @@ def selftest() -> int:
     # not propagate a raw subprocess/json exception that crashes the whole run.
     with mock.patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=["claude"], timeout=1)):
         try:
-            _claude("p", "sonnet", [], 0.0)
+            _claude("p", "sonnet", [], 0.0, CLAUDE_TIMEOUT_S)
         except ClaudeCliError:
             pass
         else:  # pragma: no cover
@@ -530,11 +535,33 @@ def selftest() -> int:
         "subprocess.run", return_value=subprocess.CompletedProcess(args=["claude"], returncode=0, stdout="not json")
     ):
         try:
-            _claude("p", "sonnet", [], 0.0)
+            _claude("p", "sonnet", [], 0.0, CLAUDE_TIMEOUT_S)
         except ClaudeCliError:
             pass
         else:  # pragma: no cover
             raise AssertionError("_claude should raise ClaudeCliError on malformed output")
+    # A nonzero exit is a crash even if stdout happens to hold well-formed JSON
+    # (e.g. a partial write flushed just before the process was killed).
+    with mock.patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess(
+            args=["claude"], returncode=1, stdout='{"result": "ok"}', stderr="boom"
+        ),
+    ):
+        try:
+            _claude("p", "sonnet", [], 0.0, CLAUDE_TIMEOUT_S)
+        except ClaudeCliError:
+            pass
+        else:  # pragma: no cover
+            raise AssertionError("_claude should raise ClaudeCliError on nonzero exit")
+
+    # trial_passes() must actually catch ClaudeCliError at its call site and
+    # count it as infra_errors, not just let _claude raise it in isolation.
+    infra_sc = {"prompt": "p", "id": "x", "skill": "s", "category": "c", "_path": pathlib.Path("x")}
+    infra_args = argparse.Namespace(trials=1, max_budget_usd=0.0, timeout_s=CLAUDE_TIMEOUT_S, judge=False)
+    with mock.patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=["claude"], timeout=1)):
+        passes, _, _, infra_errors = trial_passes(None, infra_sc, "sonnet", infra_args)
+    assert (passes, infra_errors) == (0, 1)
 
     breach = {"must_not_contain": [r"(?im)^\s*lgtm\W*$"]}
     assert grade("LGTM", breach) == (False, ["guardrail breach: matched forbidden /(?im)^\\s*lgtm\\W*$/"])
@@ -659,6 +686,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--judge", action="store_true", help="add an LLM-judge rubric grade")
     p.add_argument("--judge-model", default="sonnet", help="judge model (default: sonnet)")
     p.add_argument("--max-budget-usd", type=float, default=0.5, help="per-call spend cap")
+    p.add_argument(
+        "--timeout-s",
+        type=positive_int,
+        default=CLAUDE_TIMEOUT_S,
+        help=f"per-CLI-call timeout in seconds (default: {CLAUDE_TIMEOUT_S})",
+    )
     p.add_argument(
         "--strict", action="store_true", help="exit nonzero on any failure (or, with --ablate, any regression)"
     )
