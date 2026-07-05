@@ -75,6 +75,18 @@ so a first-time user with thin data is never quizzed:
 `status` reports `sessions`, `session_threshold`, `count`, and `threshold`
 alongside `ready` so the split is visible.
 
+Two configuration pitfalls (issue #89):
+
+- `CLAIRVOYANCE_COACH_THRESHOLD=0` does **not** disable the signal gate --
+  unlike `CLAIRVOYANCE_SESSION_THRESHOLD=0`, it falls back to the default (5).
+  The store logs a warning to stderr when this happens; stdout/exit-code stay
+  unchanged. Signal cannot be disabled this way; set it to a very large number
+  instead if that is the goal.
+- Setting `CLAIRVOYANCE_MAX_OBSERVATIONS` below `CLAIRVOYANCE_COACH_THRESHOLD`
+  caps `count` below `threshold` forever, so coaching can never become ready.
+  The store logs a warning to stderr when this misconfiguration is detected.
+  Keep the rotation bound at or above the coach threshold.
+
 ## Categories
 
 `avoidance`, `mislabeled-technical`, `loss-aversion`, `values-conflict`,

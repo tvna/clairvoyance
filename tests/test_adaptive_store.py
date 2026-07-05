@@ -32,7 +32,15 @@ def _resolve_bash():
     with no distro installed — prints a UTF-16 "…to install" notice and exits
     non-zero. Prefer Git Bash (the same interpreter run-hook.cmd locates in
     production); fall back to whatever ``bash`` is on PATH elsewhere.
+
+    ``CLAIRVOYANCE_TEST_BASH`` overrides the resolved interpreter -- CI uses it
+    to pin a specific bash (e.g. the stock bash 3.2 on macOS) regardless of
+    what a later PATH entry (Homebrew, etc.) would otherwise resolve to, so a
+    bash-version regression like issue #89's finding F5 is caught
+    deterministically instead of depending on runner PATH order.
     """
+    if override := os.environ.get("CLAIRVOYANCE_TEST_BASH"):
+        return override
     if os.name == "nt":
         for candidate in (
             r"C:\Program Files\Git\bin\bash.exe",
@@ -219,6 +227,28 @@ def test_unwritable_data_dir_degrades_gracefully(tmp_path):
     assert out["available"] is False
     assert out["recorded"] is False
     assert out["ready"] is False
+
+
+@needs_sqlite3
+@pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits do not apply on Windows")
+@pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root bypasses permission checks")
+def test_status_on_readonly_store_serves_readable_data(tmp_path):
+    """status on a readable-but-unwritable store (read-only mount, snapshot) must
+    serve the readable counts, not degrade to unavailable: its rotation prune is
+    best-effort, and the DELETEs fail with SQLITE_READONLY even matching nothing."""
+    data_dir = tmp_path / "store"
+    run(["record", "--category", "avoidance"], data_dir, threshold=1)
+    db = data_dir / "coaching.db"
+    db.chmod(0o444)
+    data_dir.chmod(0o555)
+    try:
+        out = run(["status"], data_dir, threshold=1)
+    finally:
+        data_dir.chmod(0o755)
+        db.chmod(0o644)
+    assert out["available"] is True
+    assert out["count"] == 1
+    assert out["ready"] is True
 
 
 def test_record_requires_category(tmp_path):
