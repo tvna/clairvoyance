@@ -102,6 +102,24 @@ def strip_to_json(raw: str) -> str:
     return raw[start:]
 
 
+# A CLI infra hiccup (session/rate limit), not a real rubric or marker failure
+# -- see issue #101, where a session-limit message printed as an indistinguishable
+# [FAIL] next to genuine content failures. Matches the error-banner phrasing
+# actually observed ("hit ... limit", "limit exceeded/reached"), not a bare
+# "session limit"/"rate limit" substring -- a scenario whose legitimate content
+# discusses rate limiting or session handling as a topic must not be swept in.
+# Extend as new infra phrasings are actually observed; do not guess at an
+# exhaustive list up front.
+INFRA_ERROR_RE = re.compile(
+    r"(?i)\bhit (?:your|the) (?:session|rate) limit\b|\b(?:session|rate) limit (?:exceeded|reached)\b"
+)
+
+
+def is_infra_error(text: str) -> bool:
+    """True if text looks like a CLI session/rate-limit error, not model output."""
+    return bool(INFRA_ERROR_RE.search(text))
+
+
 def grade(result_text: str, scenario: dict) -> tuple[bool, list[str]]:
     """Deterministic grade. Returns (passed, reasons-for-failure)."""
     reasons: list[str] = []
@@ -206,7 +224,12 @@ def run_executor(skill: str | None, prompt: str, model: str, max_budget: float) 
 
 
 def run_judge(result_text: str, rubric: str, model: str, max_budget: float) -> tuple[bool, str]:
-    """Ask an LLM judge whether the output satisfies the rubric."""
+    """Ask an LLM judge whether the output satisfies the rubric.
+
+    Returns the raw verdict text (not just its first line) so callers can
+    detect an infra error (e.g. a session-limit message) buried in the reply,
+    not just a real PASS/FAIL judgement.
+    """
     prompt = (
         "You are grading an AI assistant's response against a rubric. Reply with "
         "exactly PASS or FAIL as the first word, then one sentence explaining why.\n\n"
@@ -214,30 +237,46 @@ def run_judge(result_text: str, rubric: str, model: str, max_budget: float) -> t
     )
     verdict = _claude(prompt, model, [], max_budget).get("result", "").strip()
     passed = verdict.upper().startswith("PASS")
-    return passed, verdict.splitlines()[0] if verdict else "(empty judge reply)"
+    return passed, verdict if verdict else "(empty judge reply)"
 
 
-def trial_passes(skill: str | None, sc: dict, model: str, args: argparse.Namespace) -> tuple[int, list[str], float]:
-    """Run ``args.trials`` trials of one arm; return (passes, last_reasons, cost).
+def trial_passes(
+    skill: str | None, sc: dict, model: str, args: argparse.Namespace
+) -> tuple[int, list[str], float, int]:
+    """Run ``args.trials`` trials of one arm; return (passes, last_reasons, cost, infra_errors).
 
     ``skill=None`` is the no-skill baseline arm. Grading is identical for both
     arms (deterministic markers, then the optional judge), so the two pass-rates
     are directly comparable -- which is what makes the lift meaningful.
+
+    A trial whose executor output or judge verdict looks like a CLI infra
+    hiccup (session/rate limit, see issue #101) is counted separately in
+    ``infra_errors`` and excluded from ``passes`` -- it must never silently
+    register as a content PASS, nor count as a genuine content FAIL.
     """
     passes = 0
+    infra_errors = 0
     last_reasons: list[str] = []
     cost = 0.0
     for _ in range(args.trials):
         output, c = run_executor(skill, sc["prompt"], model, args.max_budget_usd)
         cost += c
+        if is_infra_error(output):
+            infra_errors += 1
+            last_reasons = [f"infra error: {output.splitlines()[0] if output else output}"]
+            continue
         ok, reasons = grade(output, sc)
         if ok and args.judge and sc.get("judge_rubric"):
-            jok, jwhy = run_judge(output, sc["judge_rubric"], args.judge_model, args.max_budget_usd)
+            jok, jverdict = run_judge(output, sc["judge_rubric"], args.judge_model, args.max_budget_usd)
+            if is_infra_error(jverdict):
+                infra_errors += 1
+                last_reasons = [f"infra error: {jverdict.splitlines()[0] if jverdict else jverdict}"]
+                continue
             if not jok:
-                ok, reasons = False, [f"judge FAIL: {jwhy}"]
+                ok, reasons = False, [f"judge FAIL: {jverdict.splitlines()[0] if jverdict else jverdict}"]
         passes += ok
         last_reasons = reasons
-    return passes, last_reasons, cost
+    return passes, last_reasons, cost, infra_errors
 
 
 def write_out(path: str, records: list[dict]) -> None:
@@ -248,12 +287,30 @@ def write_out(path: str, records: list[dict]) -> None:
             fh.write(json.dumps({"ts": stamp, **rec}) + "\n")
 
 
-def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[str]) -> dict:
+def _effective_trials(trials: int, *infra_counts: int) -> int:
+    """Trials left to judge after excluding infra-error counts (see issue #101).
+
+    Shared by ``make_record``, ``status_tag``, and ``ablation_tag`` so "no
+    non-infra trials remain" is one definition, not three independently typed
+    comparisons that could drift out of sync if the threshold rule changes.
+    """
+    return trials - sum(infra_counts)
+
+
+def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[str], infra_errors: int = 0) -> dict:
     """A machine-readable result row for one (scenario, model) cell.
 
     ``known_gap`` scenarios document a weakness we have found but not yet fixed;
     they are expected to fail and must not be confused with a fresh regression.
+
+    ``infra_errors`` (see issue #101) are excluded from both the numerator and
+    the denominator of ``passed``: a CLI session/rate-limit hiccup must never
+    silently count as a content PASS, but it must not manufacture a false
+    content FAIL either. A cell where every trial was an infra error has no
+    remaining trials to judge (``passed`` is ``False``); ``status_tag`` reports
+    that case as ``INFRA-ERROR`` rather than a real failure.
     """
+    effective_trials = _effective_trials(trials, infra_errors)
     return {
         "id": sc.get("id", sc["_path"].stem),
         "skill": sc["skill"],
@@ -261,14 +318,17 @@ def make_record(sc: dict, model: str, passes: int, trials: int, reasons: list[st
         "model": model,
         "trials": trials,
         "passes": passes,
-        "passed": passes == trials,
+        "infra_errors": infra_errors,
+        "passed": effective_trials > 0 and passes == effective_trials,
         "known_gap": bool(sc.get("known_gap", False)),
         "reasons": reasons,
     }
 
 
 def status_tag(rec: dict) -> str:
-    """Console label: distinguish documented gaps from real pass/fail."""
+    """Console label: distinguish infra noise, documented gaps, and real pass/fail."""
+    if _effective_trials(rec["trials"], rec.get("infra_errors", 0)) <= 0:
+        return "INFRA-ERROR"
     if rec["known_gap"]:
         return "FIXED?" if rec["passed"] else "KNOWN-GAP"
     return "PASS" if rec["passed"] else "FAIL"
@@ -289,13 +349,14 @@ def run(args: argparse.Namespace) -> int:
     records: list[dict] = []
     for sc in scenarios:
         for model in models:
-            passes, last_reasons, cost = trial_passes(sc["skill"], sc, model, args)
+            passes, last_reasons, cost, infra_errors = trial_passes(sc["skill"], sc, model, args)
             total_cost += cost
-            rec = make_record(sc, model, passes, args.trials, last_reasons)
+            rec = make_record(sc, model, passes, args.trials, last_reasons, infra_errors)
             records.append(rec)
-            # A documented known_gap is expected to fail; it does not count as a
-            # fresh failure for the strict exit.
-            all_passed &= rec["passed"] or rec["known_gap"]
+            # A documented known_gap is expected to fail, and a cell that was
+            # entirely infra noise proves nothing about the skill either; neither
+            # counts as a fresh failure for the strict exit.
+            all_passed &= rec["passed"] or rec["known_gap"] or status_tag(rec) == "INFRA-ERROR"
             tag = f"{rec['id']} ({rec['category']}/{rec['skill']}@{model})"
             print(f"[{status_tag(rec)}] {tag} {passes}/{args.trials}")
             if not rec["passed"]:
@@ -312,11 +373,24 @@ def run(args: argparse.Namespace) -> int:
     return 0 if all_passed or not args.strict else 1
 
 
-def make_ablation_record(sc: dict, model: str, passes_with: int, passes_without: int, trials: int) -> dict:
+def make_ablation_record(
+    sc: dict,
+    model: str,
+    passes_with: int,
+    passes_without: int,
+    trials: int,
+    infra_with: int = 0,
+    infra_without: int = 0,
+) -> dict:
     """A result row for one ablation cell: the skill arm vs the no-skill baseline.
 
     ``lift`` is the skill's contribution in passes -- positive means it beats the
     bare model, negative means it scores below it (a regression worth fixing).
+
+    ``infra_with``/``infra_without`` (see issue #101) count CLI infra hiccups in
+    each arm. If either arm has no remaining non-infra trials, ``lift`` compares
+    noise to noise (or noise to a real score) and is not a genuine regression or
+    lift; ``ablation_tag`` reports that case as ``INFRA-ERROR`` instead.
     """
     return {
         "mode": "ablation",
@@ -327,6 +401,8 @@ def make_ablation_record(sc: dict, model: str, passes_with: int, passes_without:
         "trials": trials,
         "passes_with": passes_with,
         "passes_without": passes_without,
+        "infra_with": infra_with,
+        "infra_without": infra_without,
         "lift": passes_with - passes_without,
         "known_gap": bool(sc.get("known_gap", False)),
     }
@@ -335,11 +411,18 @@ def make_ablation_record(sc: dict, model: str, passes_with: int, passes_without:
 def ablation_tag(rec: dict) -> str:
     """Console label for one ablation cell.
 
-    LIFT       skill beats the no-skill baseline -- it earns its place here.
-    REGRESSION skill scores BELOW baseline -- it actively hurts (red flag).
-    REDUNDANT  baseline already passes every trial -- the bare model needs no skill.
-    NO-LIFT    neither arm reliably passes -- the skill does not close the gap.
+    INFRA-ERROR either arm had no remaining non-infra trials -- the lift figure
+                is noise, not a verdict on the skill.
+    LIFT        skill beats the no-skill baseline -- it earns its place here.
+    REGRESSION  skill scores BELOW baseline -- it actively hurts (red flag).
+    REDUNDANT   baseline already passes every trial -- the bare model needs no skill.
+    NO-LIFT     neither arm reliably passes -- the skill does not close the gap.
     """
+    if (
+        _effective_trials(rec["trials"], rec.get("infra_with", 0)) <= 0
+        or _effective_trials(rec["trials"], rec.get("infra_without", 0)) <= 0
+    ):
+        return "INFRA-ERROR"
     if rec["lift"] > 0:
         return "LIFT"
     if rec["lift"] < 0:
@@ -362,10 +445,10 @@ def run_ablation(args: argparse.Namespace) -> int:
     records: list[dict] = []
     for sc in scenarios:
         for model in models:
-            pw, _, cw = trial_passes(sc["skill"], sc, model, args)
-            pb, _, cb = trial_passes(None, sc, model, args)
+            pw, _, cw, iw = trial_passes(sc["skill"], sc, model, args)
+            pb, _, cb, ib = trial_passes(None, sc, model, args)
             total_cost += cw + cb
-            rec = make_ablation_record(sc, model, pw, pb, args.trials)
+            rec = make_ablation_record(sc, model, pw, pb, args.trials, iw, ib)
             records.append(rec)
             tag = f"{rec['id']} ({rec['category']}/{rec['skill']}@{model})"
             sign = f"{rec['lift']:+d}"
@@ -389,7 +472,9 @@ def run_ablation(args: argparse.Namespace) -> int:
 
     # A regression (skill scores below baseline) on a non-known_gap scenario is a
     # genuine red flag; known gaps are expected to underperform and are exempt.
-    regressions = [r for r in records if r["lift"] < 0 and not r["known_gap"]]
+    # A cell that was entirely infra noise (see issue #101) is excluded too --
+    # the lift figure there reflects a CLI hiccup, not the skill.
+    regressions = [r for r in records if r["lift"] < 0 and not r["known_gap"] and ablation_tag(r) != "INFRA-ERROR"]
     head = "no regressions" if not regressions else f"{len(regressions)} regression(s) below baseline"
     print(f"\nsummary: {head}; est. cost ${total_cost:.3f}")
     return 0 if not regressions or not args.strict else 1
@@ -428,6 +513,7 @@ def selftest() -> int:
         "model": "sonnet",
         "trials": 3,
         "passes": 3,
+        "infra_errors": 0,
         "passed": True,
         "known_gap": False,
         "reasons": [],
@@ -439,6 +525,25 @@ def selftest() -> int:
     assert status_tag(make_record(gap, "m", 0, 3, ["x"])) == "KNOWN-GAP"
     assert status_tag(make_record(gap, "m", 3, 3, [])) == "FIXED?"
 
+    # Issue #101: a CLI infra hiccup (session/rate limit) must never silently
+    # register as a content PASS, and must be labeled distinctly from a real FAIL.
+    assert is_infra_error("You've hit your session limit - resets 6:30am (UTC)") is True
+    assert is_infra_error("FAIL: the response blames the person for missing the deadline") is False
+    # A bare topic mention of rate/session limits in legitimate judge or executor
+    # content must NOT be swept in as infra noise (code review on #104 found the
+    # original bare-substring regex would have discarded a real PASS here).
+    assert is_infra_error("PASS: the response correctly explains rate limit backoff strategy") is False
+    assert is_infra_error("The auth design uses a 30-minute session limit for tokens.") is False
+    # All 3 trials were infra noise: excluded from passes/trials, tagged INFRA-ERROR,
+    # not a silent PASS and not conflated with a genuine content FAIL.
+    all_infra = make_record(sc, "m", 0, 3, ["infra error: session limit"], infra_errors=3)
+    assert all_infra["passed"] is False
+    assert status_tag(all_infra) == "INFRA-ERROR"
+    # One infra trial among three: judged on the remaining two, same as a plain pass/fail.
+    partial_infra = make_record(sc, "m", 2, 3, [], infra_errors=1)
+    assert partial_infra["passed"] is True
+    assert status_tag(partial_infra) == "PASS"
+
     # Ablation: lift is with-skill minus baseline, and the tag classifies the cell.
     abl = make_ablation_record(sc, "sonnet", 3, 1, 3)
     assert abl["lift"] == 2 and abl["passes_with"] == 3 and abl["passes_without"] == 1
@@ -447,6 +552,12 @@ def selftest() -> int:
     assert ablation_tag(make_ablation_record(sc, "m", 1, 3, 3)) == "REGRESSION"
     assert ablation_tag(make_ablation_record(sc, "m", 3, 3, 3)) == "REDUNDANT"
     assert ablation_tag(make_ablation_record(sc, "m", 1, 1, 3)) == "NO-LIFT"
+
+    # Issue #101: a with-skill arm that was entirely infra noise, against a
+    # baseline arm that genuinely passed, must not render as a false REGRESSION.
+    infra_ablation = make_ablation_record(sc, "m", 0, 3, 3, infra_with=3, infra_without=0)
+    assert infra_ablation["lift"] == -3
+    assert ablation_tag(infra_ablation) == "INFRA-ERROR"
 
     assert positive_int("3") == 3
     for bad in ("0", "-1"):
