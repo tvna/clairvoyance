@@ -40,6 +40,18 @@ class TestKnownTestNames:
         )
         assert cdtr.known_test_names(tests_dir) == {"test_store", "test_method"}
 
+    def test_collects_async_def_test_functions(self, tmp_path: Path) -> None:
+        tests_dir = tmp_path / "tests"
+        tests_dir.mkdir()
+        write(tests_dir / "test_store.py", "async def test_one():\n    pass\n")
+        assert cdtr.known_test_names(tests_dir) == {"test_store", "test_one"}
+
+    def test_collects_tests_from_nested_directories(self, tmp_path: Path) -> None:
+        tests_dir = tmp_path / "tests"
+        (tests_dir / "sub").mkdir(parents=True)
+        write(tests_dir / "sub" / "test_nested.py", "def test_deep():\n    pass\n")
+        assert cdtr.known_test_names(tests_dir) == {"test_nested", "test_deep"}
+
 
 class TestCitedNames:
     def test_extracts_backticked_test_names(self, tmp_path: Path) -> None:

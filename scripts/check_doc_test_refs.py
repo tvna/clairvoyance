@@ -41,7 +41,7 @@ TESTS_DIR = REPO_ROOT / "tests"
 
 _BACKTICK_SPAN = re.compile(r"`[^`]*test_[a-z0-9_]+[^`]*`")
 _TEST_TOKEN = re.compile(r"test_[a-z0-9_]+")
-_TEST_DEF = re.compile(r"^\s*def (test_[a-z0-9_]+)")
+_TEST_DEF = re.compile(r"^\s*(?:async\s+)?def (test_[a-z0-9_]+)")
 # Ties the `<!-- former-test-name -->` marker to the single backtick span
 # immediately before it (no other backtick in between), not the whole line.
 _FORMER_SPAN = re.compile(r"(`[^`]*test_[a-z0-9_]+[^`]*`)(?:(?!`).)*<!-- former-test-name -->")
@@ -50,7 +50,7 @@ _FORMER_SPAN = re.compile(r"(`[^`]*test_[a-z0-9_]+[^`]*`)(?:(?!`).)*<!-- former-
 def known_test_names(tests_dir: Path) -> set[str]:
     """Return every real test identifier: function names and file stems."""
     names: set[str] = set()
-    for path in sorted(tests_dir.glob("test_*.py")):
+    for path in sorted(tests_dir.rglob("test_*.py")):
         names.add(path.stem)
         for line in path.read_text(encoding="utf-8").splitlines():
             match = _TEST_DEF.match(line)
