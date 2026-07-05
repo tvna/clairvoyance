@@ -474,9 +474,7 @@ def run_ablation(args: argparse.Namespace) -> int:
     # genuine red flag; known gaps are expected to underperform and are exempt.
     # A cell that was entirely infra noise (see issue #101) is excluded too --
     # the lift figure there reflects a CLI hiccup, not the skill.
-    regressions = [
-        r for r in records if r["lift"] < 0 and not r["known_gap"] and ablation_tag(r) != "INFRA-ERROR"
-    ]
+    regressions = [r for r in records if r["lift"] < 0 and not r["known_gap"] and ablation_tag(r) != "INFRA-ERROR"]
     head = "no regressions" if not regressions else f"{len(regressions)} regression(s) below baseline"
     print(f"\nsummary: {head}; est. cost ${total_cost:.3f}")
     return 0 if not regressions or not args.strict else 1
