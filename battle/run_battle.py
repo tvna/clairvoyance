@@ -57,11 +57,13 @@ import sys
 import tempfile
 import tomllib
 from datetime import UTC, datetime
+from unittest import mock
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
 SKILLS_DIR = REPO_ROOT / "skills"
 SCENARIOS_DIR = HERE / "scenarios"
+CLAUDE_TIMEOUT_S = 300
 
 
 def positive_int(value: str) -> int:
@@ -201,14 +203,29 @@ def require_judge_or_fail(scenarios: list[dict], args: argparse.Namespace) -> st
     )
 
 
+class ClaudeCliError(Exception):
+    """The claude CLI itself crashed, timed out, or returned unparsable output.
+
+    Distinct from ``is_infra_error()``, which pattern-matches text inside a
+    *successfully parsed* ``result`` -- see issue #111.
+    """
+
+
 def _claude(prompt: str, model: str, extra: list[str], max_budget: float) -> dict:
     cmd = ["claude", "-p", "--output-format", "json", "--model", model, *extra]
     if max_budget:
         cmd += ["--max-budget-usd", str(max_budget)]
     cmd.append(prompt)
-    with tempfile.TemporaryDirectory() as tmp:
-        proc = subprocess.run(cmd, cwd=tmp, stdin=subprocess.DEVNULL, capture_output=True, text=True)
-    return json.loads(strip_to_json(proc.stdout))
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = subprocess.run(
+                cmd, cwd=tmp, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT_S
+            )
+        return json.loads(strip_to_json(proc.stdout))
+    except subprocess.TimeoutExpired as e:
+        raise ClaudeCliError(f"claude CLI timed out after {CLAUDE_TIMEOUT_S}s") from e
+    except ValueError as e:
+        raise ClaudeCliError(f"claude CLI produced unparsable output: {e}") from e
 
 
 def run_executor(skill: str | None, prompt: str, model: str, max_budget: float) -> tuple[str, float]:
@@ -259,7 +276,12 @@ def trial_passes(
     last_reasons: list[str] = []
     cost = 0.0
     for _ in range(args.trials):
-        output, c = run_executor(skill, sc["prompt"], model, args.max_budget_usd)
+        try:
+            output, c = run_executor(skill, sc["prompt"], model, args.max_budget_usd)
+        except ClaudeCliError as e:
+            infra_errors += 1
+            last_reasons = [f"infra error: {e}"]
+            continue
         cost += c
         if is_infra_error(output):
             infra_errors += 1
@@ -267,7 +289,12 @@ def trial_passes(
             continue
         ok, reasons = grade(output, sc)
         if ok and args.judge and sc.get("judge_rubric"):
-            jok, jverdict = run_judge(output, sc["judge_rubric"], args.judge_model, args.max_budget_usd)
+            try:
+                jok, jverdict = run_judge(output, sc["judge_rubric"], args.judge_model, args.max_budget_usd)
+            except ClaudeCliError as e:
+                infra_errors += 1
+                last_reasons = [f"infra error: {e}"]
+                continue
             if is_infra_error(jverdict):
                 infra_errors += 1
                 last_reasons = [f"infra error: {jverdict.splitlines()[0] if jverdict else jverdict}"]
@@ -489,6 +516,25 @@ def selftest() -> int:
         pass
     else:  # pragma: no cover
         raise AssertionError("strip_to_json should reject non-JSON")
+
+    # Issue #111: a hung/crashed CLI or unparsable stdout must raise ClaudeCliError,
+    # not propagate a raw subprocess/json exception that crashes the whole run.
+    with mock.patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=["claude"], timeout=1)):
+        try:
+            _claude("p", "sonnet", [], 0.0)
+        except ClaudeCliError:
+            pass
+        else:  # pragma: no cover
+            raise AssertionError("_claude should raise ClaudeCliError on timeout")
+    with mock.patch(
+        "subprocess.run", return_value=subprocess.CompletedProcess(args=["claude"], returncode=0, stdout="not json")
+    ):
+        try:
+            _claude("p", "sonnet", [], 0.0)
+        except ClaudeCliError:
+            pass
+        else:  # pragma: no cover
+            raise AssertionError("_claude should raise ClaudeCliError on malformed output")
 
     breach = {"must_not_contain": [r"(?im)^\s*lgtm\W*$"]}
     assert grade("LGTM", breach) == (False, ["guardrail breach: matched forbidden /(?im)^\\s*lgtm\\W*$/"])
