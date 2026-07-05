@@ -45,11 +45,21 @@ XML_TAG_RE = re.compile(r"</?[A-Za-z][^<>]*>")
 TRIGGER_RE = re.compile(r"\buse\s+(when|on|to|for|after|before|during|while|whenever|as|if|in)\b", re.IGNORECASE)
 # A table-of-contents heading for long reference files.
 TOC_RE = re.compile(r"(?im)^#{1,6}\s+(table of contents|contents)\b")
-# The one normative sentence every skill repeats (skills must stand alone when
-# invoked without the router, so the copies are deliberate). Copies drift, so
-# any line that carries the anchor must carry the full canonical phrase.
+# Sentences repeated deliberately within or across skills (skills must stand
+# alone when invoked without the router, so the copies are intentional).
+# Copies drift, so any line that carries an anchor must carry its full
+# canonical phrase. See issue #101: adaptive-coaching's heat-lowering trigger
+# drifted across three restatements within one file before merge.
 LANGUAGE_RULE_ANCHOR = "unless a repository rule requires"
 LANGUAGE_RULE_CANONICAL = "unless a repository rule requires another language for outward-facing artifacts"
+HEAT_LOWERING_TRIGGER_ANCHOR = "likely to disengage"
+HEAT_LOWERING_TRIGGER_CANONICAL = (
+    "sounds worried, defensive, ashamed, or likely to disengage — including when they voice this directly"
+)
+DRIFT_RULES = (
+    (LANGUAGE_RULE_ANCHOR, LANGUAGE_RULE_CANONICAL),
+    (HEAT_LOWERING_TRIGGER_ANCHOR, HEAT_LOWERING_TRIGGER_CANONICAL),
+)
 RESERVED_WORDS = ("anthropic", "claude")
 NON_THIRD_PERSON = ("I can ", "You can ", "you can ")
 MAX_NAME = 64
@@ -62,8 +72,9 @@ CHECKS_BLURB = (
     "within 64 chars, no reserved word, matches its directory; `description` "
     "present, single-line, within 1024 chars, third person, no XML tags, with a "
     "when-to-use trigger; SKILL.md body within 500 lines; body links resolve, "
-    "use forward slashes, and never traverse upward; the shared language-rule "
-    "sentence matches its canonical wording; reference files stay one level "
+    "use forward slashes, and never traverse upward; pinned repeated sentences "
+    "(the shared language rule, adaptive-coaching's heat-lowering trigger) match "
+    "their canonical wording wherever restated; reference files stay one level "
     "deep and carry a table of contents past 100 lines."
 )
 
@@ -118,19 +129,20 @@ def _scan_links(text: str, rel: pathlib.PurePath, base: pathlib.Path) -> list[tu
     return errors
 
 
-def _scan_language_rule(text: str, rel: pathlib.PurePath) -> list[tuple[str, str]]:
-    """Return drift violations for the shared language-rule sentence: any line
-    carrying its anchor must carry the full canonical phrase, so the deliberate
-    per-skill copies cannot silently diverge."""
+def _scan_drift_rules(text: str, rel: pathlib.PurePath) -> list[tuple[str, str]]:
+    """Return drift violations for each pinned (anchor, canonical) pair in
+    ``DRIFT_RULES``: any line carrying an anchor must carry its full canonical
+    phrase, so deliberate repeated copies cannot silently diverge."""
     errors: list[tuple[str, str]] = []
     for line in text.splitlines():
-        if LANGUAGE_RULE_ANCHOR in line and LANGUAGE_RULE_CANONICAL not in line:
-            errors.append(
-                (
-                    "error",
-                    f"{rel}: language rule drifts from the canonical wording '... {LANGUAGE_RULE_CANONICAL}'",
+        for anchor, canonical in DRIFT_RULES:
+            if anchor in line and canonical not in line:
+                errors.append(
+                    (
+                        "error",
+                        f"{rel}: language rule drifts from the canonical wording '... {canonical}'",
+                    )
                 )
-            )
     return errors
 
 
@@ -180,7 +192,7 @@ def check_skill(skill_md: pathlib.Path) -> list[tuple[str, str]]:
         errors.append(("error", f"{rel}: SKILL.md body exceeds {MAX_BODY_LINES} lines"))
 
     errors.extend(_scan_links(body, rel, skill_md.parent))
-    errors.extend(_scan_language_rule(body, rel))
+    errors.extend(_scan_drift_rules(body, rel))
     return errors
 
 
@@ -201,7 +213,7 @@ def check_references(skill_md: pathlib.Path) -> list[tuple[str, str]]:
         # plus a one-level-deep rule: a reference must not link to another
         # markdown file (that would nest progressive disclosure two deep).
         errors.extend(_scan_links(text, rel, ref.parent))
-        errors.extend(_scan_language_rule(text, rel))
+        errors.extend(_scan_drift_rules(text, rel))
         for raw, target in _link_targets(text):
             if target.endswith(".md"):
                 errors.append(("error", f"{rel}: reference link '{raw}' must stay one level deep from SKILL.md"))
