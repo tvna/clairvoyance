@@ -203,20 +203,24 @@ def test_record_waits_out_a_concurrent_writer(tmp_path):
     record call: the store's busy_timeout (2000ms) makes it wait, per the
     volatility contract in docs/hooks.md (issue #98, gate 2)."""
     data_dir = tmp_path / "store"
-    run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)  # creates schema
+    # The first record creates the schema and, timed, calibrates the proof
+    # window below to this runner's real speed. An uncontended record reaches
+    # its INSERT in strictly less than its full runtime, so holding the lock
+    # for one whole baseline guarantees the contended record has reached and
+    # blocked on its INSERT before we release -- no fixed scheduling guess.
+    baseline_start = time.monotonic()
+    run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
+    baseline = time.monotonic() - baseline_start
     db = data_dir / "coaching.db"
 
-    hold_seconds = 1.0  # well under the store's 2s busy_timeout
     lock_acquired = threading.Event()
-    record_contending = threading.Event()
     release_lock = threading.Event()
 
     def hold_write_lock() -> None:
         conn = sqlite3.connect(str(db), timeout=5, isolation_level=None)
-        conn.execute("BEGIN IMMEDIATE;")
-        conn.execute("INSERT INTO observations (ts, category) VALUES (datetime('now'), 'lock-holder');")
+        conn.execute("BEGIN IMMEDIATE;")  # takes the RESERVED write lock at once
         lock_acquired.set()
-        release_lock.wait(hold_seconds + 10)
+        release_lock.wait(10)
         conn.execute("ROLLBACK;")
         conn.close()
 
@@ -224,31 +228,31 @@ def test_record_waits_out_a_concurrent_writer(tmp_path):
     locker.start()
     assert lock_acquired.wait(5), "lock holder never acquired the write lock"
 
-    # Gate the release countdown on the record launch point, not on
-    # releaser.start(): otherwise a scheduler pause between starting the
-    # releaser and invoking record could release the lock before record ever
-    # contends, so it would run the fast uncontended path and flake the
-    # elapsed assertion. Tying the countdown to record_contending keeps the
-    # lock held until start + hold_seconds regardless of scheduling (#98).
-    def release_after_delay() -> None:
-        record_contending.wait(10)
-        time.sleep(hold_seconds)
-        release_lock.set()
+    result: dict[str, dict[str, object]] = {}
 
-    releaser = threading.Thread(target=release_after_delay)
-    releaser.start()
+    def do_record() -> None:
+        result["out"] = run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
 
-    start = time.monotonic()
-    record_contending.set()
-    out = run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
-    elapsed = time.monotonic() - start
-    releaser.join()
+    recorder = threading.Thread(target=do_record)
+    recorder.start()
+
+    # Anchor the release to observed contention, not a timer started before the
+    # subprocess even spawns: wait one uncontended baseline (kept under the 2s
+    # busy_timeout), by which point the contended record must be blocked on the
+    # held lock. Still running here proves it waited; a broken/removed
+    # busy_timeout would instead fail its INSERT fast and finish inside the
+    # window, so is_alive() would be False and the test would catch it (#98).
+    proof_window = min(max(baseline, 0.3), 1.5)
+    recorder.join(proof_window)
+    assert recorder.is_alive(), "record did not block on the held write lock (busy_timeout not honored?)"
+
+    release_lock.set()
+    recorder.join(5)
     locker.join()
 
-    assert out["available"] is True
-    assert out["recorded"] is True
-    # Proves the call actually waited on the lock rather than passing by luck.
-    assert elapsed >= hold_seconds * 0.8
+    assert not recorder.is_alive(), "record never completed after the lock was released"
+    assert result["out"]["available"] is True
+    assert result["out"]["recorded"] is True
 
 
 def test_record_requires_category(tmp_path):
