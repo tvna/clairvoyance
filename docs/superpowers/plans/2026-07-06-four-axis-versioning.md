@@ -252,7 +252,11 @@ Run:
 uv run --frozen pytest tests/test_check_doc_test_refs.py -q
 ```
 
-Expected: tests pass. If dependency setup is unavailable, record the exact failure and run `python3 scripts/check_doc_test_refs.py` as the fallback.
+Expected: tests pass. If dependency setup is unavailable, record the exact failure and run this fallback:
+
+```bash
+python3 scripts/check_doc_test_refs.py
+```
 
 - [ ] **Step 4: Run root tests if local dependencies are available**
 

@@ -104,9 +104,11 @@ dependencies:
 
 ## 版本与发布
 
-采用语义化版本，借助 semantic-release 从 Conventional Commits 自动完成。git 标签是唯一
-真实来源；每次发布都会把版本同步写入 Claude Code 与 Codex 两个 `plugin.json` 清单。
-请参阅 [docs/versioning.md](docs/versioning.md)。
+本仓库按产品分别管理版本：插件为 `plugin-vX.Y.Z`，managed 后端为
+`server-vX.Y.Z`，管理 UI 为 `ui-vX.Y.Z`，compose 部署拓扑为
+`compose-vX.Y.Z`。各发布线都由 Conventional Commits 和 semantic-release 自动化，
+git 标签是唯一真实来源。详情以及当前已上线/分阶段推出的范围请参阅
+[docs/versioning.md](docs/versioning.md)。
 
 ## 贡献
 

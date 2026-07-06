@@ -110,10 +110,11 @@ Claude Code는 `hooks/hooks.json`을, Codex는 `hooks/codex-hooks.json`을
 
 ## 버전 관리와 릴리스
 
-시맨틱 버저닝을 따르며, Conventional Commits로부터 semantic-release로 자동화됩니다.
-git 태그가 단일 진실 공급원이며, 각 릴리스는 버전을 Claude Code와 Codex 양쪽
-`plugin.json` 매니페스트에 동기화하여 기록합니다.
-[docs/versioning.md](docs/versioning.md)를 참고하세요.
+이 저장소는 제품별로 버전을 관리합니다. 플러그인은 `plugin-vX.Y.Z`, managed 백엔드는
+`server-vX.Y.Z`, 관리 UI는 `ui-vX.Y.Z`, compose 배포 토폴로지는
+`compose-vX.Y.Z`를 사용합니다. 각 릴리스 라인은 Conventional Commits와
+semantic-release로 자동화되며 git 태그가 단일 진실 공급원입니다. 자세한 내용과 현재
+적용/단계적 출시 범위는 [docs/versioning.md](docs/versioning.md)를 참고하세요.
 
 ## 기여
 

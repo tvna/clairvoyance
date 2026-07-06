@@ -111,9 +111,11 @@ eval スイートは開発用にリポジトリへ残り、展開されること
 
 ## バージョニングとリリース
 
-セマンティック・バージョニングを採用し、Conventional Commits から semantic-release で
-自動化しています。git タグが真実の源であり、各リリースはバージョンを Claude Code と
-Codex 両方の `plugin.json` マニフェストへ同期して書き込みます。
+このリポジトリは複数のプロダクトを配布するため、バージョンはプロダクト単位です。
+プラグインは `plugin-vX.Y.Z`、managed バックエンドは `server-vX.Y.Z`、管理 UI は
+`ui-vX.Y.Z`、compose によるデプロイ構成は `compose-vX.Y.Z` として管理します。
+各ラインは Conventional Commits から semantic-release で自動化され、git タグが
+真実の源です。このモデルは段階的にロールアウト中です。
 [docs/versioning.md](docs/versioning.md) を参照してください。
 
 ## コントリビュート
