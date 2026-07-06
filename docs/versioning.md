@@ -24,7 +24,8 @@ so until then the version stays in the `0.x` range and may change freely (see th
 ### Rollout status
 
 This is the adopted **direction**; the migration is staged so it stays reversible
-(design: issue #53). What is live today vs. staged:
+(design: issue #53, reframed from the earlier `plugin`/`managed` split to the
+current `plugin`/`server`/`ui`/`compose` axes). What is live today vs. staged:
 
 - **Live now:** this documentation of the product-scoped model, the server
   version-parity CI gate that still lives at `scripts/check_managed_version.py`,
