@@ -190,7 +190,9 @@ PERSONAS = (
     ),
     # Ben reframes an owner judgement as a tooling problem twice in his very
     # first session: the signal gate is met early, so the grace gate alone must
-    # hold his day-one reflection request.
+    # hold his day-one reflection request. After the grace period his day-one
+    # double is STILL a single-session burst, so the recurrence gate keeps
+    # holding (issue #89, F7) until the pattern resurfaces in a later session.
     Persona(
         name="ben-mislabeled-technical",
         coach_threshold=2,
@@ -204,7 +206,11 @@ PERSONAS = (
             _session(sessions=2),
             _session(sessions=3),
             _session(sessions=4),
-            _reflect(ready=True, count=2, sessions=4, by_category={"mislabeled-technical": 2}),
+            # Grace passed, but both observations sit in session 1: a day-one
+            # burst is not across-session recurrence (issue #89, F7).
+            _reflect(ready=False, count=2, sessions=4),
+            _observe("mislabeled-technical", "better-tool-hunt", count=3, ready=True),
+            _reflect(ready=True, count=3, sessions=4, by_category={"mislabeled-technical": 3}),
         ),
     ),
     # Chika cannot delete the legacy module she wrote. Grace disabled via the
@@ -349,15 +355,17 @@ PERSONAS = (
         ),
     ),
     # -- Compound personas: real people cross thresholds in combination, not
-    # -- one clean category at a time. These pin what the store-level gate can
-    # -- and cannot see when threshold crossings combine (findings F6/F7, #89).
+    # -- one clean category at a time. These pin how the recurrence gate reads
+    # -- combined threshold crossings (findings F6/F7, #89, fixed store-side:
+    # -- ready needs a category that recurs, across sessions where linkage
+    # -- exists).
     #
     # Rin had a rough month: five DIFFERENT single instances, one per category.
-    # The total crosses the signal gate, so the store reports ready -- the gate
-    # is category-blind (F6) and cannot see that every candidate gap is a
-    # single instance. The contract-faithful hold ("never quiz on a single
-    # instance", SKILL.md) must come from the skill layer reading by_category:
-    # evals/adaptive-coaching/tasks/scattered-signal-hold.yaml is that check.
+    # The total crosses the signal gate, but no category recurs, so the
+    # recurrence gate holds (issue #89, F6 fixed store-side): "never quiz on a
+    # single instance" is now enforced at the source of truth. The skill-layer
+    # counterpart, evals/adaptive-coaching/tasks/scattered-signal-hold.yaml,
+    # stays as defense-in-depth for older deployed stores.
     Persona(
         name="rin-scattered-signal",
         coach_threshold=5,
@@ -369,9 +377,9 @@ PERSONAS = (
             _observe("loss-aversion", "legacy-kept", count=2),
             _observe("values-conflict", "bar-lowered", count=3),
             _observe("authority-dependence", "just-decide", count=4),
-            _observe("no-experiment", "no-spike", count=5, ready=True),
+            _observe("no-experiment", "no-spike", count=5, ready=False),
             _reflect(
-                ready=True,  # current behaviour: total count crosses, composition invisible
+                ready=False,  # total crosses, but every candidate gap is a single instance
                 count=5,
                 sessions=2,
                 by_category={
@@ -385,22 +393,22 @@ PERSONAS = (
         ),
     ),
     # Sora is past the grace period and has one terrible crunch day: three
-    # same-category observations inside a single session cross the signal gate
-    # with no across-session recurrence (F7). Unlike F6, the skill layer cannot
-    # detect this from status JSON at all -- rows carry no session linkage --
-    # so no L2 eval task exists; only a store-side change could surface it.
+    # same-category observations inside a single session cross the signal
+    # total with no across-session recurrence. The recurrence gate holds
+    # (issue #89, F7 fixed store-side via session linkage on each row) --
+    # the store-side fix is the only possible one, since the distinguishing
+    # evidence never reaches the status JSON the skill layer reads.
     Persona(
         name="sora-single-session-burst",
         coach_threshold=3,
         session_threshold=2,
-        dominant="avoidance",
         timeline=(
             _session(sessions=1),
             _session(sessions=2),
             _observe("avoidance", "crunch-dodge", count=1),
             _observe("avoidance", "crunch-dodge", count=2),
-            _observe("avoidance", "crunch-dodge", count=3, ready=True),
-            _reflect(ready=True, count=3, sessions=2, by_category={"avoidance": 3}),
+            _observe("avoidance", "crunch-dodge", count=3, ready=False),
+            _reflect(ready=False, count=3, sessions=2, by_category={"avoidance": 3}),
         ),
     ),
     # Tomo ties two LINKED categories in equal measure: dodging his own call

@@ -73,7 +73,13 @@ so a first-time user with thin data is never quizzed:
   accumulated (default 5). Only **raw** observations count: quiz-outcome rows
   are stored for feedback and calibration history but are excluded from
   `count` and `by_category`, so answering quizzes does not keep a category
-  quiz-ready after the underlying behaviour improved (issue #89, F4).
+  quiz-ready after the underlying behaviour improved (issue #89, F4). The
+  signal must also actually **recur**: at least one category needs
+  `min(2, threshold)` raw observations, spanning that many distinct sessions
+  when every raw row carries session linkage (issue #89, F6/F7). Scattered
+  singletons and single-session bursts therefore hold even when the total
+  crosses the threshold; rows recorded before session linkage existed keep
+  the older semantics until they rotate out.
 
 `status` reports `sessions`, `session_threshold`, `count`, and `threshold`
 alongside `ready` so the split is visible.
@@ -136,6 +142,11 @@ moment; that trades some privacy for fidelity and stays local-only.
 For quiz outcomes, newer stores can also capture confidence, calibration, and a
 due date for the next retrieval pass. These fields support learning cadence; they
 do not identify a person and they do not diagnose ability.
+
+Each observation also stores the anonymous session counter value at record time
+(`session_seen`), so recurrence can be required to span sessions. It is a bare
+monotone integer — strictly less revealing than the per-second UTC timestamp
+every row already carries — and stores no content of any kind.
 
 Keep `signal` at **category level** (e.g. `defer-irreversible`), never a project
 or scenario identifier (e.g. `acme-payments-cutover`): the sanitiser guarantees

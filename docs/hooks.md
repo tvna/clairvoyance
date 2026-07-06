@@ -41,7 +41,13 @@ can additionally store an abstracted, secret-redacted scenario summary.
   `ready` needs **both** a **session grace period**
   (`$CLAIRVOYANCE_SESSION_THRESHOLD`, default 50 sessions; 0 disables it) **and**
   **accumulated adaptive signal** (`$CLAIRVOYANCE_COACH_THRESHOLD`, default 5
-  observations).
+  observations). The signal gate also checks **recurrence** (issue #89, F6/F7):
+  at least one category needs `min(2, threshold)` raw observations, spanning
+  that many distinct sessions when every raw row carries session linkage
+  (`session_seen`). Scattered singletons and single-session bursts stay
+  not-ready even when the total crosses the threshold; rows without linkage
+  (recorded pre-upgrade, or before any session was counted) keep the older
+  semantics until they rotate out.
 - **Location** (first match wins): `$CLAIRVOYANCE_DATA_DIR`, else
   `%LOCALAPPDATA%\clairvoyance` (the Windows workstation default), else
   `$XDG_DATA_HOME/clairvoyance`, else `~/.clairvoyance`; the file is `coaching.db`.
@@ -68,8 +74,9 @@ The store is backed by the `sqlite3` CLI — install with `choco install sqlite`
 Windows (Git for Windows bundles no `sqlite3`); on macOS/Linux it is usually
 present. There is **no Python fallback**: if the CLI is absent the store degrades
 to "not available" and coaching simply stays inactive (the session is unaffected).
-`session-start.sh` detects readiness from the store's JSON with a shell glob, so
-the readiness cue needs no runtime of its own.
+`session-start.sh` only advances the session counter (`record-session`) and
+discards the store's reply; readiness is consulted by `adaptive-coaching` at
+reflection time, so the hook needs no JSON parsing of its own.
 
 `scripts/check_hooks.sh` syntax-checks `adaptive-store.sh` (`bash -n`, no side
 effects); `tests/test_adaptive_store.py` exercises its behaviour.
@@ -89,6 +96,7 @@ erDiagram
         text confidence "low, medium, high, or null"
         text calibration "accurate, overconfident, underconfident, unknown, or null"
         text due_at "UTC date/time for next retrieval pass, nullable"
+        integer session_seen "meta.sessions at record time, nullable"
     }
     meta {
         text key PK "always sessions"
@@ -150,8 +158,8 @@ procedure, so operators can judge the privacy/utility balance:
    undercount.
 6. **Coarse decay.** Rotation bounds the store by count and age
    (`CLAIRVOYANCE_MAX_OBSERVATIONS` / `CLAIRVOYANCE_MAX_AGE_DAYS`), so a long-faded
-   habit ages out; within the window, readiness is still a raw count with no finer
-   recency weighting.
+   habit ages out; within the window, readiness is a raw count plus a
+   recurrence check (issue #89, F6/F7), with no finer recency weighting.
 7. **Taxonomy mismatch.** The references' Type I/II/III and `technical-not-understood`
    have no matching store category, so the latter folds to `other`.
 8. **Calibration starts when recorded.** Older rows have no confidence,
