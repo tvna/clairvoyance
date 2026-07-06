@@ -1,3 +1,15 @@
+## [0.5.0](https://github.com/tvna/clairvoyance/compare/v0.4.0...v0.5.0) (2026-07-06)
+
+### Features
+
+* **hooks:** reinforce operator language on every turn ([#116](https://github.com/tvna/clairvoyance/issues/116)) ([#117](https://github.com/tvna/clairvoyance/issues/117)) ([bcc8701](https://github.com/tvna/clairvoyance/commit/bcc8701feccd0947da6a1236511705fd04fcf895))
+
+### Bug Fixes
+
+* **adaptive-store:** require recurring, session-spanning signal for readiness (Refs [#89](https://github.com/tvna/clairvoyance/issues/89)) ([#122](https://github.com/tvna/clairvoyance/issues/122)) ([af8e48c](https://github.com/tvna/clairvoyance/commit/af8e48c842a2c1de5c11a5adcdb6aac60bd7cf44)), closes [F1/#93](https://github.com/F1/clairvoyance/issues/93)
+* **battle:** harden _claude() against CLI crash/timeout/malformed output ([#111](https://github.com/tvna/clairvoyance/issues/111)) ([#115](https://github.com/tvna/clairvoyance/issues/115)) ([461613a](https://github.com/tvna/clairvoyance/commit/461613ac0d97cfc2ab9bdbc5210685237cc23c85)), closes [#104](https://github.com/tvna/clairvoyance/issues/104)
+* **hooks:** nest UserPromptSubmit additionalContext under hookSpecificOutput (Closes [#119](https://github.com/tvna/clairvoyance/issues/119)) ([#120](https://github.com/tvna/clairvoyance/issues/120)) ([f6df2a6](https://github.com/tvna/clairvoyance/commit/f6df2a6fceb782437969a788c8fe41d01e44490c)), closes [116/#117](https://github.com/116/clairvoyance/issues/117)
+
 ## [0.4.0](https://github.com/tvna/clairvoyance/compare/v0.3.0...v0.4.0) (2026-07-05)
 
 ### Features
