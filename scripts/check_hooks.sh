@@ -24,10 +24,14 @@ CLAIRVOYANCE_DATA_DIR="${hooks_tmp}" bash "${root}/hooks/session-start.sh" </dev
 # hookSpecificOutput.additionalContext alongside hookEventName == "UserPromptSubmit"
 # (issue #119), so a top-level-only additionalContext parses as valid JSON yet is
 # silently ignored at runtime. Check both the language-set and language-unset paths.
+# Use an explicit sys.exit rather than `assert`: assertions are stripped under
+# `python3 -O` / PYTHONOPTIMIZE, which would silently turn this durable gate back
+# into a no-op -- the exact "green gate, wrong shape" failure this check exists to
+# prevent. A missing hookSpecificOutput wrapper raises KeyError (non-zero) too.
 CLAIRVOYANCE_OPERATOR_LANGUAGE="Japanese" bash "${root}/hooks/user-prompt-language.sh" </dev/null \
-  | python3 -c "import json,sys; h=json.load(sys.stdin)['hookSpecificOutput']; assert h['hookEventName']=='UserPromptSubmit'; assert h['additionalContext']"
+  | python3 -c "import json,sys; h=json.load(sys.stdin)['hookSpecificOutput']; sys.exit(0 if h.get('hookEventName')=='UserPromptSubmit' and h.get('additionalContext') else 1)"
 env -u CLAIRVOYANCE_OPERATOR_LANGUAGE bash "${root}/hooks/user-prompt-language.sh" </dev/null \
-  | python3 -c "import json,sys; h=json.load(sys.stdin)['hookSpecificOutput']; assert h['hookEventName']=='UserPromptSubmit'; assert h['additionalContext']"
+  | python3 -c "import json,sys; h=json.load(sys.stdin)['hookSpecificOutput']; sys.exit(0 if h.get('hookEventName')=='UserPromptSubmit' and h.get('additionalContext') else 1)"
 
 # The adaptive-coaching store ships alongside the hooks and is invoked by both
 # session-start.sh and the skill. Syntax-check it (no side effects, no DB
