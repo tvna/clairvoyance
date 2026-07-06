@@ -3,5 +3,5 @@
 
 # Governance, release, and CI surfaces always require the owner's review.
 /.github/ @tvna
-/.releaserc.json @tvna
+/release.config.cjs @tvna
 /scripts/ @tvna

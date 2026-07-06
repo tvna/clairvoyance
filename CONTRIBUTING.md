@@ -29,16 +29,16 @@ For example `feat(plugin): ...`, `fix(server): ...`, `feat(ui): ...`, or
 unless they alter a shipped artifact; if one PR touches multiple products, make
 each release impact explicit.
 
-During the staged rollout, [docs/versioning.md](docs/versioning.md) remains the
-source of truth for live-vs-target release behavior. The live plugin release
-config filters `server`, `ui`, and `compose` scopes out of the plugin release
-path (like the legacy `managed` scope), and the dedicated server/ui/compose
-release lines have not landed yet, so commits with those scopes currently
-produce no release at all.
+[docs/versioning.md](docs/versioning.md) remains the source of truth for
+live-vs-target release behavior. The plugin release filters `server`, `ui`,
+`compose`, and legacy `managed` scopes out of the plugin release path; each
+dedicated product release line only runs after its product-prefixed baseline tag
+has been seeded. Releasable commit types without a product scope, or with an
+unrecognized scope, do not release.
 
 While a product is on `0.x.x`, a breaking change bumps **minor** (not major) —
 the version stays below `1.0.0` until that product's surface is declared stable
-(configured by a release rule in `.releaserc.json`). See
+(configured by a release rule in `release.config.cjs`). See
 [docs/versioning.md](docs/versioning.md) for the full product-scoped release flow,
 the git-tag source of truth, and the branch strategy.
 

@@ -44,12 +44,18 @@ jobs:
             .agents/plugins/marketplace.json
             hooks/hooks.json
             hooks/codex-hooks.json
-            .releaserc.json
             .github/rulesets/main.json
           )
           for f in "${files[@]}"; do
             python3 -m json.tool "$f" > /dev/null
             echo "ok: $f"
+          done
+
+      - name: Validate release config
+        run: |
+          set -euo pipefail
+          for product in plugin server ui compose; do
+            CLAIRVOYANCE_RELEASE_PRODUCT="$product" node -e 'const config = require("./release.config.cjs"); if (!config.tagFormat || !config.plugins) throw new Error("release config missing tagFormat or plugins"); console.log(`ok: ${process.env.CLAIRVOYANCE_RELEASE_PRODUCT} ${config.tagFormat}`);'
           done
 
       - name: Check marketplace carries no version
@@ -86,6 +92,27 @@ jobs:
         # server advertises a version that disagrees with its package. Managed-side
         # analogue of the plugin manifest-parity gate above (see docs/versioning.md).
         run: python3 scripts/check_managed_version.py
+
+      - name: Check managed UI version parity
+        # The UI release writes the same version to package.json and the root
+        # package-lock entry; a hand edit to only one would make the UI release
+        # artifact disagree with its lockfile.
+        run: >
+          node -e "const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('managed/ui/package.json','utf8')).version;
+          const l=JSON.parse(fs.readFileSync('managed/ui/package-lock.json','utf8'));
+          const root=l.version;
+          const pkg=l.packages && l.packages[''] && l.packages[''].version;
+          if (p!==root || p!==pkg) throw new Error('managed UI version drift: package='+p+' lock='+root+' lockRoot='+pkg);
+          console.log('ok: managed UI version '+p+' matches package-lock');"
+
+      - name: Check compose version marker
+        # Compose releases have one explicit topology marker so topology-only
+        # releases do not pretend to release the server or UI binaries.
+        run: >
+          node -e "const v=require('fs').readFileSync('managed/compose.version','utf8').trim();
+          if (!/^[0-9]+\.[0-9]+\.[0-9]+$/.test(v)) throw new Error('managed/compose.version is not semver: '+v);
+          console.log('ok: compose version marker '+v);"
 
       - name: Validate hook scripts
         run: bash scripts/check_hooks.sh

@@ -12,6 +12,18 @@ on:
     # Mondays at 01:17 UTC (~10:17 JST). Off-minute by GitHub's own guidance.
     - cron: "17 1 * * 1"
   workflow_dispatch:
+    inputs:
+      product:
+        description: Product release line to run.
+        type: choice
+        required: true
+        default: all
+        options:
+          - all
+          - plugin
+          - server
+          - ui
+          - compose
 
 permissions:
   contents: write
@@ -19,20 +31,37 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.event.inputs.product || 'scheduled' }}
   cancel-in-progress: false
 
 jobs:
   release:
+    name: release-${{ matrix.product }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        product: [plugin, server, ui, compose]
     steps:
+      - name: Check selected product
+        id: selection
+        run: |
+          requested="${{ github.event.inputs.product || 'all' }}"
+          if [ "$requested" = "all" ] || [ "$requested" = "${{ matrix.product }}" ]; then
+            echo "selected=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "selected=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Harden runner
+        if: steps.selection.outputs.selected == 'true'
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout
+        if: steps.selection.outputs.selected == 'true'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           # Full history + tags so semantic-release can find the last tag and the
@@ -44,18 +73,30 @@ jobs:
           persist-credentials: true
           token: ${{ secrets.RELEASE_TOKEN || github.token }}
 
-      - name: Require a baseline tag
+      - name: Check baseline tag
+        if: steps.selection.outputs.selected == 'true'
+        id: baseline
         # semantic-release recognizes prior releases only through tags matching
-        # tagFormat (v-prefixed semver). A bare or unrelated tag would let a naive
-        # "any tag" check pass yet still cut 1.0.0, so require a v-prefixed semver
-        # tag (see docs/versioning.md); fail loudly rather than silently releasing 1.0.0.
+        # tagFormat. A bare or unrelated tag would let a naive "any tag" check
+        # pass yet still cut 1.0.0, so require a product-prefixed semver tag (see
+        # docs/versioning.md). Missing baselines skip the product release rather
+        # than letting semantic-release silently cut 1.0.0.
         run: |
-          if [ -z "$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*')" ]; then
-            echo "::error::No v-prefixed semver tag found. Seed the 0.x baseline first: git tag v0.1.0 && git push origin v0.1.0"
-            exit 1
+          product="${{ matrix.product }}"
+          if [ "$product" = "plugin" ]; then
+            baseline="plugin-v0.3.0"
+          else
+            baseline="${product}-v0.1.0"
+          fi
+          if ! git tag --list "${product}-v*" | grep -E -q "^${product}-v[0-9]+\\.[0-9]+\\.[0-9]+$"; then
+            echo "::notice::No ${product}-prefixed semver baseline tag found. Seed it first: git tag ${baseline} && git push origin ${baseline}"
+            echo "has_baseline=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_baseline=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Cache npm packages for semantic-release
+        if: steps.baseline.outputs.has_baseline == 'true'
         # npx re-resolves and downloads the 8 packages (plus transitive deps)
         # from the registry on every run since there is no lockfile to key a
         # setup-node cache off of (see the "Run semantic-release" step comment
@@ -66,12 +107,14 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.npm
-          key: npm-semantic-release-${{ hashFiles('.github/workflows/release.yml') }}
+          key: npm-semantic-release-${{ hashFiles('.github/workflows/release.yml', 'release.config.cjs') }}
           restore-keys: |
             npm-semantic-release-
 
       - name: Run semantic-release
+        if: steps.baseline.outputs.has_baseline == 'true'
         env:
+          CLAIRVOYANCE_RELEASE_PRODUCT: ${{ matrix.product }}
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
         # Versions pinned by major. semantic-release runs on the runner's
         # preinstalled Node; no node manifest is committed to this Python repo.
