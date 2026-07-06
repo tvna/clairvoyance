@@ -10,21 +10,31 @@ not cosmetic — it determines the release.
 |--------|----------------|---------|
 | `feat:` | minor | a new skill, eval, or capability |
 | `fix:` | patch | a correction to existing behavior |
-| `feat!:` / `fix!:` or `BREAKING CHANGE:` footer | major | a backward-incompatible change |
+| `feat!:` / `fix!:` or `BREAKING CHANGE:` footer | minor while 0.x; major after 1.0 | a backward-incompatible change |
 | `docs:` `chore:` `test:` `refactor:` `ci:` | none | no release on their own |
 
-**Product scope (required for releasing changes).** The repository ships two
-products with independent version lines, so carry the product in the commit scope
-so the right one releases and only its changelog is touched:
+**Product scope (required for releasing changes).** The repository ships more
+than one product with independent version lines, so carry the product in the
+commit scope so the right one releases and only its changelog is touched:
 
 | Scope | Product | Releases | Owns |
 |-------|---------|----------|------|
 | `(plugin)` | plugin bundle | `plugin-vX.Y.Z` | `skills/`, `hooks/`, `*/plugin.json` |
-| `(managed)` | managed server | `managed-vX.Y.Z` | `managed/server/app/`, `managed/server/alembic/`, `managed/server/pyproject.toml` |
+| `(server)` | managed backend | `server-vX.Y.Z` | `managed/server/app/`, `managed/server/alembic/`, `managed/server/pyproject.toml` |
+| `(ui)` | managed admin UI | `ui-vX.Y.Z` | `managed/ui/` |
+| `(compose)` | managed deployment topology | `compose-vX.Y.Z` | `managed/docker-compose*.yml`, `managed/dev/` |
 
-For example `feat(plugin): ...`, `fix(managed): ...`. Infrastructure-only commits
-(`ci:`, `chore:`) do not release unless they alter a shipped artifact; if one PR
-touches both products, make both release impacts explicit.
+For example `feat(plugin): ...`, `fix(server): ...`, `feat(ui): ...`, or
+`fix(compose): ...`. Infrastructure-only commits (`ci:`, `chore:`) do not release
+unless they alter a shipped artifact; if one PR touches multiple products, make
+each release impact explicit.
+
+During the staged rollout, [docs/versioning.md](docs/versioning.md) remains the
+source of truth for live-vs-target release behavior. The live plugin release
+config filters `server`, `ui`, and `compose` scopes out of the plugin release
+path (like the legacy `managed` scope), and the dedicated server/ui/compose
+release lines have not landed yet, so commits with those scopes currently
+produce no release at all.
 
 While a product is on `0.x.x`, a breaking change bumps **minor** (not major) —
 the version stays below `1.0.0` until that product's surface is declared stable

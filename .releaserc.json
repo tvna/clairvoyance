@@ -9,7 +9,10 @@
         "preset": "conventionalcommits",
         "releaseRules": [
           { "breaking": true, "release": "minor" },
-          { "scope": "managed", "release": false }
+          { "scope": "managed", "release": false },
+          { "scope": "server", "release": false },
+          { "scope": "ui", "release": false },
+          { "scope": "compose", "release": false }
         ]
       }
     ],
