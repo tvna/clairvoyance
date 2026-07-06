@@ -31,8 +31,10 @@ each release impact explicit.
 
 During the staged rollout, [docs/versioning.md](docs/versioning.md) remains the
 source of truth for live-vs-target release behavior. The live plugin release
-config does not yet filter `server`, `ui`, or `compose` scopes out of the plugin
-release path, so do not rely on those scopes alone to prevent a plugin release.
+config filters `server`, `ui`, and `compose` scopes out of the plugin release
+path (like the legacy `managed` scope), and the dedicated server/ui/compose
+release lines have not landed yet, so commits with those scopes currently
+produce no release at all.
 
 While a product is on `0.x.x`, a breaking change bumps **minor** (not major) —
 the version stays below `1.0.0` until that product's surface is declared stable

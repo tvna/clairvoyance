@@ -28,8 +28,8 @@ This is the adopted **direction**; the migration is staged so it stays reversibl
 
 - **Live now:** this documentation of the product-scoped model, the server
   version-parity CI gate that still lives at `scripts/check_managed_version.py`,
-  and a commit-analyzer rule so a legacy `managed`-scoped commit cannot cut a
-  plugin release (`.releaserc.json`).
+  and commit-analyzer rules so `server`-, `ui`-, `compose`-, and legacy
+  `managed`-scoped commits cannot cut a plugin release (`.releaserc.json`).
 - **Staged (later slices):** the plugin release line moving to `plugin-v` tags,
   plugin release-notes filtering, the `server`/`ui`/`compose` release workflows,
   axis-specific drift gates, and baseline tags. Until those land, the plugin
@@ -124,10 +124,10 @@ feat(compose): ...  fix(compose): ...  docs(compose): ...
 ```
 
 These four scopes are the target contributor model. During the staged rollout,
-only the plugin release automation is live, and that live config does **not** yet
-filter `server`, `ui`, or `compose` scopes out of the plugin release path; it only
-suppresses the legacy `managed` scope. Until the release-config split lands, do
-not rely on `server`/`ui`/`compose` scopes alone to prevent a plugin release.
+only the plugin release automation is live; its commit analyzer suppresses the
+`server`, `ui`, and `compose` scopes along with the legacy `managed` scope, so
+none of them can cut a plugin release. Until the release-config split lands,
+commits carrying those scopes produce no release at all.
 
 Infrastructure-only commits (`ci:`, `chore:`) do not release unless they alter a
 shipped artifact. If one PR changes multiple products, make each release impact
@@ -173,19 +173,18 @@ changelog, commits them, creates the product-prefixed git tag, and publishes a
 GitHub Release with generated notes.
 
 **plugin** (`.releaserc.json`, `.github/workflows/release.yml`) exists today and
-writes both `plugin.json` manifests and `CHANGELOG.md`. A commit-analyzer rule
-(`{ "scope": "managed", "release": false }`) keeps any `managed`-scoped commit --
-including one marked as breaking -- from cutting a plugin release. **Order
-matters:** commit-analyzer keeps the *last* matching rule's release when `false`
-competes with a real release type, so the `release: false` rule must sit **after**
-the `breaking -> minor` rule in `releaseRules`, or a breaking managed commit would
+writes both `plugin.json` manifests and `CHANGELOG.md`. Commit-analyzer rules
+(`{ "scope": ..., "release": false }` for `managed`, `server`, `ui`, and
+`compose`) keep any commit carrying those scopes -- including one marked as
+breaking -- from cutting a plugin release. **Order matters:** commit-analyzer
+keeps the *last* matching rule's release when `false` competes with a real
+release type, so the `release: false` rules must sit **after** the
+`breaking -> minor` rule in `releaseRules`, or a breaking scoped commit would
 be upgraded back to a plugin minor release. It still uses the legacy `v${version}`
 tag format, so it is not yet enabled for independent product releases: the
-`plugin-v` rename and the release-notes filtering (so managed commits also drop
-out of the plugin release notes, not just the version bump) land as one verified
-unit in the release-config split slice. Until that slice lands, the target
-`server`/`ui`/`compose` scopes are not automation filters for the live plugin
-release path.
+`plugin-v` rename and the release-notes filtering (so filtered-scope commits also
+drop out of the plugin release notes, not just the version bump) land as one
+verified unit in the release-config split slice.
 
 **server** (tag `server-vX.Y.Z`, writes `managed/server/pyproject.toml` +
 `managed/server/app/main.py`, updates `managed/server/CHANGELOG.md`, tags the
@@ -203,8 +202,9 @@ rollout slice.
 The migration is staged so it stays reversible until releases are enabled (design:
 issue #53):
 
-1. Land docs, the server version-parity drift gate, and the commit-analyzer rule
-   that drops `managed`-scoped commits from the plugin release. **(done)**
+1. Land docs, the server version-parity drift gate, and the commit-analyzer rules
+   that drop `managed`-, `server`-, `ui`-, and `compose`-scoped commits from the
+   plugin release. **(done)**
 2. Split release configs and workflows per product: rename the plugin tag format to
    `plugin-v`, add plugin-scoped release-notes filtering, add the server, ui, and
    compose release configs + workflows, and the release-config drift gates
