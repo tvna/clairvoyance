@@ -13,7 +13,10 @@ the session threshold to 0 to isolate the signal gate.
 """
 
 import os
+import sqlite3
 import subprocess
+import threading
+import time
 
 import pytest
 from conftest import (
@@ -49,7 +52,8 @@ def test_record_accumulates_until_threshold(tmp_path):
 
     Only raw observations count: a quiz-outcome record is stored (its metadata
     persists, see the quiz-metadata tests) but never adds readiness signal
-    (issue #89, finding F4, option B)."""
+    (issue #89, finding F4, option B). And the signal must actually recur:
+    crossing the total with singletons alone stays not-ready (issue #89, F6)."""
     data_dir = tmp_path / "store"
     first = run(["record", "--category", "avoidance"], data_dir, coach_threshold=2)
     assert first["recorded"] is True
@@ -58,23 +62,96 @@ def test_record_accumulates_until_threshold(tmp_path):
 
     second = run(["record", "--category", "loss-aversion"], data_dir, coach_threshold=2)
     assert second["count"] == 2
-    assert second["ready"] is True
+    assert second["ready"] is False  # total met, but no category recurs (F6)
+
+    third = run(["record", "--category", "avoidance"], data_dir, coach_threshold=2)
+    assert third["count"] == 3
+    assert third["ready"] is True  # avoidance recurs
 
     answered = run(["record", "--category", "loss-aversion", "--outcome", "incorrect"], data_dir, coach_threshold=2)
     assert answered["recorded"] is True
-    assert answered["count"] == 2  # outcome rows do not count toward readiness
+    assert answered["count"] == 3  # outcome rows do not count toward readiness
 
     status = run(["status"], data_dir, coach_threshold=2)
     assert status == {
         "available": True,
-        "count": 2,
+        "count": 3,
         "threshold": 2,
         "sessions": 0,
         "session_threshold": 0,
         "ready": True,
         "distinct_categories": 2,
-        "by_category": {"avoidance": 1, "loss-aversion": 1},
+        "by_category": {"avoidance": 2, "loss-aversion": 1},
     }
+
+
+@needs_sqlite3
+def test_recurrence_requires_spread_across_sessions_when_linked(tmp_path):
+    """Fix for finding F7 (issue #89): with session linkage on every raw row,
+    the recurring category must span at least two distinct sessions -- a
+    same-session burst is not across-session recurrence."""
+    data_dir = tmp_path / "store"
+    run(["record-session"], data_dir, session_threshold=1)
+    run(["record", "--category", "avoidance"], data_dir, coach_threshold=2, session_threshold=1)
+    burst = run(["record", "--category", "avoidance"], data_dir, coach_threshold=2, session_threshold=1)
+    assert burst["count"] == 2
+    assert burst["ready"] is False  # both rows sit in session 1
+    run(["record-session"], data_dir, session_threshold=1)
+    spread = run(["record", "--category", "avoidance"], data_dir, coach_threshold=2, session_threshold=1)
+    assert spread["ready"] is True  # avoidance now spans sessions 1 and 2
+
+
+@needs_sqlite3
+def test_unlinked_rows_grandfather_the_spread_requirement(tmp_path):
+    """Raw rows recorded before any session was ever counted carry no session
+    linkage (NULL session_seen), so the spread requirement is waived and the
+    per-category repeat floor alone gates readiness (issue #89, F7)."""
+    data_dir = tmp_path / "store"
+    run(["record", "--category", "avoidance"], data_dir, coach_threshold=2)
+    out = run(["record", "--category", "avoidance"], data_dir, coach_threshold=2)
+    assert out["count"] == 2
+    assert out["ready"] is True  # record-session never ran: no linkage to judge
+
+
+@needs_sqlite3
+def test_legacy_store_without_session_seen_is_served_and_migrated(tmp_path):
+    """A pre-F7 db (no session_seen column) keeps its readiness untouched on
+    status (grandfathered -- status must not write, see the read-only-store
+    test), and the next record migrates the schema in place."""
+    data_dir = tmp_path / "store"
+    data_dir.mkdir(parents=True)
+    conn = sqlite3.connect(str(data_dir / "coaching.db"))
+    conn.executescript(
+        "CREATE TABLE observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL,"
+        " category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT, context TEXT,"
+        " confidence TEXT, calibration TEXT, due_at TEXT);"
+        "CREATE TABLE meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);"
+        "INSERT INTO meta VALUES ('sessions', 60);"
+        "INSERT INTO observations (ts, category) VALUES"
+        " ('2999-01-01T00:00:00+00:00', 'avoidance'),"
+        " ('2999-01-02T00:00:00+00:00', 'avoidance'),"
+        " ('2999-01-03T00:00:00+00:00', 'avoidance');"
+    )
+    conn.commit()
+    conn.close()
+    status = run(["status"], data_dir, coach_threshold=3, session_threshold=50)
+    assert status["available"] is True
+    assert status["ready"] is True  # legacy rows keep their pre-F7 semantics
+    run(["record", "--category", "avoidance"], data_dir, coach_threshold=3, session_threshold=50)
+    rows = fetch_all(data_dir / "coaching.db", "SELECT session_seen FROM observations ORDER BY id")
+    assert rows == [(None,), (None,), (None,), (60,)]  # migrated; only the new row is linked
+
+
+@needs_sqlite3
+def test_coach_threshold_one_keeps_single_instance_opt_in(tmp_path):
+    """The recurrence floor is min(2, threshold), so the documented
+    CLAIRVOYANCE_COACH_THRESHOLD=1 opt-in still reaches ready on one linked
+    observation -- the gate must not recreate the F2-class never-ready trap."""
+    data_dir = tmp_path / "store"
+    run(["record-session"], data_dir, session_threshold=1)
+    out = run(["record", "--category", "avoidance"], data_dir, coach_threshold=1, session_threshold=1)
+    assert out["count"] == 1
+    assert out["ready"] is True
 
 
 @needs_sqlite3
@@ -192,6 +269,64 @@ def test_status_on_readonly_store_serves_readable_data(tmp_path):
     assert out["available"] is True
     assert out["count"] == 1
     assert out["ready"] is True
+
+
+@needs_sqlite3
+def test_record_waits_out_a_concurrent_writer(tmp_path):
+    """A concurrent writer holding the SQLite write lock does not fail a
+    record call: the store's busy_timeout (2000ms) makes it wait, per the
+    volatility contract in docs/hooks.md (issue #98, gate 2)."""
+    data_dir = tmp_path / "store"
+    # The first record creates the schema and, timed, calibrates the proof
+    # window below to this runner's real speed. An uncontended record reaches
+    # its INSERT in strictly less than its full runtime, so holding the lock
+    # for one whole baseline guarantees the contended record has reached and
+    # blocked on its INSERT before we release -- no fixed scheduling guess.
+    baseline_start = time.monotonic()
+    run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
+    baseline = time.monotonic() - baseline_start
+    db = data_dir / "coaching.db"
+
+    lock_acquired = threading.Event()
+    release_lock = threading.Event()
+
+    def hold_write_lock() -> None:
+        conn = sqlite3.connect(str(db), timeout=5, isolation_level=None)
+        conn.execute("BEGIN IMMEDIATE;")  # takes the RESERVED write lock at once
+        lock_acquired.set()
+        release_lock.wait(10)
+        conn.execute("ROLLBACK;")
+        conn.close()
+
+    locker = threading.Thread(target=hold_write_lock)
+    locker.start()
+    assert lock_acquired.wait(5), "lock holder never acquired the write lock"
+
+    result: dict[str, dict[str, object]] = {}
+
+    def do_record() -> None:
+        result["out"] = run(["record", "--category", "avoidance"], data_dir, coach_threshold=1)
+
+    recorder = threading.Thread(target=do_record)
+    recorder.start()
+
+    # Anchor the release to observed contention, not a timer started before the
+    # subprocess even spawns: wait one uncontended baseline (kept under the 2s
+    # busy_timeout), by which point the contended record must be blocked on the
+    # held lock. Still running here proves it waited; a broken/removed
+    # busy_timeout would instead fail its INSERT fast and finish inside the
+    # window, so is_alive() would be False and the test would catch it (#98).
+    proof_window = min(max(baseline, 0.3), 1.5)
+    recorder.join(proof_window)
+    assert recorder.is_alive(), "record did not block on the held write lock (busy_timeout not honored?)"
+
+    release_lock.set()
+    recorder.join(5)
+    locker.join()
+
+    assert not recorder.is_alive(), "record never completed after the lock was released"
+    assert result["out"]["available"] is True
+    assert result["out"]["recorded"] is True
 
 
 def test_record_requires_category(tmp_path):

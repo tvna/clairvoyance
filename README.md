@@ -80,14 +80,17 @@ dependencies:
     - tvna/clairvoyance
 ```
 
-### What the hook does
+### What the hooks do
 
 The plugin registers a `SessionStart` hook that injects the `using-clairvoyance`
-bootstrap skill (and the project owner's language) at session start, clear, and
+bootstrap skill (and the operator's native language) at session start, clear, and
 compaction. Claude Code reads `hooks/hooks.json` and Codex reads
 `hooks/codex-hooks.json`; both route through the same
 `hooks/run-hook.cmd` wrapper, differing only in the plugin-root variable each
-runtime substitutes. See [docs/hooks.md](docs/hooks.md).
+runtime substitutes. Claude Code additionally registers a `UserPromptSubmit`
+hook that re-asserts the operator's language on every turn, so it can't drift
+across a long session the way a single SessionStart injection can. See
+[docs/hooks.md](docs/hooks.md).
 
 ## Repository layout
 

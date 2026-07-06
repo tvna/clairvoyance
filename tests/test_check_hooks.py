@@ -122,3 +122,51 @@ def test_session_start_legacy_committed_file_is_migration_hint_only(tmp_path):
     assert "not recorded" in context
     assert "native language is 'Japanese'" not in context
     assert "legacy committed language file" in context
+
+
+def _run_user_prompt_language(env_overrides=None):
+    """Run the UserPromptSubmit hook in isolation (no session/project state)."""
+    env = {**os.environ}
+    env.pop("CLAIRVOYANCE_OPERATOR_LANGUAGE", None)
+    if env_overrides:
+        env.update(env_overrides)
+    return subprocess.run(
+        ["bash", str(REPO_ROOT / "hooks/user-prompt-language.sh")],
+        capture_output=True,
+        text=True,
+        env=env,
+        input="",
+    )
+
+
+def _prompt_context(result):
+    """UserPromptSubmit context is nested under hookSpecificOutput, same as
+    SessionStart's (issue #119)."""
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+
+
+def test_user_prompt_language_reinforces_set_language():
+    """Every turn re-asserts the operator language, naming it explicitly (issue
+    #116: a long session drifted back to English despite a correct SessionStart
+    injection)."""
+    context = _prompt_context(_run_user_prompt_language({"CLAIRVOYANCE_OPERATOR_LANGUAGE": "Japanese"}))
+    assert "in 'Japanese'" in context
+    assert "in-progress status" in context
+
+
+def test_user_prompt_language_falls_back_when_unset():
+    """With no env var set, the reminder is generic -- it cannot name a language
+    it was never told, but still tells the agent not to drift."""
+    context = _prompt_context(_run_user_prompt_language())
+    assert "in 'Japanese'" not in context
+    assert "AskUserQuestion handoff" in context
+    assert "in-progress status" in context
+
+
+def test_user_prompt_language_escapes_control_characters():
+    """A control char in the env value must still yield valid JSON, same
+    regression shape as the SessionStart hook."""
+    result = _run_user_prompt_language({"CLAIRVOYANCE_OPERATOR_LANGUAGE": "Japanese\x0c"})
+    assert result.returncode == 0, result.stderr
+    json.loads(result.stdout)  # raises if the hook emitted invalid JSON

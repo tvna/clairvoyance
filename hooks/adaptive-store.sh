@@ -11,8 +11,12 @@
 # Coaching is gated on two counters so a first-time user is never quizzed early:
 #   1. a grace period -- the first ~50 chat sessions (CLAIRVOYANCE_SESSION_THRESHOLD)
 #      record no coaching, and
-#   2. accumulated adaptive signal (CLAIRVOYANCE_COACH_THRESHOLD observations).
-# `ready` is true only once BOTH thresholds are met.
+#   2. accumulated adaptive signal (CLAIRVOYANCE_COACH_THRESHOLD observations),
+#      which must actually recur: at least one category needs min(2, threshold)
+#      raw observations, spanning that many DISTINCT sessions when every raw row
+#      carries session linkage (issue #89, F6/F7). Scattered singletons and
+#      single-session bursts hold even when the total crosses the threshold.
+# `ready` is true only once ALL gates are met.
 #
 # The store is backed by the `sqlite3` CLI (e.g. `choco install sqlite` on
 # Windows; usually present on macOS/Linux). There is no Python fallback: if the
@@ -273,7 +277,7 @@ command -v sqlite3 >/dev/null 2>&1 || emit "$(unavailable_json)"
 # --- sqlite3 store -----------------------------------------------------------
 data_dir="$(resolve_data_dir)"
 db="${data_dir}/coaching.db"
-schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT, context TEXT, confidence TEXT, calibration TEXT, due_at TEXT); CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);"
+schema="CREATE TABLE IF NOT EXISTS observations (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, category TEXT NOT NULL, signal TEXT, outcome TEXT, session_kind TEXT, context TEXT, confidence TEXT, calibration TEXT, due_at TEXT, session_seen INTEGER); CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);"
 # Wait briefly for a concurrent writer instead of failing, so simultaneous
 # SessionStarts (multiple windows, compact storms) do not drop session counts.
 # The `.timeout` dot-command sets the busy timeout silently; a `PRAGMA
@@ -305,7 +309,23 @@ ensure_schema() {
     *"|due_at|"*) : ;;
     *) sqlite3 "${busy_opts[@]}" "${db}" "ALTER TABLE observations ADD COLUMN due_at TEXT;" 2>/dev/null || return 1 ;;
   esac
+  case "${cols}" in
+    *"|session_seen|"*) : ;;
+    *) sqlite3 "${busy_opts[@]}" "${db}" "ALTER TABLE observations ADD COLUMN session_seen INTEGER;" 2>/dev/null || return 1 ;;
+  esac
   return 0
+}
+
+# Whether the observations table already carries session linkage. The status
+# path never runs ensure_schema (its ALTERs would fail on a read-only store,
+# which must still be served), so a legacy db can legitimately lack the column.
+has_session_seen() {
+  local cols
+  cols="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "PRAGMA table_info(observations);" 2>/dev/null)" || return 1
+  case "${cols}" in
+    *"|session_seen|"*) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 prune_observations() {
@@ -356,9 +376,45 @@ read_sessions() {
   printf '%s' "${v}"
 }
 
+# Recurrence gate (issue #89, F6/F7): readiness needs a category that actually
+# recurs, not just a total that crosses the threshold. Sets the repeat_ok /
+# spread_ok globals read by combined_ready. SELECT/PRAGMA only, so the
+# read-only status path stays servable (the F1/#93 lesson: readiness is
+# expressed on the read path, never via writes).
+repeat_ok=1
+spread_ok=1
+compute_recurrence() {
+  # The floor is min(2, threshold) so the documented COACH_THRESHOLD=1
+  # opt-in still reaches ready -- an unconditional 2 would recreate the
+  # F2-class silent never-ready trap.
+  local needed=2 maxrep nulls maxspread
+  [ "${limit}" -lt 2 ] && needed=1
+  # F6: at least one category with >= needed raw observations. Scattered
+  # singletons cross the total without any recurring pattern to quiz.
+  maxrep="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "SELECT COALESCE(MAX(c), 0) FROM (SELECT COUNT(*) AS c FROM observations WHERE outcome IS NULL GROUP BY category);" 2>/dev/null)" || return 1
+  repeat_ok=0
+  [ "${maxrep}" -ge "${needed}" ] && repeat_ok=1
+  # F7: that category must span >= needed DISTINCT sessions -- a burst inside
+  # one session is not across-session recurrence. Enforced only when every raw
+  # row carries linkage: a legacy db without the column, or rows recorded
+  # before any session was counted (NULL session_seen), grandfather the
+  # pre-F7 semantics until they rotate out of the store.
+  spread_ok=1
+  if has_session_seen; then
+    nulls="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "SELECT EXISTS(SELECT 1 FROM observations WHERE outcome IS NULL AND session_seen IS NULL);" 2>/dev/null)" || return 1
+    if [ "${nulls}" = "0" ]; then
+      maxspread="$(sqlite3 "${busy_opts[@]}" -noheader "${db}" "SELECT COALESCE(MAX(c), 0) FROM (SELECT COUNT(DISTINCT session_seen) AS c FROM observations WHERE outcome IS NULL GROUP BY category);" 2>/dev/null)" || return 1
+      spread_ok=0
+      [ "${maxspread}" -ge "${needed}" ] && spread_ok=1
+    fi
+  fi
+  return 0
+}
+
 combined_ready() {
-  # $1 = observation total, $2 = session count. Both gates must pass.
-  if [ "$1" -ge "${limit}" ] && [ "$2" -ge "${session_limit}" ]; then printf 'true'; else printf 'false'; fi
+  # $1 = observation total, $2 = session count. Every gate must pass: total
+  # signal, session grace, and recurrence (compute_recurrence ran just before).
+  if [ "$1" -ge "${limit}" ] && [ "$2" -ge "${session_limit}" ] && [ "${repeat_ok}" = "1" ] && [ "${spread_ok}" = "1" ]; then printf 'true'; else printf 'false'; fi
 }
 
 case "${cmd}" in
@@ -395,13 +451,18 @@ case "${cmd}" in
       ctx="$(redact_secrets "${context}")"
     fi
     ensure_schema || emit "$(unavailable_json)"
+    # session_seen carries the anonymous session counter at record time (NULL
+    # before any session was counted) -- the linkage the recurrence gate's
+    # across-session spread check reads. Same-statement subselect, so the value
+    # cannot race a concurrent record-session increment.
     if ! sqlite3 "${busy_opts[@]}" "${db}" \
-      "INSERT INTO observations (ts, category, signal, outcome, session_kind, context, confidence, calibration, due_at) VALUES ('${ts}', '${cat_value}', $(sql_value "${sig}"), $(sql_value "${outcome}"), $(sql_value "${skind}"), $(sql_text "${ctx}"), $(sql_value "${confidence}"), $(sql_value "${calibration}"), ${due_at_sql});" \
+      "INSERT INTO observations (ts, category, signal, outcome, session_kind, context, confidence, calibration, due_at, session_seen) VALUES ('${ts}', '${cat_value}', $(sql_value "${sig}"), $(sql_value "${outcome}"), $(sql_value "${skind}"), $(sql_text "${ctx}"), $(sql_value "${confidence}"), $(sql_value "${calibration}"), ${due_at_sql}, (SELECT value FROM meta WHERE key='sessions'));" \
       2>/dev/null; then
       emit "$(unavailable_json)"
     fi
     prune_observations || emit "$(unavailable_json)"
     if ! out="$(summary_json)"; then emit "$(unavailable_json)"; fi
+    compute_recurrence || emit "$(unavailable_json)"
     total="$(printf '%s' "${out}" | sed -n '1p')"
     distinct="$(printf '%s' "${out}" | sed -n '2p')"
     pairs="$(printf '%s' "${out}" | sed -n '3p')"
@@ -433,6 +494,7 @@ case "${cmd}" in
     # read path (counts may then include rows past the rotation bounds).
     prune_observations || printf 'adaptive-store.sh: status could not prune (store not writable?); counts may include rows past rotation bounds\n' >&2
     if ! out="$(summary_json)"; then emit "$(unavailable_json)"; fi
+    compute_recurrence || emit "$(unavailable_json)"
     total="$(printf '%s' "${out}" | sed -n '1p')"
     distinct="$(printf '%s' "${out}" | sed -n '2p')"
     pairs="$(printf '%s' "${out}" | sed -n '3p')"
