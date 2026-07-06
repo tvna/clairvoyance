@@ -140,10 +140,10 @@ def _run_user_prompt_language(env_overrides=None):
 
 
 def _prompt_context(result):
-    """UserPromptSubmit's additionalContext is top-level -- no hookSpecificOutput
-    wrapper, unlike SessionStart's."""
+    """UserPromptSubmit context is nested under hookSpecificOutput, same as
+    SessionStart's (issue #119)."""
     assert result.returncode == 0, result.stderr
-    return json.loads(result.stdout)["additionalContext"]
+    return json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
 
 
 def test_user_prompt_language_reinforces_set_language():

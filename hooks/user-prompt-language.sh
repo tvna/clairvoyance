@@ -23,4 +23,4 @@ else
 fi
 
 escaped="$(escape_json "$reminder")"
-printf '{\n  "additionalContext": "%s"\n}\n' "$escaped"
+printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "UserPromptSubmit",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped"

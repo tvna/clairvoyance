@@ -206,7 +206,12 @@ injection, in-progress status narration drifted back into English well into the
 session while only the final line of each turn stayed correct. `hooks/user-prompt-language.sh`
 registers a `UserPromptSubmit` hook that re-injects a short reminder on **every**
 turn — cheap (no skill-file reload, no store write, no added LLM call), since it
-fires far more often than `SessionStart`. It only reinforces adherence; `SessionStart`
+fires far more often than `SessionStart`. It emits its reminder as
+`hookSpecificOutput.additionalContext` with `hookEventName: "UserPromptSubmit"`,
+the same nested shape `session-start.sh` uses and the form Claude Code reads to
+inject `UserPromptSubmit` context alongside the prompt; a top-level
+`additionalContext` is valid JSON but is not read at runtime (issue #119). It only
+reinforces adherence; `SessionStart`
 remains the sole source that *establishes* the language (including the
 unrecorded-path `AskUserQuestion` handoff below) — the per-turn hook cannot ask
 that question itself, since `CLAIRVOYANCE_OPERATOR_LANGUAGE` is the only state it
