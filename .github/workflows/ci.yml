@@ -52,11 +52,7 @@ jobs:
           done
 
       - name: Validate release config
-        run: |
-          set -euo pipefail
-          for product in plugin server ui compose; do
-            CLAIRVOYANCE_RELEASE_PRODUCT="$product" node -e 'const config = require("./release.config.cjs"); if (!config.tagFormat || !config.plugins) throw new Error("release config missing tagFormat or plugins"); console.log(`ok: ${process.env.CLAIRVOYANCE_RELEASE_PRODUCT} ${config.tagFormat}`);'
-          done
+        run: node scripts/check_release_config.mjs
 
       - name: Check marketplace carries no version
         # The git tag / plugin.json own the version (see docs/versioning.md);
