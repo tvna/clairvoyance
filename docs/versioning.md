@@ -63,7 +63,7 @@ a product version axis.
 Bare `vX.Y.Z` tags are **legacy plugin release tags**. They are immutable history:
 they are **not rewritten or deleted**. Future plugin releases use the `plugin-v`
 namespace, no new bare `vX.Y.Z` tag is created, and the plugin baseline
-(`plugin-v0.3.0`) is cut at the same commit that the legacy `v0.3.0` plugin version
+(`plugin-v0.5.0`) is cut at the same commit that the legacy `v0.5.0` plugin version
 represents.
 
 ## Single source of truth: the git tag
@@ -194,8 +194,8 @@ issue #53):
 
 1. Land docs, version drift gates, product-aware release config, matrix workflow,
    and version apply support for all four axes. **(done)**
-2. Add the `plugin-v0.3.0`, `server-v0.1.0`, `ui-v0.1.0`, and `compose-v0.1.0`
-   baseline tags.
+2. Add the `plugin-v0.5.0`, `server-v0.1.0`, `ui-v0.1.0`, and `compose-v0.1.0`
+   baseline tags. **(done)**
 3. Dry-run release verification for plugin, server, ui, and compose.
 4. Enable scheduled/manual releases independently once each baseline exists.
 
@@ -228,11 +228,11 @@ inert until the token is issued.
 
 **One-time baseline tags.** semantic-release defaults the *first* release to `1.0.0`
 when no prior tag matches the product's `tagFormat`, so each product's baseline is
-seeded once in the release-config split slice, before its releases are enabled:
+seeded once in the release-config split slice:
 
 ```bash
-git tag plugin-v0.3.0
-git push origin plugin-v0.3.0
+git tag plugin-v0.5.0 v0.5.0
+git push origin plugin-v0.5.0
 
 git tag server-v0.1.0
 git push origin server-v0.1.0
@@ -246,7 +246,7 @@ git push origin compose-v0.1.0
 
 `release.yml` skips a product when no matching product-prefixed semver baseline
 exists, so a missing or wrongly-formatted baseline cannot silently cut `1.0.0`.
-The next plugin release then computes from `0.3.0` (`feat:` -> `0.4.0`, `fix:`
--> `0.3.1`).
+The next plugin release then computes from `0.5.0` (`feat:` -> `0.6.0`, `fix:`
+-> `0.5.1`).
 
 [semantic-release]: https://github.com/semantic-release/semantic-release

@@ -84,7 +84,7 @@ jobs:
         run: |
           product="${{ matrix.product }}"
           if [ "$product" = "plugin" ]; then
-            baseline="plugin-v0.3.0"
+            baseline="plugin-v0.5.0"
           else
             baseline="${product}-v0.1.0"
           fi
