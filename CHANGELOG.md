@@ -1,3 +1,9 @@
+## [0.5.1](https://github.com/tvna/clairvoyance/compare/plugin-v0.5.0...plugin-v0.5.1) (2026-07-07)
+
+### fix
+
+* **plugin:** prevent release rule scope crash (#130) ([](https://github.com/tvna/clairvoyance/commit/442def3476ea95457b7b4b5a3ba49663417b17f6)), closes [#130](https://github.com/tvna/clairvoyance/issues/130)
+
 ## [0.5.0](https://github.com/tvna/clairvoyance/compare/v0.4.0...v0.5.0) (2026-07-06)
 
 ### Features
