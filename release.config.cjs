@@ -51,9 +51,11 @@ module.exports = {
       {
         preset: "conventionalcommits",
         releaseRules: [
+          { type: "feat", release: false },
+          { type: "fix", release: false },
+          { type: "perf", release: false },
+          { breaking: true, release: false },
           { scope: "*", release: false },
-          { scope: null, release: false },
-          { scope: "", release: false },
           { scope: product, breaking: true, release: "minor" },
           { scope: product, type: "feat", release: "minor" },
           { scope: product, type: "fix", release: "patch" },
