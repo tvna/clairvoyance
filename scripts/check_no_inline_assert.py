@@ -47,10 +47,14 @@ HOOKS_DIR = REPO_ROOT / "hooks"
 _TARGET_SUFFIX = ".sh"
 _TARGET_NAMES = {"run-hook.cmd"}
 
-# `python3 ... -c` invocation. `[^\n]*\s-c\b` lets other flags precede `-c`
-# while the trailing `\b` keeps a long option like `--check` from matching
-# (`-c` immediately followed by the word-char `h` has no boundary there).
-_PYTHON_C = re.compile(r"\bpython3?\b[^\n]*\s-c\b")
+# `python3 ... -c` invocation, including single-dash clusters like `-Oc` /
+# `-Ic` (Python treats `-c` as ending the cluster and consuming the rest of
+# the line as the command, so `-Oc "assert ..."` runs under `-O` exactly
+# like `-O -c "assert ..."` -- and strips the assert). `[^\n]*\s-[A-Za-z]*c\b`
+# lets other single-letter flags precede the `c`, while the trailing `\b`
+# keeps a long option like `--check` from matching (the `c` there is
+# immediately followed by the word-char `h`, so no boundary).
+_PYTHON_C = re.compile(r"\bpython3?\b[^\n]*\s-[A-Za-z]*c\b")
 # `assert ` or `assert(` used as a validation call, not as a substring of a
 # longer identifier.
 _ASSERT = re.compile(r"\bassert[\s(]")

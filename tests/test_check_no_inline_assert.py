@@ -49,6 +49,16 @@ class TestFindViolations:
         script = write(tmp_path / "check.sh", 'python3 -c "assert(True)"\n')
         assert len(cnia.find_violations([script])) == 1
 
+    def test_flags_clustered_optimize_flag(self, tmp_path: Path) -> None:
+        # `-Oc` strips assert exactly like `-O -c`, so it must be caught too
+        # (this is the failure class the gate exists to prevent).
+        script = write(tmp_path / "check.sh", 'python3 -Oc "assert False"\n')
+        assert len(cnia.find_violations([script])) == 1
+
+    def test_flags_clustered_isolated_flag(self, tmp_path: Path) -> None:
+        script = write(tmp_path / "check.sh", 'python3 -Ic "assert False"\n')
+        assert len(cnia.find_violations([script])) == 1
+
     def test_sys_exit_form_is_not_flagged(self, tmp_path: Path) -> None:
         script = write(tmp_path / "check.sh", 'python3 -c "sys.exit(0 if True else 1)"\n')
         assert cnia.find_violations([script]) == []
