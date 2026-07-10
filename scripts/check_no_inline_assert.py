@@ -8,22 +8,25 @@ green while the check it was meant to enforce never runs. This exact failure
 happened in ``scripts/check_hooks.sh`` during PR #120 (issue #121, "green
 gate, wrong shape") and was repaired by switching to ``sys.exit(...)``. This
 script generalizes that repair into a permanent, repo-wide gate: no
-shell-invoked ``python -c`` line under ``scripts/`` or ``hooks/`` may use
+shell-invoked ``python -c`` line under ``scripts/``, ``hooks/``, or
+``.github/workflows/`` (a YAML ``run:`` block is shell too) may use
 ``assert`` for validation.
 
 Detection is line-based: a physical line must contain both a
-``python``/``python3 ... -c`` invocation and a word-boundary ``assert``
-(``assert `` or ``assert(``) to be flagged. Known trade-offs (YAGNI for a
-first version):
+``python``/``python3``/``py`` ``-c`` invocation and a word-boundary
+``assert`` (``assert `` or ``assert(``) appearing at or after that
+invocation to be flagged; whole-line shell comments (``#...``) are skipped
+so prose merely mentioning both words is not a violation. Known trade-offs
+(YAGNI for a first version):
 
-- A ``python3 -c`` invocation whose heredoc body spans multiple physical
+- A ``python -c`` invocation whose heredoc body spans multiple physical
   lines, with the ``assert`` on a different line than the ``-c``, is not
   caught. No such multi-line form exists in this repo today; catching it
   would require logical-line reconstruction.
-- A line containing the literal substring "assert" inside an unrelated
-  string (not a validation assertion) on the same line as a ``python -c``
-  invocation is a false positive. Not addressed in v1; an inline
-  allow-comment convention can be added if this bites.
+- A trailing comment or string literal that contains "assert" *after* a
+  real ``python -c`` invocation on the same physical line is still a
+  possible false positive. Not addressed in v1; an inline allow-comment
+  convention can be added if this bites.
 
 Stdlib only, mirroring ``check_doc_test_refs.py`` and
 ``check_managed_version.py``.
@@ -39,22 +42,24 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 HOOKS_DIR = REPO_ROOT / "hooks"
+WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
-# Files matching this suffix, or this exact name, are shell-invoked python
-# hosts in scope for this gate. Kept as data (suffix + allow-listed name)
-# rather than an enumeration of specific files, so scope grows with the
-# directories scanned, not with special-cased branches.
-_TARGET_SUFFIX = ".sh"
+# Files matching one of these suffixes, or one of these exact names, are
+# shell-invoked python hosts in scope for this gate. A GitHub Actions
+# `run:` block is embedded shell too, hence the yaml suffixes alongside .sh;
+# run-hook.cmd is the one non-.sh polyglot host that also embeds shell.
+_TARGET_SUFFIXES = {".sh", ".yml", ".yaml"}
 _TARGET_NAMES = {"run-hook.cmd"}
 
-# `python3 ... -c` invocation, including single-dash clusters like `-Oc` /
-# `-Ic` (Python treats `-c` as ending the cluster and consuming the rest of
-# the line as the command, so `-Oc "assert ..."` runs under `-O` exactly
-# like `-O -c "assert ..."` -- and strips the assert). `[^\n]*\s-[A-Za-z]*c\b`
-# lets other single-letter flags precede the `c`, while the trailing `\b`
-# keeps a long option like `--check` from matching (the `c` there is
-# immediately followed by the word-char `h`, so no boundary).
-_PYTHON_C = re.compile(r"\bpython3?\b[^\n]*\s-[A-Za-z]*c\b")
+# `python`/`python3`/`py` (the Windows launcher) `-c` invocation, including
+# single-dash clusters like `-Oc` / `-Ic` (Python treats `-c` as ending the
+# cluster and consuming the rest of the line as the command, so
+# `-Oc "assert ..."` runs under `-O` exactly like `-O -c "assert ..."` --
+# and strips the assert). `[^\n]*\s-[A-Za-z]*c\b` lets other single-letter
+# flags precede the `c`, while the trailing `\b` keeps a long option like
+# `--check` from matching (the `c` there is immediately followed by the
+# word-char `h`, so no boundary).
+_PYTHON_C = re.compile(r"\b(?:python3?|py)\b[^\n]*\s-[A-Za-z]*c\b")
 # `assert ` or `assert(` used as a validation call, not as a substring of a
 # longer identifier.
 _ASSERT = re.compile(r"\bassert[\s(]")
@@ -67,7 +72,7 @@ def target_files(dirs: Iterable[Path]) -> list[Path]:
         if not directory.is_dir():
             continue
         for path in sorted(directory.rglob("*")):
-            if path.is_file() and (path.suffix == _TARGET_SUFFIX or path.name in _TARGET_NAMES):
+            if path.is_file() and (path.suffix in _TARGET_SUFFIXES or path.name in _TARGET_NAMES):
                 files.append(path)
     return files
 
@@ -77,7 +82,10 @@ def find_violations(files: Iterable[Path]) -> list[str]:
     violations: list[str] = []
     for path in files:
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            if _PYTHON_C.search(line) and _ASSERT.search(line):
+            if line.lstrip().startswith("#"):
+                continue
+            match = _PYTHON_C.search(line)
+            if match and _ASSERT.search(line, match.end()):
                 violations.append(
                     f"{path}:{lineno}: inline `assert` inside `python -c` is stripped under "
                     "`python3 -O` / PYTHONOPTIMIZE; use `sys.exit(...)` or `raise SystemExit` instead"
@@ -85,22 +93,24 @@ def find_violations(files: Iterable[Path]) -> list[str]:
     return violations
 
 
-def _dirs(argv: list[str] | None) -> tuple[Path, Path]:
+def _dirs(argv: list[str] | None) -> tuple[Path, Path, Path]:
     args = list(sys.argv[1:] if argv is None else argv)
     scripts_dir = Path(args[0]) if len(args) > 0 else SCRIPTS_DIR
     hooks_dir = Path(args[1]) if len(args) > 1 else HOOKS_DIR
-    return scripts_dir, hooks_dir
+    workflows_dir = Path(args[2]) if len(args) > 2 else WORKFLOWS_DIR
+    return scripts_dir, hooks_dir, workflows_dir
 
 
 def main(argv: list[str] | None = None) -> int:
-    scripts_dir, hooks_dir = _dirs(argv)
-    violations = find_violations(target_files([scripts_dir, hooks_dir]))
+    scripts_dir, hooks_dir, workflows_dir = _dirs(argv)
+    scanned = [scripts_dir, hooks_dir, workflows_dir]
+    violations = find_violations(target_files(scanned))
     if violations:
         for violation in violations:
             print(f"::error::{violation}")
-        print(f"inline-assert gate: {len(violations)} violation(s) under {scripts_dir}, {hooks_dir}.")
+        print(f"inline-assert gate: {len(violations)} violation(s) under {', '.join(str(d) for d in scanned)}.")
         return 1
-    print(f"ok: no inline assert in python -c invocations under {scripts_dir}, {hooks_dir}")
+    print(f"ok: no inline assert in python -c invocations under {', '.join(str(d) for d in scanned)}")
     return 0
 
 

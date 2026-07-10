@@ -50,7 +50,7 @@ repos:
         entry: python3 scripts/check_no_inline_assert.py
         language: system
         pass_filenames: false
-        files: ^(scripts/|hooks/)
+        files: ^(scripts/|hooks/|\.github/workflows/)
 
       - id: check-skills
         name: skill best-practice checks
