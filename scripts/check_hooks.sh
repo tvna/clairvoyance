@@ -63,6 +63,18 @@ if [ -n "${out}" ]; then
   echo "check_hooks: budget gate must accept a named workflow carrying args.budgetTokens" >&2
   exit 1
 fi
+# Telemetry-only spend calls are not enforcement (PR #133 review): a script
+# that merely logs budget.spent() while spawning agents must still be denied,
+# even with args.budgetTokens set.
+printf '%s' '{"tool_name":"Workflow","tool_input":{"script":"log(budget.spent()); await agent(\"x\")","args":{"budgetTokens":100000}}}' \
+  | bash "${root}/hooks/workflow-budget-gate.sh" \
+  | python3 -c "import json,sys; h=json.load(sys.stdin)['hookSpecificOutput']; sys.exit(0 if h.get('permissionDecision')=='deny' else 1)"
+# scriptPath outranks an inline script on the Workflow tool (PR #133 review):
+# a stale harmless inline script must not mask an agent-spawning file.
+printf 'await agent("x")\n' > "${hooks_tmp}/wf.js"
+printf '{"tool_name":"Workflow","tool_input":{"script":"return 1","scriptPath":"%s","args":{}}}' "${hooks_tmp}/wf.js" \
+  | bash "${root}/hooks/workflow-budget-gate.sh" \
+  | python3 -c "import json,sys; h=json.load(sys.stdin)['hookSpecificOutput']; sys.exit(0 if h.get('permissionDecision')=='deny' else 1)"
 
 # Both runtimes drive session-start.sh through the same run-hook.cmd wrapper; the
 # only difference is the plugin-root variable each substitutes into its hooks

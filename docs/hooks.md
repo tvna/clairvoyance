@@ -270,10 +270,15 @@ skill (issue #132):
 
 - A launch whose script spawns no agents passes untouched (zero-agent probes).
 - A launch whose script calls `agent()` passes only when it carries **both**
-  `args.budgetTokens` (a positive integer) and a `budget.spent()` /
-  `budget.remaining()` guard in the script text.
-- A named workflow, whose script text is not inspectable, passes on
-  `args.budgetTokens` alone.
+  `args.budgetTokens` (a positive integer) and a spend **comparison** in the
+  script text — `budget.spent()` / `budget.remaining()` next to a relational
+  operator, as in `budget.spent() < args.budgetTokens`. A telemetry-only
+  `log(budget.spent())` does not count as enforcement.
+- `scriptPath` outranks an inline `script` (mirroring the Workflow tool), so
+  classification reads the file the harness will execute; an unreadable
+  `scriptPath` is treated as not-inspectable, never as the stale inline text.
+- A named workflow (or unreadable `scriptPath`), whose script text is not
+  inspectable, passes on `args.budgetTokens` alone.
 - Everything else is denied with a pointer to the `workflow-budget` skill.
 
 The gate only ever denies or stays silent — it never auto-approves — and it
