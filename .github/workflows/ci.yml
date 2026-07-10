@@ -129,6 +129,9 @@ jobs:
       - name: Check doc-cited test names exist (Refs #98)
         run: python3 scripts/check_doc_test_refs.py
 
+      - name: Check no inline assert in shell-invoked python -c (Refs #121)
+        run: python3 scripts/check_no_inline_assert.py
+
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10

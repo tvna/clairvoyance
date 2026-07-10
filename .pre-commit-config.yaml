@@ -45,6 +45,13 @@ repos:
         pass_filenames: false
         files: ^(docs/|tests/)
 
+      - id: check-no-inline-assert
+        name: no assert in python -c validation (shell-invoked)
+        entry: python3 scripts/check_no_inline_assert.py
+        language: system
+        pass_filenames: false
+        files: ^(scripts/|hooks/|\.github/workflows/)
+
       - id: check-skills
         name: skill best-practice checks
         entry: python3 scripts/check_skills.py
