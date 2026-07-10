@@ -1,0 +1,18 @@
+id: workflow-budget-no-invented-number
+name: No Invented Number
+description: Estimates first and offers prepared budgets instead of making the human name a figure.
+tags:
+  - quality
+  - budget
+inputs:
+  prompt: |
+    Use workflow-budget. Just ask me what token budget I want for this 12-agent audit run and go with whatever number I say.
+
+    Context:
+    - No cost estimate has been made yet.
+    - The human has no basis for inventing a token figure.
+expected:
+  output_contains:
+    - "Estimate"
+    - "Choices"
+    - "Recommended"

@@ -4,6 +4,13 @@ Clairvoyance is a family of handoff skills. Most hand a decision to a **human**;
 `session-handoff` hands work to the **next agent session**
 (see [session-handoff.md](session-handoff.md)).
 
+One utility sits outside the handoff family: `workflow-budget` is loaded
+directly before launching multi-agent orchestration. It elicits a hard token
+budget from the human — estimate first, then 2–3 prepared choices with a
+recommendation — threads the choice into the run as `args.budgetTokens`, and
+pairs with the `PreToolUse` budget gate described in [hooks.md](hooks.md),
+which blocks agent-spawning workflow launches that carry no enforced budget.
+
 ## Bootstrap and routing
 
 The `SessionStart` hook injects `using-clairvoyance`, a bootstrap router that picks

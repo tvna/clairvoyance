@@ -27,6 +27,7 @@ recommended next move — so the human can approve, reject, or safely disagree.
 | `visual-handoff` | The person explicitly asks to visualize a handoff, plan, or system state. Layers a reproducible text-sourced diagram (Mermaid first) onto whichever handoff skill is routed; never replaces it, never fires unrequested. |
 | `human-harness` | The human harness: a human gives a high-blast-radius, irreversible, or compliance-violating instruction. Instead of executing, it stops and presses the human to confirm intent one question at a time to catch human error before it lands. |
 | `session-handoff` | A clean restart beats trusting the harness's compaction, repository gates limit what this session can change, or work is unfinished — the next session needs a paste-ready prompt (an attached Markdown file) to resume. |
+| `workflow-budget` | A multi-agent workflow is about to launch. Elicits a hard token budget first — estimate, then 2–3 prepared choices with a recommendation — and enforces it via a `PreToolUse` gate plus an in-script spend guard. |
 
 Each handoff branches by stakes: reversible, low-risk calls get a compact
 `Verdict` + `Next Move`; irreversible or contested calls get the full handoff.
