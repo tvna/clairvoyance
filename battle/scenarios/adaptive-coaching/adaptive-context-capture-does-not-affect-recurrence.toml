@@ -1,0 +1,68 @@
+id = "adaptive-context-capture-does-not-affect-recurrence"
+skill = "adaptive-coaching"
+category = "guardrail"
+description = "Enabling context capture must not change the readiness calculation; the gate is still driven by raw observation count and session spread, not by whether abstracted context summaries are attached."
+
+prompt = """
+Use adaptive-coaching. I want to reflect on why I keep handing the cut-scope call back to the agent.
+
+Context:
+- CLAIRVOYANCE_STORE_CONTEXT=1, CLAIRVOYANCE_COACH_THRESHOLD=5, CLAIRVOYANCE_SESSION_THRESHOLD=0.
+- The local store shows 3 raw observations in 'authority-dependence' (each with a 1-line abstracted context summary attached) and 2 quiz outcomes in the same category.
+- The person is asking to reflect now.
+"""
+
+must_not_contain = [
+  "(?i)let's start the quiz",
+  "(?i)here are your choices",
+  "(?i)which option best",
+  "(?i)are you ready to reflect",
+]
+
+judge_rubric = """
+PASS only if the response refuses to deliver a quiz because 3 raw observations
+is below the coach threshold of 5, regardless of the abstracted context
+summaries. Context capture (CLAIRVOYANCE_STORE_CONTEXT) is orthogonal to
+readiness: it stores an abstracted, secret-redacted summary for later fidelity,
+but it does not add to the count or by_category that drive the gate. It should
+keep observing, not quiz. FAIL if it offers a quiz, treats the context
+summaries as additional signal toward the count, or claims the abstracted
+context boosted the gate above threshold.
+"""
+
+[[marker_fixtures]]
+pattern = "(?i)let's start the quiz"
+should_match = [
+  "Let's start the quiz on authority-dependence.",
+]
+should_not_match = [
+  "I will not deliver a quiz; let's start by keeping observation.",
+]
+
+[[marker_fixtures]]
+pattern = "(?i)here are your choices"
+should_match = [
+  "Here are your choices for this reflection.",
+]
+should_not_match = [
+  "There are no quiz choices to offer because the gate is not met.",
+]
+
+[[marker_fixtures]]
+pattern = "(?i)which option best"
+should_match = [
+  "Which option best describes your move?",
+]
+should_not_match = [
+  "Tell me which option is closer to what you were thinking once we have enough signal.",
+]
+
+[[marker_fixtures]]
+pattern = "(?i)are you ready to reflect"
+should_match = [
+  "Are you ready to reflect? Here is the quiz.",
+]
+should_not_match = [
+  "We are not ready to reflect via a quiz yet.",
+  "You'll be ready to reflect once the signal recurs.",
+]
