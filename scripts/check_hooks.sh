@@ -38,6 +38,44 @@ env -u CLAIRVOYANCE_OPERATOR_LANGUAGE bash "${root}/hooks/user-prompt-language.s
 # writes) so a broken store fails loud here, the same as the bash hooks.
 bash -n "${root}/hooks/adaptive-store.sh"
 
+# The workflow-budget gate (PreToolUse on the Workflow tool, issue #132) must
+# deny an agent-spawning launch that carries no budget evidence, and stay
+# silent for zero-agent scripts and properly budgeted launches. Deny is
+# asserted on the nested hookSpecificOutput.permissionDecision shape (same
+# lesson as issue #119: a top-level decision parses as JSON yet is silently
+# ignored at runtime).
+bash -n "${root}/hooks/workflow-budget-gate.sh"
+printf '%s' '{"tool_name":"Workflow","tool_input":{"script":"const r = await agent(\"x\")","args":{}}}' \
+  | bash "${root}/hooks/workflow-budget-gate.sh" \
+  | python3 -c "import json,sys; h=json.load(sys.stdin)['hookSpecificOutput']; sys.exit(0 if h.get('hookEventName')=='PreToolUse' and h.get('permissionDecision')=='deny' and h.get('permissionDecisionReason') else 1)"
+out="$(printf '%s' '{"tool_name":"Workflow","tool_input":{"script":"return {t: budget.total}"}}' | bash "${root}/hooks/workflow-budget-gate.sh")"
+if [ -n "${out}" ]; then
+  echo "check_hooks: budget gate must stay silent for zero-agent scripts" >&2
+  exit 1
+fi
+out="$(printf '%s' '{"tool_name":"Workflow","tool_input":{"script":"if (budget.spent() < args.budgetTokens) { await agent(\"x\") }","args":{"budgetTokens":100000}}}' | bash "${root}/hooks/workflow-budget-gate.sh")"
+if [ -n "${out}" ]; then
+  echo "check_hooks: budget gate must stay silent for a budgeted launch" >&2
+  exit 1
+fi
+out="$(printf '%s' '{"tool_name":"Workflow","tool_input":{"name":"saved-workflow","args":{"budgetTokens":50000}}}' | bash "${root}/hooks/workflow-budget-gate.sh")"
+if [ -n "${out}" ]; then
+  echo "check_hooks: budget gate must accept a named workflow carrying args.budgetTokens" >&2
+  exit 1
+fi
+# Telemetry-only spend calls are not enforcement (PR #133 review): a script
+# that merely logs budget.spent() while spawning agents must still be denied,
+# even with args.budgetTokens set.
+printf '%s' '{"tool_name":"Workflow","tool_input":{"script":"log(budget.spent()); await agent(\"x\")","args":{"budgetTokens":100000}}}' \
+  | bash "${root}/hooks/workflow-budget-gate.sh" \
+  | python3 -c "import json,sys; h=json.load(sys.stdin)['hookSpecificOutput']; sys.exit(0 if h.get('permissionDecision')=='deny' else 1)"
+# scriptPath outranks an inline script on the Workflow tool (PR #133 review):
+# a stale harmless inline script must not mask an agent-spawning file.
+printf 'await agent("x")\n' > "${hooks_tmp}/wf.js"
+printf '{"tool_name":"Workflow","tool_input":{"script":"return 1","scriptPath":"%s","args":{}}}' "${hooks_tmp}/wf.js" \
+  | bash "${root}/hooks/workflow-budget-gate.sh" \
+  | python3 -c "import json,sys; h=json.load(sys.stdin)['hookSpecificOutput']; sys.exit(0 if h.get('permissionDecision')=='deny' else 1)"
+
 # Both runtimes drive session-start.sh through the same run-hook.cmd wrapper; the
 # only difference is the plugin-root variable each substitutes into its hooks
 # manifest (Claude: CLAUDE_PLUGIN_ROOT, Codex: PLUGIN_ROOT). Assert the Codex
@@ -51,6 +89,8 @@ bash -n "${root}/hooks/adaptive-store.sh"
 claude_hooks="${root}/hooks/hooks.json"
 python3 -m json.tool "${claude_hooks}" > /dev/null
 python3 -c "import json,sys; sys.exit(0 if 'UserPromptSubmit' in json.load(open('${claude_hooks}'))['hooks'] else 1)"
+# ... and the budget gate's PreToolUse registration (issue #132), same rationale.
+python3 -c "import json,sys; sys.exit(0 if 'PreToolUse' in json.load(open('${claude_hooks}'))['hooks'] else 1)"
 
 codex_hooks="${root}/hooks/codex-hooks.json"
 python3 -m json.tool "${codex_hooks}" > /dev/null

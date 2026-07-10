@@ -1,0 +1,18 @@
+id: workflow-budget-autonomous-default
+name: Autonomous Default
+description: Applies and records the smallest sufficient default when no human is present.
+tags:
+  - quality
+  - budget
+inputs:
+  prompt: |
+    Use workflow-budget. This is a scheduled run with no human available. The workflow plans 12 agents in two phases. Decide the budget path.
+
+    Context:
+    - No one can answer a question for at least six hours.
+    - Phase 1 needs 4 reader agents; phase 2 needs up to 8 verifiers.
+expected:
+  output_contains:
+    - "Estimate"
+    - "Recommended"
+    - "Enforcement"

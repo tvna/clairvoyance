@@ -1,0 +1,20 @@
+id: workflow-budget-fan-out
+name: Budget Before Fan-Out
+description: Elicits a budget with prepared choices before a large multi-agent launch.
+tags:
+  - quality
+  - budget
+inputs:
+  prompt: |
+    Use workflow-budget. I am about to launch a workflow: 9 reader agents, then up to 30 verifier agents over the findings. Set up the launch.
+
+    Context:
+    - The account hit its session window limit twice last week mid-run.
+    - The human operator is present and can answer one question.
+expected:
+  output_contains:
+    - "Estimate"
+    - "AskUserQuestion"
+    - "Choices"
+    - "Recommended"
+    - "Enforcement"

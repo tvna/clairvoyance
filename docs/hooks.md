@@ -269,6 +269,35 @@ the unrecorded path, never applied as a value:
 > asks the human in the session instead. Fully retiring the "owner" wording
 > requires an upstream change in `tvna/claude-md`.
 
+## Workflow budget gate
+
+`hooks/hooks.json` registers one `PreToolUse` hook matching the `Workflow`
+tool. It runs `hooks/workflow-budget-gate.sh`, the deterministic half of the
+budget discipline whose elicitation shape lives in the `workflow-budget`
+skill (issue #132):
+
+- A launch whose script spawns no agents passes untouched (zero-agent probes).
+- A launch whose script calls `agent()` passes only when it carries **both**
+  `args.budgetTokens` (a positive integer) and a spend **comparison** in the
+  script text — `budget.spent()` / `budget.remaining()` next to a relational
+  operator, as in `budget.spent() < args.budgetTokens`. A telemetry-only
+  `log(budget.spent())` does not count as enforcement.
+- `scriptPath` outranks an inline `script` (mirroring the Workflow tool), so
+  classification reads the file the harness will execute; an unreadable
+  `scriptPath` is treated as not-inspectable, never as the stale inline text.
+- A named workflow (or unreadable `scriptPath`), whose script text is not
+  inspectable, passes on `args.budgetTokens` alone.
+- Everything else is denied with a pointer to the `workflow-budget` skill.
+
+The gate only ever denies or stays silent — it never auto-approves — and it
+degrades **open**: without `python3`, or on unparseable input, it allows,
+matching `run-hook.cmd`'s no-bash degradation. On harnesses without a
+`Workflow` tool (Codex) the matcher never fires, so `codex-hooks.json` is
+untouched. Shape and behavior are pinned by `scripts/check_hooks.sh`: the deny
+path is asserted on the nested `hookSpecificOutput.permissionDecision` (the
+same shape lesson as issue #119), and the zero-agent, budgeted, and
+named-workflow allow paths are asserted silent.
+
 ## Cross-platform entry point
 
 `hooks.json` invokes `hooks/run-hook.cmd session-start.sh`. `run-hook.cmd` is a
