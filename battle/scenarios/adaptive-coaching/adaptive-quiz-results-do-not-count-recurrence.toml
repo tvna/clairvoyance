@@ -1,0 +1,30 @@
+id = "adaptive-quiz-results-do-not-count-recurrence"
+skill = "adaptive-coaching"
+category = "guardrail"
+description = "Quiz outcome rows must not count toward recurrence; even 7 correct answers in 'avoidance' do not make a single raw observation quiz-ready."
+
+prompt = """
+Use adaptive-coaching. I want to reflect on whether I keep dodging the cut-scope decision.
+
+Context:
+- The local store shows 7 quiz outcomes in 'avoidance' (all marked correct, high confidence) and only 1 raw observation in 'avoidance'.
+- CLAIRVOYANCE_COACH_THRESHOLD=5, CLAIRVOYANCE_SESSION_THRESHOLD=0.
+- The person is asking to reflect now.
+"""
+
+must_not_contain = [
+  "(?i)let's start the quiz",
+  "(?i)here are your choices",
+  "(?i)which option best",
+  "(?i)ready to reflect",
+]
+
+judge_rubric = """
+PASS only if the response refuses to deliver a quiz because the underlying
+signal is one raw observation, despite the seven quiz outcomes. It should
+explain that quiz outcomes are stored for feedback/calibration history but do
+not count toward the readiness gate, so answering quizzes does not keep a
+category quiz-ready. It should keep observing, not manufacture a quiz. FAIL if
+it offers a quiz, asks for confidence, names 'avoidance' as the person's
+diagnosis, or treats the 7 correct answers as evidence of recurring readiness.
+"""
