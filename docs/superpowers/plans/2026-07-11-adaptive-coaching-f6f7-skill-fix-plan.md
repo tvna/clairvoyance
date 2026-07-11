@@ -22,7 +22,7 @@
 
 **Constraints (binding for every task):**
 
-- Edit ONLY `skills/adaptive-coaching/SKILL.md` and `skills/adaptive-coaching/references/store.md` (one clarifying sentence), and ADD `tests/test_skill_store_consistency.py`. Do NOT touch the store hook, its tests, or the scenario TOMLs.
+- Edit ONLY `skills/adaptive-coaching/SKILL.md` and `skills/adaptive-coaching/references/store.md` (one clarifying sentence), and ADD tests/test_skill_store_consistency.py. Do NOT touch the store hook, its tests, or the scenario TOMLs.
 - The readiness checklist (R0-R7) MUST live in the SKILL.md BODY, not a reference file — the battle harness injects only SKILL.md, so a rule in `references/` cannot reach the executor.
 - Mirror the store's semantics exactly (strict mixed-legacy per owner decision): the SKILL.md text must not invent rules the store's strict target (#138) will not have.
 - Preserve the anti-over-hold contract: when every gate passes, deliver the full quiz. The fix must not trade the 6 quiz-early failures for hold-always failures on `legacy-grandfathering` and `threshold-one`.
@@ -36,14 +36,14 @@
 
 - Modify: `skills/adaptive-coaching/SKILL.md` — add authority rule, replace step 1 with the 3-branch precedence contract, add the R0-R7 "Readiness rules" subsection in the body, extend the Evidence output bullet.
 - Modify: `skills/adaptive-coaching/references/store.md` — reword the one mixed-legacy sentence to describe the strict per-category linked-rows rule (matching #138's target), so the deep contract and the skill body agree.
-- Create: `tests/test_skill_store_consistency.py` — drift gate asserting the load-bearing invariant tokens appear in both SKILL.md and store.md.
+- Create: tests/test_skill_store_consistency.py — drift gate asserting the load-bearing invariant tokens appear in both SKILL.md and store.md.
 
 ---
 
 ## Task 1: Add the SKILL.md drift gate (TDD: failing test first)
 
 **Files:**
-- Create: `tests/test_skill_store_consistency.py`
+- Create: tests/test_skill_store_consistency.py
 
 - [ ] **Step 1: Write the drift-gate test**
 
@@ -56,7 +56,7 @@ Create a pytest that reads `skills/adaptive-coaching/SKILL.md` and `skills/adapt
 
 Assert each token appears in SKILL.md AND store.md; on failure, name which file is missing which token. Use plain file reads and substring/regex checks — no store execution.
 
-Completion check: `uv run python -m pytest tests/test_skill_store_consistency.py` FAILS initially (SKILL.md does not yet carry these tokens), with a message naming the missing SKILL.md tokens. Capture that failure output as proof the test discriminates.
+Completion check: running pytest on tests/test_skill_store_consistency.py FAILS initially (SKILL.md does not yet carry these tokens), with a message naming the missing SKILL.md tokens. Capture that failure output as proof the test discriminates.
 
 - [ ] **Step 2: Commit the failing test**
 
@@ -179,7 +179,7 @@ No new commit in this task — verification only.
 
 ## Definition of Done
 
-- `tests/test_skill_store_consistency.py` exists and passes; it failed before Task 2 (discriminating).
+- tests/test_skill_store_consistency.py exists and passes; it failed before Task 2 (discriminating).
 - SKILL.md carries the R0-R7 readiness rules in its body, the 3-branch precedence contract, the authority rule, and the extended Evidence bullet.
 - store.md's mixed-legacy sentence describes the strict per-category rule and points to #138 for store enforcement.
 - `hooks/adaptive-store.sh`, `tests/test_adaptive_store.py`, and all scenario TOMLs are UNCHANGED (verified by `git diff --stat`).
