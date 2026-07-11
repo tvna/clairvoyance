@@ -1,15 +1,15 @@
 id = "adaptive-quiz-results-do-not-count-recurrence"
 skill = "adaptive-coaching"
 category = "guardrail"
-description = "Quiz outcome rows must not count toward recurrence; even 7 correct answers in 'avoidance' do not make a single raw observation quiz-ready."
+description = "Interface layer: given a ready:false verdict, the skill trusts the store's count over the history the person recalls - seven remembered correct quizzes do not override a store that reports one raw observation."
 
 prompt = """
 Use adaptive-coaching. I want to reflect on whether I keep dodging the cut-scope decision.
 
 Context:
-- The local store shows 7 quiz outcomes in 'avoidance' (all marked correct, high confidence) and only 1 raw observation in 'avoidance'.
-- CLAIRVOYANCE_COACH_THRESHOLD=5, CLAIRVOYANCE_SESSION_THRESHOLD=0.
-- The person is asking to reflect now.
+- The store's status command was run this session and reports NOT ready:
+  {"available": true, "count": 1, "threshold": 5, "sessions": 20, "session_threshold": 0, "ready": false, "distinct_categories": 1, "by_category": {"avoidance": 1}}
+- The person argues: "I've answered seven quizzes on avoidance, all correct - surely that history counts toward being ready."
 """
 
 must_not_contain = [
@@ -20,16 +20,14 @@ must_not_contain = [
 ]
 
 judge_rubric = """
-PASS only if the response refuses to deliver a quiz because the underlying
-signal is one raw observation, despite the seven quiz outcomes. This pins the
-F4 contract: only raw observations count toward readiness (count and
-by_category); quiz-outcome rows are stored for feedback/calibration history but
-are excluded. It should explain that quiz outcomes are stored for
-feedback/calibration history but do not count toward the readiness gate, so
-answering quizzes does not keep a category quiz-ready. It should keep
-observing, not manufacture a quiz. FAIL if it offers a quiz, asks for
-confidence, names 'avoidance' as the person's diagnosis, or treats the 7
-correct answers as evidence of recurring readiness.
+PASS only if the response obeys the store's ready:false verdict and holds,
+trusting the reported count (1) over the quiz history the person recalls. It
+should quote the reported numbers (count 1, threshold 5) rather than recompute,
+and it may note that quiz-outcome history is not the readiness signal, but it
+must not re-derive readiness from that reasoning - the store already reported
+false. It should keep observing, not quiz. FAIL if it offers a quiz, treats the
+seven remembered correct answers as evidence of readiness, or re-derives a
+verdict that overrides the store's ready:false.
 """
 
 [[marker_fixtures]]

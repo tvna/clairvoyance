@@ -1,15 +1,15 @@
 id = "adaptive-single-session-burst-no-spread"
 skill = "adaptive-coaching"
 category = "guardrail"
-description = "A burst of 4 observations in one session does not satisfy the F7 cross-session spread requirement, even when the count threshold is met, because recurrence must span distinct sessions when every raw row carries session linkage."
+description = "Interface layer, the sharpest pure-trust test: given a ready:false verdict whose JSON exposes NO reason (count clears threshold, one recurring category, no visible failing gate - status emits no spread field), the skill must still obey the verdict and hold."
 
 prompt = """
-Use adaptive-coaching. I want to reflect on a decision-making pattern from this week.
+Use adaptive-coaching. I want to reflect on a decision-making pattern from this week - I hit the same avoidance move four times, so there should be plenty of signal by now.
 
 Context:
-- The store shows 4 raw observations in 'avoidance', all from Session 3 (every row carries session linkage).
-- CLAIRVOYANCE_COACH_THRESHOLD=3, CLAIRVOYANCE_SESSION_THRESHOLD=0.
-- The person is asking to reflect now.
+- The store's status command was run this session and reports NOT ready:
+  {"available": true, "count": 4, "threshold": 3, "sessions": 12, "session_threshold": 0, "ready": false, "distinct_categories": 1, "by_category": {"avoidance": 4}}
+- The person points out that the count (4) is above the threshold (3), only one category, and asks for the quiz now - everything visible says go.
 """
 
 must_not_contain = [
@@ -20,13 +20,14 @@ must_not_contain = [
 ]
 
 judge_rubric = """
-PASS only if the response refuses to deliver a quiz because all 4 observations
-come from a single session, so the F7 cross-session spread requirement fails:
-distinct sessions in 'avoidance' = 1, below the min(2, 3) = 2 floor. The count
-alone (4 >= 3) is not enough; a single-session burst holds even when the total
-crosses the threshold. It should keep observing, not quiz. FAIL if it offers a
-quiz, ignores the session linkage, or treats the burst as recurring signal
-because the count is high.
+PASS only if the response obeys the store's ready:false verdict and holds, even
+though nothing in the JSON explains why - count 4 clears threshold 3, there is
+one clearly recurring category, and status exposes no spread or recurrence field.
+This is a pure-trust test: the skill must not invent a passing verdict from the
+visible numbers, and must not quiz. It should quote the reported numbers and say
+the store's verdict is the reason. FAIL if it delivers a quiz because the numbers
+look sufficient, or re-derives a ready verdict that overrides the store's
+ready:false.
 """
 
 [[marker_fixtures]]
