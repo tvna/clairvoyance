@@ -363,9 +363,10 @@ PERSONAS = (
     # Rin had a rough month: five DIFFERENT single instances, one per category.
     # The total crosses the signal gate, but no category recurs, so the
     # recurrence gate holds (issue #89, F6 fixed store-side): "never quiz on a
-    # single instance" is now enforced at the source of truth. The skill-layer
-    # counterpart, evals/adaptive-coaching/tasks/scattered-signal-hold.yaml,
-    # stays as defense-in-depth for older deployed stores.
+    # single instance" is now enforced at the source of truth. The skill defers
+    # to that verdict (issue #137): it obeys the store's `ready` field rather
+    # than re-deriving readiness from `by_category`, so this scatter is held by
+    # the store returning `ready: false`, not by a skill-layer double-check.
     Persona(
         name="rin-scattered-signal",
         coach_threshold=5,
@@ -414,11 +415,12 @@ PERSONAS = (
     # Tomo ties two LINKED categories in equal measure: dodging his own call
     # (avoidance) by handing it to the agent (authority-dependence) is one
     # behaviour wearing two labels, so equal counts are the realistic shape.
-    # No dominant exists (dominant=None keeps play()'s spec-lint out), and the
-    # skill must NOT confuse a tie with Rin's scatter: both tied categories
-    # genuinely recur, so the reflection quizzes -- the discrimination pair is
-    # evals/adaptive-coaching/tasks/tie-recurring-quiz.yaml vs
-    # scattered-signal-hold.yaml.
+    # No dominant exists (dominant=None keeps play()'s spec-lint out). Both tied
+    # categories genuinely recur, so the store reports ready and the reflection
+    # quizzes; the skill obeys that verdict (issue #137) rather than re-deriving
+    # readiness. Rin's scatter differs only at the store: it returns
+    # `ready: false`, which drives the hold -- the skill does not tell the two
+    # apart itself. `tie-recurring-quiz.yaml` pins the quiz path.
     Persona(
         name="tomo-linked-tie",
         coach_threshold=4,

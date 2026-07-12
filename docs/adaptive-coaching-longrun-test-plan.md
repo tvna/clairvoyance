@@ -112,7 +112,7 @@ is a defect, and `-` means the persona must never be quizzed.
 | 9 | Itsuki | First-time user, one instance on day one (negative) | 3/3 | S O R:hold | - | Both gates short; the case the grace period exists for |
 | 10 | Jun | Veteran with a single instance (negative) | 3/2 | S S O R:hold | - | Signal gate alone holds; never quiz one occurrence |
 | 11 | Kaho | Healthy long-run user, no recurring pattern (negative) | 3/2 | S S R:hold | - | Zero signal holds; the skill must not manufacture a pattern |
-| 12 | Rin | Rough month: five DIFFERENT single instances, one per category (compound) | 5/2 | S O S O O O O R | - | Recurrence gate holds scatter (F6, fixed): the total crosses but no category recurs; `scattered-signal-hold.yaml` stays as skill-layer defense-in-depth for older stores |
+| 12 | Rin | Rough month: five DIFFERENT single instances, one per category (compound) | 5/2 | S O S O O O O R | - | Recurrence gate holds scatter (F6, fixed): the total crosses but no category recurs, so the store returns `ready: false` and the skill obeys that verdict (#137) rather than re-deriving from `by_category` |
 | 13 | Sora | One crunch day: three same-category observations inside a single session, grace already past (compound) | 3/2 | S S O O O R | - | Recurrence gate holds a single-session burst (F7, fixed): rows carry `session_seen` linkage and the recurring category must span sessions |
 | 14 | Tomo | Dodges his own call by handing it to the agent: `avoidance` and `authority-dependence` tie at 2-2 (compound) | 4/2 | S O O S O O R:ready | 6 of 7 | A tie has no dominant, but both patterns genuinely recur — the reflection must quiz, not hold (`tie-recurring-quiz.yaml` is the discrimination pair against Rin's scatter) |
 | 15 | Umi | One genuine recurring pattern plus one-off noise in two other categories (compound) | 5/0 | O O O O O R:ready | 5 of 6 | Singleton noise must not displace or dilute the dominant category (`no-experiment` 3 vs two singletons) |
@@ -175,17 +175,20 @@ recurrence gate):
 
 | Compound case | Verified behaviour | Pin (L1) | Skill-layer counterpart (L2) |
 | ------------- | ------------------ | -------- | ---------------------------- |
-| Scatter: five categories, one instance each (F6, fixed) | `ready: false`: the recurrence gate needs a category with >= min(2, threshold) raw observations; `distinct_categories: 5` with every `by_category` value 1 no longer crosses | persona 12 `rin-scattered-signal`, `test_record_accumulates_until_threshold` | `scattered-signal-hold.yaml`: defense-in-depth — an older deployed store may still report ready on scatter, and the skill must still hold ("never quiz on a single instance") |
+| Scatter: five categories, one instance each (F6, fixed) | `ready: false`: the recurrence gate needs a category with >= min(2, threshold) raw observations; `distinct_categories: 5` with every `by_category` value 1 no longer crosses | persona 12 `rin-scattered-signal`, `test_record_accumulates_until_threshold` | none: the skill obeys the store's `ready: false` verdict (#137) rather than re-deriving from `by_category`; an older store that predates the F6 gate must be updated, not compensated for in the skill |
 | Single-session burst crossing the signal gate (F7, fixed) | `ready: false`: raw rows carry `session_seen` and the recurring category must span >= min(2, threshold) distinct sessions; unlinked rows grandfather the old semantics until they rotate out | persona 13 `sora-single-session-burst`, `test_recurrence_requires_spread_across_sessions_when_linked` | no longer needed: a fixed store reports not-ready, which drives the standard hold path |
 | Quiz answers self-sustain readiness through rotation (F4 corollary, fixed) | outcome rows are stored but excluded from `count`/`by_category`, so after every raw observation ages out, answers alone keep `ready: false` (row composition still 3/3 outcomes) | `test_outcome_rows_do_not_sustain_readiness_after_rotation` (was `test_outcome_rows_alone_sustain_readiness_after_rotation`, which pinned the pre-decision behaviour) | not expressible single-turn (requires answer turns); noted for the manual checklist <!-- former-test-name --> |
 
 The asymmetry still matters for anyone extending this plan: F6 evidence
-(`by_category`) crosses the store boundary, so the skill layer can double-check
-it — which is why `scattered-signal-hold.yaml` survives as defense-in-depth for
-stores that predate the gate. F7 evidence (session linkage) never leaves the
-store, so the store-side fix was the only possible one; a skill-layer test for
-F7 would assert on information the skill cannot have. All three compound
-defects now sit behind the same deterministic gate that fixed the F4
+(`by_category`) crosses the store boundary and F7 evidence (session linkage)
+does not. Earlier this plan kept a skill-layer double-check of `by_category` as
+defense-in-depth for stores predating the gate; issue #137 retired that. The
+skill now obeys the store's `ready` verdict rather than re-deriving readiness
+from the evidence fields, so a store that predates the F6 gate must be updated
+at the source, not compensated for in the skill — the two-layer split keeps the
+arithmetic in the store and its tests, and the skill on the interface. All
+three compound defects now sit behind the same deterministic gate that fixed
+the F4
 corollary: readiness is computed on the read path from raw, recurring,
 session-spanning signal.
 
@@ -246,7 +249,7 @@ unavailable, the skill must keep observing and must not quiz from memory.
 | Confidence calibration + spaced intervals | metadata persistence (existing quiz-metadata tests) | `confidence-calibration.yaml`, `spaced-follow-up.yaml` (existing) | `confidence-calibration.toml` | interval choice (turn two) |
 | Rotation / bounded store | 3 scenarios above | - | - | - |
 | Hold-not-fail on unavailable store | 3 scenarios above | `store-unavailable-hold.yaml` (new) | - | - |
-| Scattered singletons hold (F6, fixed) | persona 12, `test_record_accumulates_until_threshold` | `scattered-signal-hold.yaml` (defense-in-depth for older stores) | - | - |
+| Scattered singletons hold (F6, fixed) | persona 12, `test_record_accumulates_until_threshold` | none (the skill obeys the store's `ready: false`; #137 retired the skill-layer double-check) | - | - |
 | Single-session burst holds (F7, fixed) | persona 13, `test_recurrence_requires_spread_across_sessions_when_linked` | not needed (a fixed store reports not-ready; standard hold path) | - | - |
 | Recurrence gate grandfathering and the threshold-1 opt-in | `test_unlinked_rows_grandfather_the_spread_requirement`, `test_legacy_store_without_session_seen_is_served_and_migrated`, `test_coach_threshold_one_keeps_single_instance_opt_in` | - | - | - |
 | Outcome rows excluded from readiness (F4, fixed) | `test_outcome_rows_do_not_sustain_readiness_after_rotation` | not possible single-turn | - | included in soak |
@@ -292,8 +295,8 @@ consciously update the named test:
   and reported ready, though no category recurred. Readiness now also
   requires at least one category with >= min(2, threshold) raw observations
   (pinned by persona 12 `rin-scattered-signal`, now holding, and
-  `test_record_accumulates_until_threshold`); the skill-layer counterpart
-  `scattered-signal-hold.yaml` stays as defense-in-depth for older stores.
+  `test_record_accumulates_until_threshold`); the skill obeys that store
+  verdict (#137) rather than re-deriving readiness from `by_category`.
 - **F7** *(fixed)* the readiness gate had no across-session spread
   requirement: once the grace period was past, a burst of same-category
   observations inside a single session crossed the signal gate. Observation
