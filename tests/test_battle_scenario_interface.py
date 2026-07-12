@@ -54,7 +54,7 @@ def _live_status_keys(tmp_path) -> set[str]:
     return set(verdict.keys())
 
 
-def _extract_verdict_json(prompt: str) -> dict | None:
+def _extract_verdict_json(prompt: str) -> dict[str, object] | None:
     """Return the embedded status-verdict object from a prompt, or None.
 
     Finds the first ``{`` on a line mentioning ``"ready"`` and brace-matches to
