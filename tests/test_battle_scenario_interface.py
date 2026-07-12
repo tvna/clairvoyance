@@ -93,7 +93,9 @@ def test_embedded_verdicts_use_only_real_status_keys(tmp_path):
             continue
         extra = set(verdict) - real_keys
         assert not extra, f"{toml_path.name}: verdict has keys {extra} not emitted by status {sorted(real_keys)}"
-        assert isinstance(verdict.get("ready"), bool), f"{toml_path.name}: embedded verdict must carry a boolean 'ready'"
+        assert isinstance(verdict.get("ready"), bool), (
+            f"{toml_path.name}: embedded verdict must carry a boolean 'ready'"
+        )
 
 
 def test_every_adaptive_scenario_has_a_verdict_or_is_allowlisted():
