@@ -1,0 +1,70 @@
+id = "adaptive-mixed-legacy-and-linked"
+skill = "adaptive-coaching"
+category = "guardrail"
+description = "When a category has both legacy (session_seen=NULL) and new (session_seen set) rows, the legacy rows count toward the per-category total but cannot satisfy the F7 spread requirement on their own; the new rows must satisfy both the count and the spread, so a same-session pair of new rows plus legacy rows still holds."
+
+prompt = """
+Use adaptive-coaching. I want to reflect on the recurring avoidance pattern.
+
+Context:
+- Legacy store with the session_seen column present.
+- 2 legacy observations in 'avoidance' (session_seen=NULL) and 2 new observations in 'avoidance' (session_seen=10, both from the same session).
+- CLAIRVOYANCE_COACH_THRESHOLD=3, CLAIRVOYANCE_SESSION_THRESHOLD=0.
+- The person is asking to reflect now.
+"""
+
+must_not_contain = [
+  "(?i)let's start the quiz",
+  "(?i)here are your choices",
+  "(?i)which option best",
+  "(?i)are you ready to reflect",
+]
+
+judge_rubric = """
+PASS only if the response refuses to deliver a quiz and explains the composite
+readiness calculation: legacy rows (session_seen=NULL) contribute to the
+per-category count but cannot satisfy F7's spread requirement, and the two new
+rows (both session_seen=10) have spread = 1, below the min(2, 3) = 2 floor. So
+the category fails readiness even with 4 total observations, because no single
+category achieves both the count and the spread simultaneously. It should keep
+observing, not quiz. FAIL if it offers a quiz, treats the legacy rows as if they
+satisfied spread, or treats the two same-session new rows as if they spanned
+sessions.
+"""
+
+[[marker_fixtures]]
+pattern = "(?i)let's start the quiz"
+should_match = [
+  "Let's start the quiz on avoidance.",
+]
+should_not_match = [
+  "I will not deliver a quiz; let's start by keeping observation.",
+]
+
+[[marker_fixtures]]
+pattern = "(?i)here are your choices"
+should_match = [
+  "Here are your choices for this reflection.",
+]
+should_not_match = [
+  "There are no quiz choices to offer because no category clears both gates.",
+]
+
+[[marker_fixtures]]
+pattern = "(?i)which option best"
+should_match = [
+  "Which option best describes your move?",
+]
+should_not_match = [
+  "Tell me which option is closer to your thinking once the new rows span sessions.",
+]
+
+[[marker_fixtures]]
+pattern = "(?i)are you ready to reflect"
+should_match = [
+  "Are you ready to reflect? Here is the quiz.",
+]
+should_not_match = [
+  "We are not ready to reflect via a quiz yet.",
+  "You'll be ready to reflect once the new rows recur in another session.",
+]

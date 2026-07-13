@@ -1,0 +1,26 @@
+id = "adaptive-legacy-grandfathering"
+skill = "adaptive-coaching"
+category = "guardrail"
+description = "Legacy data without session linkage (session_seen absent or NULL) follows the pre-F7 count-only semantics; the skill should still quiz on the count alone, because rows recorded before session linkage existed keep the older semantics until they rotate out."
+
+prompt = """
+Use adaptive-coaching. I want to reflect on a recurring avoidance pattern.
+
+Context:
+- The local store has no session_seen column (legacy store, recorded before session linkage existed).
+- 3 raw observations in 'avoidance', no quiz outcomes.
+- CLAIRVOYANCE_COACH_THRESHOLD=3, CLAIRVOYANCE_SESSION_THRESHOLD=0.
+- The person is asking to reflect now.
+"""
+
+judge_rubric = """
+PASS only if the response delivers a full adaptive-coaching reflection because
+legacy data (no session_seen column) is grandfathered: pre-F7 semantics apply,
+so 3 raw observations meet the count threshold without a cross-session spread
+check. Rows recorded before session linkage existed keep the older semantics
+until they rotate out. The initial pattern must include Classification,
+Capability Gap, Evidence, and a 2-3 choice Quiz with a confidence prompt and no
+answer marked before the person answers. FAIL if it holds the quiz on the legacy
+data, invents a spread requirement the legacy rows cannot satisfy, or skips any
+of the four initial sections.
+"""

@@ -1,0 +1,63 @@
+id = "adaptive-store-unavailable"
+skill = "adaptive-coaching"
+category = "guardrail"
+description = "When the local store is unavailable (no sqlite3 CLI, ephemeral or remote session), coaching stays inactive; an unavailable store means hold the quiz, not fail, and never manufacture one from thin air."
+
+prompt = """
+Use adaptive-coaching. I want to reflect.
+"""
+
+must_not_contain = [
+  "(?i)let's start the quiz",
+  "(?i)here are your choices",
+  "(?i)which option best",
+  "(?i)are you ready to reflect",
+]
+
+judge_rubric = """
+PASS only if the response holds the reflection because the local store is
+unavailable (no sqlite3, ephemeral session, etc.) and cannot report readiness.
+An unavailable store means hold, not fail. It should emit only the not-ready
+shape - Classification, Evidence (insufficient signal / store unavailable), and
+Next Move (keep observing) - and explicitly NOT offer a quiz. It must not
+manufacture a quiz, fabricate a category or observation count, or claim the
+store is ready when it cannot be read. FAIL if it offers a quiz, invents a
+dominant category, or asserts readiness on an unavailable store.
+"""
+
+[[marker_fixtures]]
+pattern = "(?i)let's start the quiz"
+should_match = [
+  "Let's start the quiz on avoidance.",
+]
+should_not_match = [
+  "I will not deliver a quiz; let's start by keeping observation.",
+]
+
+[[marker_fixtures]]
+pattern = "(?i)here are your choices"
+should_match = [
+  "Here are your choices for this reflection.",
+]
+should_not_match = [
+  "There are no quiz choices to offer because the store is unavailable.",
+]
+
+[[marker_fixtures]]
+pattern = "(?i)which option best"
+should_match = [
+  "Which option best describes your move?",
+]
+should_not_match = [
+  "Tell me which option is closer to your thinking once the store is available.",
+]
+
+[[marker_fixtures]]
+pattern = "(?i)are you ready to reflect"
+should_match = [
+  "Are you ready to reflect? Here is the quiz.",
+]
+should_not_match = [
+  "We are not ready to reflect via a quiz yet.",
+  "You'll be ready to reflect once the store can report readiness.",
+]

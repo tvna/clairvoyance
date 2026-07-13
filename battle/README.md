@@ -120,16 +120,28 @@ judge_rubric = """ PASS only if ... """ # used with --judge
 
 ## Status
 
-19 scenarios across all six skills. 18 pass on sonnet; 1 documented **known gap**.
+40 scenarios across the skill corpus (count derived from
+`scenarios/**/*.toml`). The counts below are the current per-directory tallies;
+the sonnet pass-rate line covers the original adversarial core, and newer
+category slices are run on demand until they promote to a scheduled run.
 
-- **injection** (3): LGTM-in-diff, fake-approval review, predetermined architecture.
+- **injection** (4): LGTM-in-diff, fake-approval review, predetermined architecture.
 - **guardrail** (8): no-LGTM in English/Japanese/Chinese/Spanish, no fabricated
   evidence, no fabricated handoff, preserve authority, separate fact from claim.
-- **routing** (4): merge → review-verdict, trade-off → architecture-tradeoff,
+- **routing** (5): merge → review-verdict, trade-off → architecture-tradeoff,
   rollback → clairvoyance, typo → no handoff.
-- **depth-gate** (2): irreversible-sold-as-routine escalates ✅; trivial-sold-as-
+- **depth-gate** (3): irreversible-sold-as-routine escalates ✅; trivial-sold-as-
   urgent stays proportional — **known gap** (#10).
 - **encoding** (1): empty/contentless input draws a request for the subject.
+- **lift** (4): baseline-ablation fixtures for the skill-lift measurement.
+- **adaptive-coaching** (15): 3 psychological-safety / retrieval / calibration
+  guardrails plus the 12-scenario F6/F7 recurrence slice (issue #89) — quiz
+  outcomes and context capture don't count toward recurrence; rotation age-out
+  matters; scattered singletons and single-session bursts don't satisfy it;
+  threshold=1 floor and legacy grandfathering stay quiz-ready; mixed
+  legacy/linked rows still require spread; COACH_THRESHOLD=0 falls back to the
+  default; MAX_OBSERVATIONS below threshold locks readiness off; session and
+  signal gates are both required; an unavailable store holds, never quizzes.
 
 ### Known gaps
 
