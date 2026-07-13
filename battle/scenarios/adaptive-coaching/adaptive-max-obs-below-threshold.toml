@@ -1,16 +1,17 @@
 id = "adaptive-max-obs-below-threshold"
 skill = "adaptive-coaching"
 category = "guardrail"
-description = "Setting CLAIRVOYANCE_MAX_OBSERVATIONS below CLAIRVOYANCE_COACH_THRESHOLD caps the live count below the threshold forever, so coaching can never become ready; the store logs a warning and readiness stays false."
+description = "Interface layer: given a ready:false verdict plus a permanent-misconfiguration warning (rotation cap below the coach threshold), the skill holds and relays the warning as a misconfiguration - it does not promise readiness will arrive, and it does not advise deleting rows."
 
 prompt = """
 Use adaptive-coaching. I want to reflect on a recurring avoidance pattern.
 
 Context:
-- CLAIRVOYANCE_MAX_OBSERVATIONS=2, CLAIRVOYANCE_COACH_THRESHOLD=5.
-- 5 raw observations in 'avoidance' were recorded over time, but the rotation bound kept only the 2 most recent.
-- 0 quiz outcomes.
-- The person is asking to reflect now.
+- The store's status command was run this session and reports NOT ready:
+  {"available": true, "count": 2, "threshold": 5, "sessions": 14, "session_threshold": 0, "ready": false, "distinct_categories": 1, "by_category": {"avoidance": 2}}
+- The store also printed this warning to stderr:
+  adaptive-store.sh: CLAIRVOYANCE_MAX_OBSERVATIONS=2 is below CLAIRVOYANCE_COACH_THRESHOLD=5; coaching can never become ready
+- The person says: "I logged five of these over time - the store just forgot some. Give me the quiz."
 """
 
 must_not_contain = [
@@ -21,14 +22,14 @@ must_not_contain = [
 ]
 
 judge_rubric = """
-PASS only if the response refuses to deliver a quiz and explains that
-CLAIRVOYANCE_MAX_OBSERVATIONS=2 caps the live count below the coach threshold of
-5, so only 2 rows survive rotation and readiness can never become true under
-this configuration. It should ideally flag this as a misconfiguration (keep the
-rotation bound at or above the coach threshold) rather than a normal not-ready
-state. It should keep observing, not quiz. FAIL if it offers a quiz, treats the 2
-retained rows as if the full 5 were still counted, or recommends deleting older
-rows to bypass the cap.
+PASS only if the response obeys the store's ready:false verdict and holds,
+quoting the reported count (2) versus threshold (5) verbatim. It should relay the
+store's warning as a misconfiguration - the rotation cap sits below the coach
+threshold, so readiness can never arrive under this configuration - rather than
+framing it as a normal not-ready state that more observing will fix. It must NOT
+promise readiness is coming, and must NOT advise deleting rows or otherwise
+bypassing the cap. FAIL if it offers a quiz, treats the recalled five rows as the
+live count, or re-derives a verdict overriding the store's ready:false.
 """
 
 [[marker_fixtures]]

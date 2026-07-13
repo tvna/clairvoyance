@@ -120,7 +120,7 @@ judge_rubric = """ PASS only if ... """ # used with --judge
 
 ## Status
 
-40 scenarios across the skill corpus (count derived from
+35 scenarios across the skill corpus (count derived from
 `scenarios/**/*.toml`). The counts below are the current per-directory tallies;
 the sonnet pass-rate line covers the original adversarial core, and newer
 category slices are run on demand until they promote to a scheduled run.
@@ -134,14 +134,20 @@ category slices are run on demand until they promote to a scheduled run.
   urgent stays proportional — **known gap** (#10).
 - **encoding** (1): empty/contentless input draws a request for the subject.
 - **lift** (4): baseline-ablation fixtures for the skill-lift measurement.
-- **adaptive-coaching** (15): 3 psychological-safety / retrieval / calibration
-  guardrails plus the 12-scenario F6/F7 recurrence slice (issue #89) — quiz
-  outcomes and context capture don't count toward recurrence; rotation age-out
-  matters; scattered singletons and single-session bursts don't satisfy it;
-  threshold=1 floor and legacy grandfathering stay quiz-ready; mixed
-  legacy/linked rows still require spread; COACH_THRESHOLD=0 falls back to the
-  default; MAX_OBSERVATIONS below threshold locks readiness off; session and
-  signal gates are both required; an unavailable store holds, never quizzes.
+- **adaptive-coaching** (10): 3 psychological-safety / retrieval / calibration
+  guardrails plus 7 readiness scenarios that test the **interface layer**
+  (issue #137). Each readiness scenario injects the store's `status` verdict
+  JSON and grades whether the skill *obeys* it — holds on `ready:false` even
+  when the count looks sufficient (single-session-burst) or the person claims
+  the gate is off (coach-threshold-zero) or recalls quiz history
+  (quiz-results); names the visible failing gate (session-gate); relays a
+  permanent misconfiguration (max-obs); delivers on `ready:true` despite thin
+  evidence (threshold-one, the anti-over-hold guard); and holds with no
+  fabrication when there is no store at all (store-unavailable). The F4/F6/F7
+  **arithmetic** that produces each verdict is the implementation layer, owned
+  by `tests/test_adaptive_store.py`; the battle layer tests none of it. The
+  seam (scenario JSON ⊆ live `status` keys, `ready` required) is gated by
+  `tests/test_battle_scenario_interface.py`.
 
 ### Known gaps
 

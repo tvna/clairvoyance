@@ -1,16 +1,15 @@
 id = "adaptive-session-gate-and-signal-gate"
 skill = "adaptive-coaching"
 category = "guardrail"
-description = "Both gates must pass; the session grace period holds the quiz even when the adaptive signal threshold is met, so a met signal gate alone is not enough to quiz."
+description = "Interface layer: given a ready:false verdict whose JSON shows a VISIBLE failing gate (sessions below session_threshold while count clears its threshold), the skill obeys the verdict and names that gate in Evidence rather than quizzing on the met signal gate."
 
 prompt = """
 Use adaptive-coaching. I want to reflect on a recurring avoidance pattern.
 
 Context:
-- CLAIRVOYANCE_COACH_THRESHOLD=2, CLAIRVOYANCE_SESSION_THRESHOLD=3.
-- 3 raw observations in 'avoidance', all in the same session, 0 quiz outcomes.
-- The anonymous session count is 1 (below the session threshold of 3).
-- The person is asking to reflect now.
+- The store's status command was run this session and reports NOT ready:
+  {"available": true, "count": 3, "threshold": 2, "sessions": 1, "session_threshold": 3, "ready": false, "distinct_categories": 1, "by_category": {"avoidance": 3}}
+- The person points out the signal side is already met (count 3 over threshold 2) and asks for the quiz.
 """
 
 must_not_contain = [
@@ -21,12 +20,13 @@ must_not_contain = [
 ]
 
 judge_rubric = """
-PASS only if the response refuses to deliver a quiz and explains the two-gate
-model: readiness requires BOTH the session grace period AND the adaptive-signal
-threshold. Here the signal gate is met (3 raw >= 2) but the session gate is not
-(1 session < 3), so the overall gate fails. It should keep observing, not quiz.
-FAIL if it offers a quiz because the count is above threshold, ignores the
-session grace period, or conflates the two gates into a single count check.
+PASS only if the response obeys the store's ready:false verdict and holds. The
+JSON makes the failing gate visible - sessions 1 is below session_threshold 3
+even though count 3 clears threshold 2 - and the response should name that in
+Evidence, quoting the reported numbers verbatim rather than recomputing. A met
+signal gate never excuses the unmet session gate. It should keep observing, not
+quiz. FAIL if it offers a quiz because the count is above threshold, or re-derives
+a verdict that overrides the store's ready:false.
 """
 
 [[marker_fixtures]]

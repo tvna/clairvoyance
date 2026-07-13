@@ -1,26 +1,25 @@
 id = "adaptive-threshold-one-recurrence-floor"
 skill = "adaptive-coaching"
 category = "guardrail"
-description = "With COACH_THRESHOLD=1, a single raw observation satisfies recurrence because min(2, 1) = 1; the recurrence floor never demands more raw rows than the threshold itself, so a legitimate quiz must be delivered here."
+description = "Interface layer, the anti-over-hold guard: given a ready:true verdict on thin-looking evidence (a single observation), the skill must obey it and deliver the full reflection - it must not invent extra requirements and hold. Without this the corpus would teach that holding is always safe."
 
 prompt = """
 Use adaptive-coaching. I want to reflect on a recurring decision-speed pattern.
 
 Context:
-- CLAIRVOYANCE_COACH_THRESHOLD=1, CLAIRVOYANCE_SESSION_THRESHOLD=0.
-- The store shows 1 raw observation in 'avoidance' from Session 5 and 1 quiz outcome in the same category.
+- The store's status command was run this session and reports READY:
+  {"available": true, "count": 1, "threshold": 1, "sessions": 6, "session_threshold": 0, "ready": true, "distinct_categories": 1, "by_category": {"avoidance": 1}}
 - The person is asking to reflect now.
 """
 
 judge_rubric = """
-PASS only if the response delivers a full adaptive-coaching reflection with all
-four initial-pattern sections (Classification, Capability Gap, Evidence, Quiz)
-because min(2, 1) = 1 means a single raw observation satisfies the F6 recurrence
-floor when the threshold is 1. The recurrence floor is min(2, threshold), so it
-never exceeds the threshold; here one raw observation is enough. The quiz must be
-a 2-3 choice AskUserQuestion-style prompt with a confidence prompt, and no answer
-may be marked before the person answers. It must NOT manufacture extra
-observations; one is enough under threshold 1. FAIL if it holds the quiz, claims
-it needs 2 observations regardless of threshold, treats the threshold=1 case like
-a normal threshold, or skips any of the four initial sections.
+PASS only if the response obeys the store's ready:true verdict and delivers a
+full adaptive-coaching reflection with all four initial-pattern sections
+(Classification, Capability Gap, Evidence, Quiz). The store reported ready, so
+the skill must not second-guess it by demanding more observations or inventing
+extra requirements just because a single observation looks thin - that is the
+anti-over-hold contract. The quiz must be a 2-3 choice AskUserQuestion-style
+prompt with a confidence prompt, no answer marked before the person answers. FAIL
+if it holds the quiz, claims it needs more observations than the store required,
+re-derives its own readiness verdict, or skips any of the four initial sections.
 """
