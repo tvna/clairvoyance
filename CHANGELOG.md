@@ -1,3 +1,9 @@
+## [0.6.0](https://github.com/tvna/clairvoyance/compare/plugin-v0.5.1...plugin-v0.6.0) (2026-07-13)
+
+### feat
+
+* **plugin:** elicit and enforce a token budget before multi-agent workflows (Closes #132) (#133) ([](https://github.com/tvna/clairvoyance/commit/c33fd9f609e131f73bb85335c16f8686d3ec1e15)), closes [#132](https://github.com/tvna/clairvoyance/issues/132) [#133](https://github.com/tvna/clairvoyance/issues/133) [#126](https://github.com/tvna/clairvoyance/issues/126) [#132](https://github.com/tvna/clairvoyance/issues/132) [#132](https://github.com/tvna/clairvoyance/issues/132) [#133](https://github.com/tvna/clairvoyance/issues/133)
+
 ## [0.5.1](https://github.com/tvna/clairvoyance/compare/plugin-v0.5.0...plugin-v0.5.1) (2026-07-07)
 
 ### fix
