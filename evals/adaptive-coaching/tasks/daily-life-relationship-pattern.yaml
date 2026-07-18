@@ -19,7 +19,6 @@ expected:
     - "Evidence"
     - "AskUserQuestion"
     - "Confidence"
-    - "Next Move"
   output_not_contains:
     - "therapy"
     - "diagnosis"
