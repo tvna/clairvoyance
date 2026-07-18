@@ -131,6 +131,11 @@ fail.
 The store is **trigger evidence, not a transcript.** "Anonymous" here means
 content-scrubbed coded metadata (no prompt, code, or paths) held locally on the
 person's own machine and never transmitted — not a de-identified shared dataset.
+The response around a record operation follows the same privacy boundary: never
+repeat pasted secrets, tokens, keys, raw code, file paths, or project/scenario
+identifiers back to the person. Say that the observation was recorded, or would
+be recorded, as a redacted category-level signal; do not quote the raw trigger
+text as confirmation.
 
 By default it answers *"is there enough recurring signal of this kind to coach
 fairly now?"*, not *"what exactly happened"* — the concrete scenario is rebuilt

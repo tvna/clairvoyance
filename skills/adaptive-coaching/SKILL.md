@@ -15,7 +15,7 @@ The recurring gap can come from any domain where adaptive work is an appropriate
 
 ## Recording observations
 
-Whenever a recurring capability gap surfaces, record it as anonymous coded signal — never prompt text or code, though opt-in context capture can add an abstracted, secret-free scenario summary (see the store reference) — so a later reflection has data. This logging is passive: it does not coach and does not quiz. Record commands, categories, and storage details are in [the store reference](references/store.md).
+Whenever a recurring capability gap surfaces, record it as anonymous coded signal — never prompt text or code, though opt-in context capture can add an abstracted, secret-free scenario summary (see the store reference) — so a later reflection has data. This logging is passive: it does not coach and does not quiz. When recording, do not echo pasted secrets, credentials, tokens, keys, raw code, file paths, or project identifiers back to the person; acknowledge only that a redacted/category-level observation was recorded or would be recorded. Record commands, categories, and storage details are in [the store reference](references/store.md).
 
 ## Reflection quiz (on request)
 
@@ -51,6 +51,8 @@ Only after the person answers, continue with:
 Initial pattern: **Classification** -> **Capability Gap** -> **Evidence** -> **Quiz**. Then wait for the person's answer and confidence. Post-answer pattern: **Feedback** -> **Calibration** -> **Review Again** -> **Next Move**. When the store is not `ready`, emit only **Classification**, **Evidence** (insufficient signal), and **Next Move** (keep observing) — do not quiz.
 
 When the person sounds worried, defensive, ashamed, or likely to disengage — including when they voice this directly — the initial pattern is preceded by a short heat-lowering preamble (2-3 sentences, observation-based language such as "I notice..." or "I am reading this as...") that acknowledges the concern and states the reflection is opt-in — before **Classification**, not folded into it. In that case, phrase **Classification** and **Capability Gap** as tentative observations ("this reads as...", "the pattern suggests...") rather than findings or a diagnosis.
+
+For recording-only requests, keep the response short and content-minimal: state the category-level signal and whether context was omitted or stored only as a redacted abstract. Never repeat a secret or unsafe detail from the request to prove you saw it; redaction applies to the conversational response as well as to persisted context.
 
 ## Psychological safety contract
 
