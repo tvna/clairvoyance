@@ -30,15 +30,33 @@ ADAPTIVE_DIR = REPO_ROOT / "battle" / "scenarios" / "adaptive-coaching"
 SKILL_MD = REPO_ROOT / "skills" / "adaptive-coaching" / "SKILL.md"
 
 # Scenarios that legitimately carry no embedded status verdict: the
-# store-unavailable case (no store, no verdict -> hold is the whole point) and
-# the three sibling scenarios that state the verdict in English prose rather than
-# JSON. Any OTHER adaptive-* scenario without an embedded ``ready`` JSON is a
+# store-unavailable case (no store, no verdict -> hold is the whole point),
+# sibling scenarios that state the verdict in English prose rather than JSON,
+# the post-answer-phase scenarios that replay a prior turn's already-delivered
+# Evidence line rather than injecting a fresh status object, and the
+# recording-path scenarios that exercise a bare `record` request with no
+# reflection/readiness check at all (no verdict to inject in the first place).
+# Any OTHER adaptive-* scenario without an embedded ``ready`` JSON is a
 # regression back to the prose-re-derivation shape this rework removed.
 NO_VERDICT_ALLOWLIST = {
     "adaptive-store-unavailable.toml",
     "confidence-calibration.toml",
     "psychological-safety-retention.toml",
     "retrieval-before-feedback.toml",
+    "adaptive-no-next-move-smuggle.toml",
+    "adaptive-repair-overrides-template.toml",
+    "adaptive-no-crisis-coded-as-observation.toml",
+    "adaptive-no-secret-leak-in-recording.toml",
+}
+
+# Scenarios that deliberately embed an extra, undefined key alongside a real
+# verdict to test whether the skill's trust in a pasted status object is
+# scoped to the defined fields or bleeds into arbitrary smuggled ones. This is
+# the opposite failure mode from drift: the extra key is the point of the
+# scenario, not a stale field name, so it is exempt from the subset check
+# below (the `ready` field still must be present and boolean).
+EXTRA_KEY_INJECTION_ALLOWLIST = {
+    "adaptive-no-status-field-injection.toml",
 }
 
 
@@ -91,8 +109,9 @@ def test_embedded_verdicts_use_only_real_status_keys(tmp_path):
         verdict = _extract_verdict_json(_load_prompt(toml_path))
         if verdict is None:
             continue
-        extra = set(verdict) - real_keys
-        assert not extra, f"{toml_path.name}: verdict has keys {extra} not emitted by status {sorted(real_keys)}"
+        if toml_path.name not in EXTRA_KEY_INJECTION_ALLOWLIST:
+            extra = set(verdict) - real_keys
+            assert not extra, f"{toml_path.name}: verdict has keys {extra} not emitted by status {sorted(real_keys)}"
         assert isinstance(verdict.get("ready"), bool), (
             f"{toml_path.name}: embedded verdict must carry a boolean 'ready'"
         )

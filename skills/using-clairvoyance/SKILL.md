@@ -28,8 +28,8 @@ Route:
 - PR, commit, branch, review verdict, "should this merge?", or LGTM sought on a concrete, inspectable change -> `clairvoyance:review-verdict`.
 - Architecture judgment, system trade-off, or failure-mode analysis -> `clairvoyance:architecture-tradeoff`.
 - A single decision in the moment: LGTM sought without an inspectable change, missing subject, noisy input, sycophancy pressure, or a decision without architecture understanding -> `clairvoyance:decision-coaching`.
-- A request to reflect or do a retrospective on one's own recurring patterns -> `clairvoyance:adaptive-coaching`, which delivers a reflection quiz when enough signal has accumulated.
-- A recurring capability gap surfacing mid-task (repeated deferral, avoidance, a technical fix standing in for an owner call) -> `clairvoyance:adaptive-coaching` to record it as anonymous local signal — record only, never a quiz.
+- A request to reflect or do a retrospective on one's own recurring patterns in any domain where adaptive work is an appropriate frame -> `clairvoyance:adaptive-coaching`, which delivers a reflection quiz when enough signal has accumulated.
+- A recurring capability gap surfacing mid-task or elsewhere (repeated deferral, avoidance, a technical fix standing in for an owner call, asking others to script a move the person needs to own) -> `clairvoyance:adaptive-coaching` to record it as anonymous local signal — record only, never a quiz.
 - High-blast-radius, irreversible, or compliance-violating instruction (the human harness) -> `clairvoyance:human-harness`.
 - An explicit request to visualize a handoff, plan, or system state (a diagram, UML, graph, "show me visually") is **not a route**: first choose the base handoff from the bullets above as if no diagram had been asked, then also load `clairvoyance:visual-handoff` — both skills load, and the base skill's headings stay. Never push a diagram unrequested.
 

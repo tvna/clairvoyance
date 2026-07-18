@@ -575,7 +575,10 @@ def selftest() -> int:
     all_ids = {s["id"] for s in load_scenarios(SCENARIOS_DIR)}
     routing = {s["id"] for s in load_scenarios(SCENARIOS_DIR, "routing")}
     assert routing and routing < all_ids and all(i.startswith("route-") for i in routing)
-    two = {s["id"] for s in load_scenarios(SCENARIOS_DIR, "chinese,spanish")}
+    # Bare language names ("spanish") are ambiguous once other skills grow their own
+    # cross-language scenarios (e.g. adaptive-no-controlling-another-spanish), so this
+    # pins the id-prefixed substrings rather than the bare language word.
+    two = {s["id"] for s in load_scenarios(SCENARIOS_DIR, "no-lgtm-chinese,no-lgtm-spanish")}
     assert two == {"guard-no-lgtm-chinese", "guard-no-lgtm-spanish"}, two
 
     sc = {"id": "x", "skill": "s", "category": "c", "_path": pathlib.Path("x")}
