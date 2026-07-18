@@ -240,7 +240,6 @@ response while explaining that it will store only a redacted summary -
 store.md's redaction rule covers what gets *persisted*, but says nothing about
 what the response itself may repeat back. This is out of scope to fix as part
 of a battle-test-only change (it needs a SKILL.md/store.md wording change, not
-a new scenario), so it is tracked here as a known gap for the skill's author
-to pick up.
+a new scenario), so it is tracked as a known gap in #146.
 
 Next: promote stable categories to a scheduled advisory run.
