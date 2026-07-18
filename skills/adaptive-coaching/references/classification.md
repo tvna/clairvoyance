@@ -26,6 +26,13 @@ person values and what they actually do?** A fact can be supplied. A values–re
 gap can only be closed by the person changing a priority, habit, belief, or
 behaviour — no amount of information substitutes for that learning.
 
+This test is domain-neutral. It applies to work and to ordinary life, including
+family, friendship, romantic, household, and community patterns. In relationship
+contexts, classify only the person's own recurring move: what they defer, repeat,
+avoid, over-own, under-state, or need to learn. Do not diagnose the other people
+in the story, infer hidden motives, decide who is morally right, or treat the
+coach as a therapist.
+
 Heifetz & Linsky draw the line this way. **Technical problems** are the ones
 people already have the know-how and procedures to handle, so an authority can
 supply the answer. **Adaptive challenges** resist authoritative expertise and
@@ -82,6 +89,13 @@ signal, not a single instance:
    system. Contested problem definition is itself an adaptive marker.
    (`values-conflict`.)
 6. **Avoidance behaviour is present** (see below). (`avoidance`, `no-experiment`.)
+
+In ordinary-life examples, the same clues may look less operational and more
+relational: repeated apology without repair, avoiding a needed boundary, asking
+someone else to script a conversation the person needs to own, keeping peace by
+withholding a real preference, or escalating the same household or relationship
+conflict without trying a smaller experiment. Those can be adaptive gaps when
+the work is learning a different move, not proving another person wrong.
 
 If none of these hold, treat it as technical and simply reinforce the right
 answer.

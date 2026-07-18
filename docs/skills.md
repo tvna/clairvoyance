@@ -26,8 +26,10 @@ exactly one human-facing handoff skill for the moment at hand:
   or architecture-poor input; it refuses to rubber-stamp and coaches a sound call
   with a focused question.
 - **`adaptive-coaching`** — works across sessions on a person's *recurring* capability
-  gaps (a misunderstood technical challenge or an adaptive one — a value, habit, or
-  belief). It logs those gaps as anonymous local signal, and — only when the person
+  gaps in work or daily life (a misunderstood technical challenge or an adaptive
+  one — a value, habit, or belief). Family, friendship, romantic, household, and
+  community patterns are in scope when the person is reflecting on their own repeated
+  moves. It logs those gaps as anonymous local signal, and — only when the person
   asks to **reflect** (a retrospective) — turns the accumulated signal into a
   prosthesis-building `AskUserQuestion` quiz, classifying the technical-versus-adaptive
   split to shape it. The quiz is never pushed: it fires on the person's own request,

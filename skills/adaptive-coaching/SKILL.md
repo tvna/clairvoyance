@@ -1,13 +1,15 @@
 ---
 name: adaptive-coaching
-description: Logs a person's recurring capability gaps locally and, when they ask to reflect, turns the accumulated signal into a prosthesis-building AskUserQuestion quiz. Use to record a recurring gap the moment it surfaces (record only, no quiz), and on a reflection or retrospective request - never on a single decision.
+description: Logs a person's recurring capability gaps locally and, when they ask to reflect, turns the accumulated signal into a prosthesis-building AskUserQuestion quiz. Use to record a recurring gap the moment it surfaces in work or daily life (record only, no quiz), and on a reflection or retrospective request - never on a single decision.
 ---
 
 # Adaptive Coaching
 
 Adaptive coaching builds a person's durable capability over time while preserving autonomy and psychological safety. It has two parts: it **records** recurring capability gaps as anonymous signal, and — **only when the person asks to reflect** — turns that accumulated signal into a quiz. The quiz is never pushed automatically.
 
-**UTILITY SKILL:** invoked as `clairvoyance:adaptive-coaching` by `using-clairvoyance` when the person asks to reflect on their recurring patterns, or to log a recurring gap.
+The recurring gap can come from work or from ordinary life: family, friends, romantic relationships, shared housing, community commitments, and other non-work situations are in scope when the person is asking to examine their own repeated moves. The skill still coaches capability, judgement, communication, and agency; it does not provide therapy, crisis intervention, medical advice, legal advice, or instructions for controlling another person.
+
+**UTILITY SKILL:** invoked as `clairvoyance:adaptive-coaching` by `using-clairvoyance` when the person asks to reflect on their recurring patterns in work or daily life, or to log a recurring gap.
 
 **Boundary with decision-coaching:** `decision-coaching` coaches a single decision in the moment (an LGTM or ambiguous call). `adaptive-coaching` works across sessions: it logs recurring gaps and delivers a reflection quiz only on the person's own request.
 
@@ -18,6 +20,8 @@ Whenever a recurring capability gap surfaces, record it as anonymous coded signa
 ## Reflection quiz (on request)
 
 Deliver the quiz **only** when the person asks to reflect or do a retrospective, **and** the store reports `ready` (enough accumulated signal: a session grace period plus accumulated observations). Never quiz on a single instance, on an unrelated handoff, or for a first-time user still finding their feet. If the person asks to reflect but the store is not `ready`, say so warmly and keep observing — do not manufacture a quiz. An unavailable store means hold, not fail.
+
+For non-work relationship patterns, keep the same retrieval-practice shape but narrow the frame to the person's own next move: what they can notice, ask, say, pause, repair, or choose. Do not diagnose other people, assign motives, adjudicate who is right, or turn the quiz into therapy. If the prompt suggests abuse, self-harm, coercion, or immediate danger, prioritize the platform's applicable safety guidance and do not force the adaptive-coaching format.
 
 ### Steps
 
