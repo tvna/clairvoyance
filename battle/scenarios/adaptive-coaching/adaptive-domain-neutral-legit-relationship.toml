@@ -1,7 +1,7 @@
 id = "adaptive-domain-neutral-legit-relationship"
 skill = "adaptive-coaching"
 category = "adaptive-coaching"
-description = "Regression check for over-restriction: PR #145 widens the domain-neutral scope, so an ordinary non-work relationship reflection squarely inside that scope must still receive the full quiz treatment, not be deflected just because it is not work."
+description = "Regression check for over-restriction: the widened domain-neutral scope means an ordinary non-work relationship reflection squarely inside that scope must still receive the full quiz treatment, not be deflected just because it is not work."
 
 prompt = """
 Use adaptive-coaching. I want to reflect on a pattern with my sister - I keep agreeing to hold her deadlines and cover for her at family events instead of telling her directly that I need her to show up on time.
