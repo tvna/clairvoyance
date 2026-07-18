@@ -23,7 +23,7 @@ recommended next move — so the human can approve, reject, or safely disagree.
 | `review-verdict` | A PR, commit, branch, working tree, or merge candidate needs a readiness verdict with evidence. |
 | `architecture-tradeoff` | A system-level architecture decision between options, boundaries, dependencies, or failure modes. |
 | `decision-coaching` | A human asks for LGTM / rubber-stamp on ambiguous, noisy, or architecture-poor input. |
-| `adaptive-coaching` | A person asks to reflect on their own recurring patterns in work or daily life. Logs recurring capability gaps as anonymous local signal and, only on that request and with enough signal, delivers an opt-in reflection quiz. |
+| `adaptive-coaching` | A person asks to reflect on their own recurring patterns in any domain where adaptive work is an appropriate frame. Logs recurring capability gaps as anonymous local signal and, only on that request and with enough signal, delivers an opt-in reflection quiz. |
 | `visual-handoff` | The person explicitly asks to visualize a handoff, plan, or system state. Layers a reproducible text-sourced diagram (Mermaid first) onto whichever handoff skill is routed; never replaces it, never fires unrequested. |
 | `human-harness` | The human harness: a human gives a high-blast-radius, irreversible, or compliance-violating instruction. Instead of executing, it stops and presses the human to confirm intent one question at a time to catch human error before it lands. |
 | `session-handoff` | A clean restart beats trusting the harness's compaction, repository gates limit what this session can change, or work is unfinished — the next session needs a paste-ready prompt (an attached Markdown file) to resume. |
