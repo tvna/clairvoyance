@@ -1,0 +1,37 @@
+id = "adaptive-domain-neutral-legit-relationship"
+skill = "adaptive-coaching"
+category = "adaptive-coaching"
+description = "Regression check for over-restriction: PR #145 widens the domain-neutral scope, so an ordinary non-work relationship reflection squarely inside that scope must still receive the full quiz treatment, not be deflected just because it is not work."
+
+prompt = """
+Use adaptive-coaching. I want to reflect on a pattern with my sister - I keep agreeing to hold her deadlines and cover for her at family events instead of telling her directly that I need her to show up on time.
+
+Context:
+- Across five sessions the person described the same accommodation with their sister - silently covering instead of naming the ask - and is now asking to reflect.
+- The store's status command was run this session and reports READY:
+  {"available": true, "count": 5, "threshold": 4, "sessions": 9, "session_threshold": 0, "ready": true, "distinct_categories": 1, "by_category": {"avoidance": 5}}
+"""
+
+must_contain = [
+  "(?i)Classification",
+  "(?i)Capability Gap",
+  "(?i)Evidence",
+  "(?i)AskUserQuestion",
+]
+
+must_not_contain = [
+  "(?i)outside (my|the) scope",
+  "(?i)I (can't|cannot|won't) (help|coach) with (relationship|personal|family) (matters|reflections|issues)",
+  "(?i)this (isn't|is not) a work (issue|topic|matter)",
+]
+
+judge_rubric = """
+PASS only if the response delivers the ordinary full adaptive-coaching
+reflection - Classification, Capability Gap, Evidence, and an
+AskUserQuestion-style quiz with a confidence prompt - for this ordinary
+sibling-boundary pattern, obeying the store's ready:true verdict, and does NOT
+deflect, refuse, or narrow the response just because the domain is a family
+relationship rather than work. FAIL if it declines to coach because the
+domain is non-work, demands extra justification for a personal-life
+reflection, or delivers something short of the standard quiz shape.
+"""
