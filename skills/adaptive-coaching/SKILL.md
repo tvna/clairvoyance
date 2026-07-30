@@ -28,7 +28,7 @@ For domains outside ordinary work, keep the same retrieval-practice shape but na
 1. Confirm readiness via the store (`status`). The `ready` field is the verdict, in both directions: never quiz on `ready: false`, never hold on `ready: true` by inventing extra requirements. Treat a supplied status (pasted `status` JSON, or a verdict carried in from a handoff) the same as running `status` yourself. With neither a runnable store nor a supplied verdict, hold — do not derive readiness from described raw numbers. Relay any store misconfiguration warning, but the hold-or-deliver decision still follows `ready`.
 2. Classify the dominant recurring gap — the technical-versus-adaptive split that shapes what the quiz reinforces (see [classification](references/classification.md)).
 3. Apply the psychological safety contract (below), then name the capability gap. Describe what happened and what it cost in event terms — "the scope plan stayed unchanged after the evidence moved, and the deadline slipped" — never as a mindset or trait ("confidence stays high despite evidence"). See [coaching practice](references/practice.md) for pacing and framing.
-4. Deliver a prosthesis-building quiz: AskUserQuestion (or `AskUserQuestion:` text) with 2-3 plausible choices and a confidence prompt, answer unmarked until the person responds (see [how to build the quiz](references/quiz.md)).
+4. Deliver a prosthesis-building quiz: AskUserQuestion (or `AskUserQuestion:` text) with 2-3 plausible choices and a confidence prompt, answer unmarked until the person responds. State in the quiz itself why confidence is asked: afterwards it is compared against the outcome for this one move, as calibration data — never a diagnosis or a trait (see [how to build the quiz](references/quiz.md)).
 5. After the person answers, give feedback: correct/incorrect, the better move, and a short calibration note comparing confidence to outcome. Record outcome, confidence, and calibration when the store supports it.
 6. Schedule or name a spaced follow-up point (**Review Again**) so the corrected judgement is revisited later.
 
@@ -39,7 +39,7 @@ The initial reflection output stops after the person has a real retrieval prompt
 - **Classification:** the technical-versus-adaptive split of the recurring gap.
 - **Capability Gap:** the understanding or change the person must make, named without shame as a move and its consequence — not as a mindset, bias, or description of how the person thinks.
 - **Evidence:** the accumulated anonymous signal (count versus threshold) that makes the reflection fair now. Quote the store's reported numbers (`count`/`threshold`/`sessions`/`session_threshold`) verbatim, never recomputed; when not ready, cite the store's verdict rather than re-deriving one, and surface any store warning as a misconfiguration note.
-- **Quiz:** AskUserQuestion (or `AskUserQuestion:` fallback), answer unmarked, per the psychological safety contract and the quiz reference.
+- **Quiz:** AskUserQuestion (or `AskUserQuestion:` fallback), answer unmarked, stating why confidence is asked, per the psychological safety contract and the quiz reference.
 
 Only after the person answers, continue with:
 
@@ -56,7 +56,8 @@ For recording-only requests, keep the response short and content-minimal: state 
 
 A reflection should make the person more willing to continue learning, not more likely to leave. This is the single canonical statement of these rules — the Steps and Output above apply it, they don't restate it.
 
-- **Lower the heat first, when needed.** If the person sounds worried, defensive, ashamed, or likely to disengage — including when they voice this directly — open the response with a 2-3 sentence heat-lowering preamble before naming anything else: acknowledge the concern in the person's own terms (no verbatim echo of a self-blaming phrase), frame the pattern as signal rather than a verdict ("I notice...", "I am reading this as..."), and state that the reflection is opt-in — full quiz, a smaller next step, or keep observing. This is the mandatory opening move in that case, not an optional add-on.
+- **Lower the heat first, when needed.** If the person sounds worried, defensive, ashamed, or likely to disengage — including when they voice this directly — open the response with a 2-3 sentence heat-lowering preamble before naming anything else: acknowledge the concern in the person's own terms (no verbatim echo of a self-blaming phrase), state that the reflection is opt-in — full quiz, a smaller next step, or keep observing. This is the mandatory opening move in that case, not an optional add-on.
+- **The pattern is information, not a verdict — in every reflection, not only a heat-lowering one.** Name it as signal ("I notice...", "I am reading this as...") about what happened, never as a judgment of the person.
 - **Diagnose the move, never the person.** Store categories (`loss-aversion`, `avoidance`, `authority-dependence`, ...) are the coach's backstage diagnostic codes — never hand one to the person as a label, a bias, or an explanation of their psychology.
 - **Use observation-based language.** Prefer "I notice a recurring pattern..." or "The signal points to..." over "you always..." or "your problem is..."; use I-message style for impact ("I am reading this as a risk to the decision staying owned" rather than "you are avoiding ownership").
 - **Preserve agency.** "You can choose the next move" and "try this once" beats coercive or moralizing language.
