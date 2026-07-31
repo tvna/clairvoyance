@@ -93,24 +93,16 @@ Ask for confidence so feedback can train calibration, not just correctness.
 - `incorrect + low/medium confidence`: treat it as a normal learning miss and schedule a short interval.
 - `incorrect + high confidence`: name it as an overconfidence signal for this move only, not a trait or diagnosis, and schedule the shortest interval.
 
-Do not say "you have Dunning-Kruger" or diagnose the person. Say: "That is a
-calibration signal: confidence was higher than the move warranted here."
+Say it as calibration, not diagnosis: "That is a calibration signal — confidence
+was higher than the move warranted here," never a clinical label.
 
 ## Psychological safety and retention
 
-The quiz should feel like a held learning moment, not an accusation. Use a simple
-safety sequence:
-
-1. **Observation:** "I notice the same move showing up across several sessions."
-2. **Meaning:** "That makes this fair to reflect on now; it is not a verdict about you."
-3. **Choice:** "You can take the quiz, or we can keep observing and come back later."
-4. **Retrieval:** Ask the question without marking the answer.
-5. **Repair:** If the response creates defensiveness or shame, lower the heat: acknowledge it, restate the purpose, and offer a smaller next step.
-
-Use I-message style when it helps avoid blame: "I am reading this as a risk that
-the decision leaves your hands" is safer than "you are dodging the decision." Do
-not overuse "I" to center the coach; the point is to make the observation ownable
-by the person.
+Follow the psychological safety contract in SKILL.md for tone and the
+heat-lowering preamble; this quiz should feel like a held learning moment, not an
+accusation. One addition specific to quiz delivery: if the person's response
+shows defensiveness or shame after the quiz is posed, repair in the moment —
+acknowledge it, restate the purpose, and offer a smaller next step.
 
 ## Spaced follow-up
 
